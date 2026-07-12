@@ -8,6 +8,24 @@ namespace Deltos;
 /// </summary>
 public class TextFile: BaseItem
 {
+    // ● protected
+    /// <summary>
+    /// Field for the Text property.
+    /// </summary>
+    protected string fText = string.Empty;
+    /// <summary>
+    /// Field for the Text2 property.
+    /// </summary>
+    protected string fText2 = string.Empty;
+    /// <summary>
+    /// Field for the Abstraction property.
+    /// </summary>
+    protected string fAbstraction = string.Empty;
+    /// <summary>
+    /// Field for the Draft property.
+    /// </summary>
+    protected string fDraft = string.Empty;
+
     // ● private
     /// <summary>
     /// Saves a text file.
@@ -20,7 +38,7 @@ public class TextFile: BaseItem
         if (!string.IsNullOrWhiteSpace(Folder))
             System.IO.Directory.CreateDirectory(Folder);
 
-        System.IO.File.WriteAllText(FilePath, Text);
+        System.IO.File.WriteAllText(FilePath, Text ?? string.Empty);
     }
     /// <summary>
     /// Loads a text file.
@@ -33,6 +51,37 @@ public class TextFile: BaseItem
     }
 
     // ● protected
+    /// <summary>
+    /// Checks whether the required text file content files exist.
+    /// </summary>
+    protected virtual void CheckRequiredContentFiles()
+    {
+        if (!System.IO.File.Exists(TextFilePath))
+            throw new InvalidOperationException($"The text file content file does not exist: {TextFilePath}");
+    }
+    /// <summary>
+    /// Checks whether the text file storage folder contains only known content files.
+    /// </summary>
+    protected virtual void CheckStorageFolder()
+    {
+        string[] FolderPaths = System.IO.Directory.GetDirectories(FolderPath);
+        if (FolderPaths.Length > 0)
+            throw new InvalidOperationException($"Text file storage folder contains child folders: {FolderPath}");
+
+        HashSet<string> FileNames = new(StringComparer.OrdinalIgnoreCase);
+        FileNames.Add(InfoFileName);
+        FileNames.Add(TextFileName);
+        FileNames.Add(Text2FileName);
+        FileNames.Add(AbstractionFileName);
+        FileNames.Add(DraftFileName);
+
+        foreach (string FilePath in System.IO.Directory.GetFiles(FolderPath))
+        {
+            string FileName = System.IO.Path.GetFileName(FilePath);
+            if (!FileNames.Contains(FileName))
+                throw new InvalidOperationException($"Text file storage folder contains an unknown file: {FilePath}");
+        }
+    }
     /// <summary>
     /// Checks whether the text file can be renamed.
     /// </summary>
@@ -75,6 +124,8 @@ public class TextFile: BaseItem
     public override void Load()
     {
         base.Load();
+        CheckStorageFolder();
+        CheckRequiredContentFiles();
 
         Text = LoadTextFile(TextFilePath);
         Text2 = LoadTextFile(Text2FilePath);
@@ -90,6 +141,7 @@ public class TextFile: BaseItem
             throw new InvalidOperationException("This text file cannot be deleted.");
 
         string ItemFolderPath = FolderPath;
+        DeleteStorage(ItemFolderPath);
 
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
@@ -98,8 +150,6 @@ public class TextFile: BaseItem
         Folder FolderItem = Parent as Folder;
         if (FolderItem != null)
             FolderItem.DetachTextFile(this);
-
-        DeleteStorage(ItemFolderPath);
     }
     /// <summary>
     /// Updates runtime references after loading the text file.
@@ -137,10 +187,10 @@ public class TextFile: BaseItem
             BaseItem TargetContainer = GetAdjacentTextFileMoveContainer(Document, FolderItem, Up);
             Document TargetDocument = TargetContainer as Document;
             if (TargetDocument != null)
-                return !ContainsTitle(TargetDocument.Files, Title);
+                return CanAddItem(TargetDocument.Files) && !ContainsTitle(TargetDocument.Files, Title);
 
             Folder TargetFolder = TargetContainer as Folder;
-            return TargetFolder != null && !ContainsTitle(TargetFolder.Files, Title);
+            return TargetFolder != null && CanAddItem(TargetFolder.Files) && !ContainsTitle(TargetFolder.Files, Title);
         }
 
         return false;
@@ -290,17 +340,33 @@ public class TextFile: BaseItem
     /// <summary>
     /// Gets or sets the primary text.
     /// </summary>
-    public string Text { get; set; } = string.Empty;
+    public string Text
+    {
+        get => fText;
+        set => fText = value ?? string.Empty;
+    }
     /// <summary>
     /// Gets or sets the secondary text.
     /// </summary>
-    public string Text2 { get; set; } = string.Empty;
+    public string Text2
+    {
+        get => fText2;
+        set => fText2 = value ?? string.Empty;
+    }
     /// <summary>
     /// Gets or sets the abstraction text.
     /// </summary>
-    public string Abstraction { get; set; } = string.Empty;
+    public string Abstraction
+    {
+        get => fAbstraction;
+        set => fAbstraction = value ?? string.Empty;
+    }
     /// <summary>
     /// Gets or sets the draft text.
     /// </summary>
-    public string Draft { get; set; } = string.Empty;
+    public string Draft
+    {
+        get => fDraft;
+        set => fDraft = value ?? string.Empty;
+    }
 }

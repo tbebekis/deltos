@@ -8,6 +8,20 @@ namespace Deltos;
 /// </summary>
 public class Folder: BaseItem
 {
+    // ● protected
+    /// <summary>
+    /// Field for the LevelTitle property.
+    /// </summary>
+    protected string fLevelTitle = string.Empty;
+    /// <summary>
+    /// Field for the Folders property.
+    /// </summary>
+    protected List<Folder> fFolders = new();
+    /// <summary>
+    /// Field for the Files property.
+    /// </summary>
+    protected List<TextFile> fFiles = new();
+
     // ● construction
     /// <summary>
     /// Initializes a new instance of the Folder class.
@@ -24,8 +38,16 @@ public class Folder: BaseItem
     {
         base.UpdateInfo();
 
+        CheckLevelTitle();
         Info.IsFolder = true;
         Info.LevelTitle = LevelTitle;
+    }
+    /// <summary>
+    /// Checks whether the folder level title is valid.
+    /// </summary>
+    protected virtual void CheckLevelTitle()
+    {
+        AppHost.CheckValidFileName(LevelTitle);
     }
     /// <summary>
     /// Applies the item information after loading it.
@@ -114,6 +136,7 @@ public class Folder: BaseItem
             throw new InvalidOperationException("This folder cannot contain child folders.");
 
         FolderItem ChildStructureItem = StructureItem.Child;
+        CheckCanAddItem(Folders);
         CheckDuplicateTitle(Folders, Title);
 
         Folder Result = new Folder();
@@ -135,6 +158,7 @@ public class Folder: BaseItem
         if (!CanAddTextFile)
             throw new InvalidOperationException("This folder cannot contain text files.");
 
+        CheckCanAddItem(Files);
         CheckDuplicateTitle(Files, Title);
 
         TextFile Result = new TextFile();
@@ -274,10 +298,10 @@ public class Folder: BaseItem
             BaseItem TargetContainer = GetAdjacentFolderMoveContainer(Document, Parent, Level, Up, this);
             Document TargetDocument = TargetContainer as Document;
             if (TargetDocument != null)
-                return !ContainsTitle(TargetDocument.Folders, Title);
+                return CanAddItem(TargetDocument.Folders) && !ContainsTitle(TargetDocument.Folders, Title);
 
             Folder TargetFolder = TargetContainer as Folder;
-            return TargetFolder != null && !ContainsTitle(TargetFolder.Folders, Title);
+            return TargetFolder != null && CanAddItem(TargetFolder.Folders) && !ContainsTitle(TargetFolder.Folders, Title);
         }
 
         Folder FolderItem = Parent as Folder;
@@ -289,10 +313,10 @@ public class Folder: BaseItem
             BaseItem TargetContainer = GetAdjacentFolderMoveContainer(Document, Parent, Level, Up, this);
             Document TargetDocument = TargetContainer as Document;
             if (TargetDocument != null)
-                return !ContainsTitle(TargetDocument.Folders, Title);
+                return CanAddItem(TargetDocument.Folders) && !ContainsTitle(TargetDocument.Folders, Title);
 
             Folder TargetFolder = TargetContainer as Folder;
-            return TargetFolder != null && !ContainsTitle(TargetFolder.Folders, Title);
+            return TargetFolder != null && CanAddItem(TargetFolder.Folders) && !ContainsTitle(TargetFolder.Folders, Title);
         }
 
         return false;
@@ -370,6 +394,7 @@ public class Folder: BaseItem
             throw new InvalidOperationException("This folder cannot be deleted.");
 
         string ItemFolderPath = FolderPath;
+        DeleteStorage(ItemFolderPath);
 
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
@@ -378,8 +403,6 @@ public class Folder: BaseItem
         Folder FolderItem = Parent as Folder;
         if (FolderItem != null)
             FolderItem.DetachFolder(this);
-
-        DeleteStorage(ItemFolderPath);
     }
     /// <summary>
     /// Saves the folder to persistent storage.
@@ -424,6 +447,12 @@ public class Folder: BaseItem
 
         Folders = new List<Folder>();
         Files = new List<TextFile>();
+        if (!CanContainFolders)
+            CheckUnusedStorageBucket(FoldersFolderPath);
+
+        if (!CanContainTextFiles)
+            CheckUnusedStorageBucket(TextFilesFolderPath);
+
         Folders = CanContainFolders ? LoadItems<Folder>(FoldersFolderPath) : new List<Folder>();
         Files = CanContainTextFiles ? LoadItems<TextFile>(TextFilesFolderPath) : new List<TextFile>();
         UpdateReferences(Parent);
@@ -555,7 +584,21 @@ public class Folder: BaseItem
     /// <summary>
     /// Gets or sets the document level title, such as Part, Chapter, or Section.
     /// </summary>
-    public string LevelTitle { get; set; } = string.Empty;
+    public string LevelTitle
+    {
+        get => fLevelTitle;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                fLevelTitle = string.Empty;
+                return;
+            }
+
+            AppHost.CheckValidFileName(value);
+            fLevelTitle = value.Trim();
+        }
+    }
     /// <summary>
     /// Gets the zero-based folder level inside the document.
     /// </summary>
@@ -605,18 +648,26 @@ public class Folder: BaseItem
     /// Gets a value indicating whether a child folder can be added.
     /// </summary>
     [JsonIgnore]
-    public override bool CanAddFolder => CanContainFolders;
+    public override bool CanAddFolder => CanContainFolders && CanAddItem(Folders);
     /// <summary>
     /// Gets a value indicating whether a text file can be added.
     /// </summary>
     [JsonIgnore]
-    public override bool CanAddTextFile => CanContainTextFiles;
+    public override bool CanAddTextFile => CanContainTextFiles && CanAddItem(Files);
     /// <summary>
     /// Gets or sets the child folders.
     /// </summary>
-    public List<Folder> Folders { get; set; } = new();
+    public List<Folder> Folders
+    {
+        get => fFolders;
+        set => fFolders = value ?? new List<Folder>();
+    }
     /// <summary>
     /// Gets or sets the child text files.
     /// </summary>
-    public List<TextFile> Files { get; set; } = new();
+    public List<TextFile> Files
+    {
+        get => fFiles;
+        set => fFiles = value ?? new List<TextFile>();
+    }
 }

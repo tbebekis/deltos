@@ -35,24 +35,25 @@ A valid title
     /// </summary>
     static public bool IsValidFileName(string Title, bool ShowMessage)
     {
+        string TrimmedTitle = Title == null ? string.Empty : Title.Trim();
 
         bool IsValidFileNameNested()
         {
-            if (string.IsNullOrWhiteSpace(Title))
+            if (string.IsNullOrWhiteSpace(TrimmedTitle))
                 return false;
 
             char[] InvalidChars = System.IO.Path.GetInvalidFileNameChars();
 
             foreach (char c in InvalidChars)
             {
-                if (Title.Contains(c))
+                if (TrimmedTitle.Contains(c))
                     return false;
             }
 
-            if (char.IsDigit(Title[0]))
+            if (char.IsDigit(TrimmedTitle[0]))
                 return false;
 
-            if (!EnglishLettersRegex.IsMatch(Title))
+            if (!EnglishLettersRegex.IsMatch(TrimmedTitle))
                 return false;
 
             return true;

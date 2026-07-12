@@ -13,6 +13,10 @@ public class Project: BaseItem
     /// Field for the ProjectPath property.
     /// </summary>
     protected string fProjectPath = string.Empty;
+    /// <summary>
+    /// Field for the Documents property.
+    /// </summary>
+    protected List<Document> fDocuments = new();
 
     // ● construction
     /// <summary>
@@ -53,6 +57,9 @@ public class Project: BaseItem
         if (!System.IO.Path.IsPathFullyQualified(ProjectPath))
             throw new InvalidOperationException($"The project storage path is not absolute: {ProjectPath}");
 
+        if (System.IO.File.Exists(ProjectPath))
+            throw new InvalidOperationException($"The project storage path points to a file: {ProjectPath}");
+
         if (ShouldExist && !System.IO.Directory.Exists(ProjectPath))
             throw new InvalidOperationException($"The project storage path does not exist: {ProjectPath}");
     }
@@ -81,6 +88,9 @@ public class Project: BaseItem
 
             if (ExistingInfo.Type != ItemType.Project)
                 throw new InvalidOperationException($"The project storage path contains a non-project information file: {InfoFilePath}");
+
+            if (!ExistingInfo.Id.IsSameText(Id))
+                throw new InvalidOperationException($"The project storage path belongs to a different project: {ProjectPath}");
 
             return;
         }
@@ -113,7 +123,19 @@ public class Project: BaseItem
         }
         else if (string.IsNullOrWhiteSpace(Title))
         {
-            Title = System.IO.Path.GetFileName(ProjectPath);
+            Title = DecodeTitle(System.IO.Path.GetFileName(ProjectPath));
+        }
+    }
+    /// <summary>
+    /// Checks whether the project item graph has duplicate ids.
+    /// </summary>
+    protected virtual void CheckDuplicateItemIds()
+    {
+        HashSet<string> Ids = new(StringComparer.OrdinalIgnoreCase);
+        foreach (BaseItem Item in GetDescendantItems(true))
+        {
+            if (!Ids.Add(Item.Id))
+                throw new InvalidOperationException($"Duplicate item id in project: {Item.Id}");
         }
     }
 
@@ -156,6 +178,9 @@ public class Project: BaseItem
     static public Project Create(string ParentFolderPath, string Title)
     {
         string StoragePath = GetProjectFolderPath(ParentFolderPath, Title);
+        if (System.IO.File.Exists(StoragePath))
+            throw new InvalidOperationException($"A file already exists at the project storage path: {StoragePath}");
+
         if (System.IO.Directory.Exists(StoragePath) && System.IO.Directory.EnumerateFileSystemEntries(StoragePath).Any())
             throw new InvalidOperationException($"The project storage path is not empty: {StoragePath}");
 
@@ -206,6 +231,7 @@ public class Project: BaseItem
     /// <returns>The added document.</returns>
     public override Document AddDocument(string Title)
     {
+        CheckCanAddItem(Documents);
         CheckDuplicateTitle(Documents, Title);
 
         Document Result = new Document();
@@ -228,6 +254,7 @@ public class Project: BaseItem
             throw new ArgumentNullException(nameof(Structure));
 
         Structure.CheckValid();
+        CheckCanAddItem(Documents);
         CheckDuplicateTitle(Documents, Title);
 
         Document Result = new Document();
@@ -286,6 +313,7 @@ public class Project: BaseItem
         System.IO.Directory.CreateDirectory(FolderPath);
         RenumberChildren();
         UpdateReferences(null);
+        CheckDuplicateItemIds();
         base.Save();
 
         System.IO.Directory.CreateDirectory(DocumentsFolderPath);
@@ -305,6 +333,7 @@ public class Project: BaseItem
 
         Documents = LoadItems<Document>(DocumentsFolderPath);
         UpdateReferences(null);
+        CheckDuplicateItemIds();
     }
     /// <summary>
     /// Renames the project.
@@ -315,9 +344,22 @@ public class Project: BaseItem
         if (!CanRename())
             throw new InvalidOperationException("This project cannot be renamed.");
 
-        Title = NewTitle;
-        if (CanPersistStorage())
-            SaveInfo();
+        string OldTitle = Title;
+        try
+        {
+            Title = NewTitle;
+            if (CanPersistStorage())
+            {
+                CheckProjectPath(false);
+                CheckProjectSaveFolder();
+                SaveInfo();
+            }
+        }
+        catch
+        {
+            Title = OldTitle;
+            throw;
+        }
     }
     /// <summary>
     /// Returns true if the project can be deleted from its parent.
@@ -412,7 +454,12 @@ public class Project: BaseItem
     /// Gets a value indicating whether a document can be added to this item.
     /// </summary>
     [JsonIgnore]
-    public override bool CanAddDocument => true;
+    public override bool CanAddDocument => CanAddItem(Documents);
+    /// <summary>
+    /// Gets a value indicating whether a structured document can be added to this item.
+    /// </summary>
+    [JsonIgnore]
+    public override bool CanAddStructuredDocument => CanAddItem(Documents);
     /// <summary>
     /// Gets or sets the project root folder path.
     /// </summary>
@@ -422,6 +469,11 @@ public class Project: BaseItem
         get => fProjectPath;
         set => fProjectPath = NormalizeProjectPath(value);
     }
+    /// <summary>
+    /// Gets the parent folder path that contains the project root folder.
+    /// </summary>
+    [JsonIgnore]
+    public string ParentFolderPath => string.IsNullOrWhiteSpace(ProjectPath) ? string.Empty : System.IO.Path.GetDirectoryName(ProjectPath);
     /// <summary>
     /// Gets the file-system folder path of the project.
     /// </summary>
@@ -440,5 +492,9 @@ public class Project: BaseItem
     /// <summary>
     /// Gets or sets the project documents.
     /// </summary>
-    public List<Document> Documents { get; set; } = new();
+    public List<Document> Documents
+    {
+        get => fDocuments;
+        set => fDocuments = value ?? new List<Document>();
+    }
 }

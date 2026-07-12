@@ -8,6 +8,16 @@ namespace Deltos;
 /// </summary>
 public class FolderItem
 {
+    // ● protected
+    /// <summary>
+    /// Field for the Title property.
+    /// </summary>
+    protected string fTitle = string.Empty;
+    /// <summary>
+    /// Field for the Child property.
+    /// </summary>
+    protected FolderItem fChild;
+
     // ● construction
     /// <summary>
     /// Initializes a new instance of the FolderItem class.
@@ -29,6 +39,23 @@ public class FolderItem
         VisitedItems.Add(this);
         AppHost.CheckValidFileName(Title);
         Child?.CheckValid(VisitedItems);
+    }
+    /// <summary>
+    /// Clones this folder item and its child items.
+    /// </summary>
+    /// <param name="VisitedItems">The visited source folder items.</param>
+    /// <returns>The cloned folder item.</returns>
+    FolderItem Clone(HashSet<FolderItem> VisitedItems)
+    {
+        if (VisitedItems.Contains(this))
+            throw new InvalidOperationException("The folder structure contains a cycle.");
+
+        VisitedItems.Add(this);
+
+        FolderItem Result = new FolderItem();
+        Result.Title = Title;
+        Result.Child = Child?.Clone(VisitedItems);
+        return Result;
     }
 
     // ● public
@@ -54,6 +81,16 @@ public class FolderItem
         {
             return false;
         }
+    }
+    /// <summary>
+    /// Clones this folder item graph.
+    /// </summary>
+    /// <returns>The cloned folder item graph.</returns>
+    public FolderItem Clone()
+    {
+        FolderItem Result = Clone(new HashSet<FolderItem>());
+        Result.UpdateReferences(null);
+        return Result;
     }
     /// <summary>
     /// Updates runtime references after loading the folder item graph.
@@ -86,9 +123,35 @@ public class FolderItem
     /// <summary>
     /// Gets or sets the child folder item.
     /// </summary>
-    public FolderItem Child { get; set; }
+    public FolderItem Child
+    {
+        get => fChild;
+        set
+        {
+            if (fChild != null && ReferenceEquals(fChild.Parent, this))
+                fChild.Parent = null;
+
+            fChild = value;
+            if (fChild != null)
+                fChild.Parent = this;
+        }
+    }
     /// <summary>
     /// Gets or sets the display title of a folder item, such as Part, Chapter, or Section.
     /// </summary>
-    public string Title { get; set; } = string.Empty;
+    public string Title
+    {
+        get => fTitle;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                fTitle = string.Empty;
+                return;
+            }
+
+            AppHost.CheckValidFileName(value);
+            fTitle = value.Trim();
+        }
+    }
 }

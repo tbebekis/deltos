@@ -71,6 +71,7 @@ public class ProjectStorageTests
 
             Assert.Equal("Created Project", Project.Title);
             Assert.Equal(ProjectPath, Project.ProjectPath);
+            Assert.Equal(ParentFolderPath, Project.ParentFolderPath);
             Assert.True(Directory.Exists(ProjectPath));
             Assert.True(File.Exists(Path.Combine(ProjectPath, BaseItem.InfoFileName)));
             Assert.True(Directory.Exists(Project.DocumentsFolderPath));
@@ -104,6 +105,15 @@ public class ProjectStorageTests
         }
     }
     /// <summary>
+    /// Tests that the project folder name helper uses the project title encoding rules.
+    /// </summary>
+    [Fact]
+    public void GetProjectFolderNameReturnsEncodedProjectTitle()
+    {
+        Assert.Equal("Created_Project", Project.GetProjectFolderName("Created Project"));
+        Assert.Throws<Exception>(() => Project.GetProjectFolderName("123 Project"));
+    }
+    /// <summary>
     /// Tests that the project open entry point loads an existing project.
     /// </summary>
     [Fact]
@@ -119,7 +129,7 @@ public class ProjectStorageTests
             Project CreatedProject = Project.Create(ParentFolderPath, "Created Project");
             CreatedProject.AddDocument("Book");
 
-            Project OpenedProject = Project.Open(ProjectPath);
+            Project OpenedProject = Project.Open($"  {ProjectPath}  ");
 
             Assert.Equal("Created Project", OpenedProject.Title);
             Assert.Equal(ProjectPath, OpenedProject.ProjectPath);
@@ -217,6 +227,78 @@ public class ProjectStorageTests
         }
     }
     /// <summary>
+    /// Tests that creating a project rejects a file at the target project path.
+    /// </summary>
+    [Fact]
+    public void ProjectCreateRejectsExistingProjectPathFile()
+    {
+        string ParentFolderPath = Path.Combine(Path.GetTempPath(), "Deltos.Tests", Guid.NewGuid().ToString("N"));
+        string ProjectPath = Path.Combine(ParentFolderPath, "Created_Project");
+        DeleteFolder(ParentFolderPath);
+
+        try
+        {
+            Directory.CreateDirectory(ParentFolderPath);
+            File.WriteAllText(ProjectPath, "Not a folder.");
+
+            Assert.Throws<InvalidOperationException>(() => Project.Create(ParentFolderPath, "Created Project"));
+        }
+        finally
+        {
+            DeleteFolder(ParentFolderPath);
+        }
+    }
+    /// <summary>
+    /// Tests that creating a project may reuse an existing empty project folder.
+    /// </summary>
+    [Fact]
+    public void ProjectCreateAllowsExistingEmptyProjectFolder()
+    {
+        string ParentFolderPath = Path.Combine(Path.GetTempPath(), "Deltos.Tests", Guid.NewGuid().ToString("N"));
+        string ProjectPath = Path.Combine(ParentFolderPath, "Created_Project");
+        DeleteFolder(ParentFolderPath);
+
+        try
+        {
+            Directory.CreateDirectory(ProjectPath);
+
+            Project Project = Project.Create(ParentFolderPath, "Created Project");
+
+            Assert.Equal(ProjectPath, Project.ProjectPath);
+            Assert.True(File.Exists(Path.Combine(ProjectPath, BaseItem.InfoFileName)));
+        }
+        finally
+        {
+            DeleteFolder(ParentFolderPath);
+        }
+    }
+    /// <summary>
+    /// Tests that creating a project trims the title before persisting it.
+    /// </summary>
+    [Fact]
+    public void ProjectCreateTrimsProjectTitle()
+    {
+        string ParentFolderPath = Path.Combine(Path.GetTempPath(), "Deltos.Tests", Guid.NewGuid().ToString("N"));
+        string ProjectPath = Path.Combine(ParentFolderPath, "Created_Project");
+        DeleteFolder(ParentFolderPath);
+
+        try
+        {
+            Directory.CreateDirectory(ParentFolderPath);
+
+            Project Project = Project.Create(ParentFolderPath, "  Created Project  ");
+            Project LoadedProject = Project.Open(ProjectPath);
+
+            Assert.Equal("Created Project", Project.Title);
+            Assert.Equal(ProjectPath, Project.ProjectPath);
+            Assert.Equal("Created Project", LoadedProject.Title);
+        }
+        finally
+        {
+            DeleteFolder(ParentFolderPath);
+        }
+    }
+    /// <summary>
     /// Tests that creating a project requires an existing parent folder.
     /// </summary>
     [Fact]
@@ -307,6 +389,59 @@ public class ProjectStorageTests
         Project.UpdateReferences(null);
 
         Assert.Throws<InvalidOperationException>(() => Project.Save());
+    }
+    /// <summary>
+    /// Tests that saving a project rejects a storage path that points to a file.
+    /// </summary>
+    [Fact]
+    public void ProjectSaveRejectsProjectPathFile()
+    {
+        string ProjectPath = Path.Combine(Path.GetTempPath(), "Deltos.Tests", Guid.NewGuid().ToString("N"));
+        DeleteFolder(ProjectPath);
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(ProjectPath));
+            File.WriteAllText(ProjectPath, "Not a folder.");
+
+            Project Project = new Project();
+            Project.Title = "Test Project";
+            Project.ProjectPath = ProjectPath;
+            Project.UpdateReferences(null);
+
+            Assert.Throws<InvalidOperationException>(() => Project.Save());
+        }
+        finally
+        {
+            if (File.Exists(ProjectPath))
+                File.Delete(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that child commands do not write relative storage before project save validates the path.
+    /// </summary>
+    [Fact]
+    public void ChildCommandDoesNotPersistRelativeProjectPath()
+    {
+        string RelativeProjectPath = "RelativeProject";
+        DeleteFolder(RelativeProjectPath);
+
+        try
+        {
+            Project Project = new Project();
+            Project.Title = "Test Project";
+            Project.ProjectPath = RelativeProjectPath;
+            Project.UpdateReferences(null);
+
+            Project.AddDocument("Book");
+
+            Assert.False(Directory.Exists(RelativeProjectPath));
+            Assert.Throws<InvalidOperationException>(() => Project.Save());
+        }
+        finally
+        {
+            DeleteFolder(RelativeProjectPath);
+        }
     }
     /// <summary>
     /// Tests that loading a project requires an existing storage path.
@@ -483,6 +618,32 @@ public class ProjectStorageTests
         }
     }
     /// <summary>
+    /// Tests that project save rejects a storage path that belongs to another project id.
+    /// </summary>
+    [Fact]
+    public void ProjectSaveRejectsDifferentExistingProjectId()
+    {
+        string ParentFolderPath = Path.Combine(Path.GetTempPath(), "Deltos.Tests", Guid.NewGuid().ToString("N"));
+        DeleteFolder(ParentFolderPath);
+
+        try
+        {
+            Directory.CreateDirectory(ParentFolderPath);
+            Project ExistingProject = Project.Create(ParentFolderPath, "Existing Project");
+
+            Project OtherProject = new Project();
+            OtherProject.Title = "Other Project";
+            OtherProject.ProjectPath = ExistingProject.ProjectPath;
+            OtherProject.UpdateReferences(null);
+
+            Assert.Throws<InvalidOperationException>(() => OtherProject.Save());
+        }
+        finally
+        {
+            DeleteFolder(ParentFolderPath);
+        }
+    }
+    /// <summary>
     /// Tests that the project path remains runtime-only and is not persisted.
     /// </summary>
     [Fact]
@@ -496,12 +657,111 @@ public class ProjectStorageTests
             string JsonText = File.ReadAllText(Path.Combine(ProjectPath, BaseItem.InfoFileName));
 
             Assert.DoesNotContain(nameof(Project.ProjectPath), JsonText);
+            Assert.DoesNotContain(nameof(Project.ParentFolderPath), JsonText);
             Assert.DoesNotContain(ProjectPath, JsonText);
         }
         finally
         {
             DeleteFolder(ProjectPath);
         }
+    }
+    /// <summary>
+    /// Tests that child item information does not persist a title field value.
+    /// </summary>
+    [Fact]
+    public void ChildInfoTitleIsClearedBeforePersisting()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Book");
+            Document.Info.Title = "Stale Title";
+            Document.Save();
+
+            ItemInfo Info = new ItemInfo();
+            Tripous.Json.LoadFromFile(Info, Document.InfoFilePath);
+
+            Assert.Equal(string.Empty, Info.Title);
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that non-component item information clears category and tag fields before persisting.
+    /// </summary>
+    [Fact]
+    public void NonComponentInfoClearsCategoryAndTagsBeforePersisting()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Book");
+            Document.Info.Category = "World";
+            Document.Info.TagList = "tag1;tag2";
+            Document.Save();
+
+            ItemInfo Info = new ItemInfo();
+            Tripous.Json.LoadFromFile(Info, Document.InfoFilePath);
+
+            Assert.Equal(string.Empty, Info.Category);
+            Assert.Equal(string.Empty, Info.TagList);
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that a null item information assignment is normalized before persisting.
+    /// </summary>
+    [Fact]
+    public void NullInfoSetterNormalizesBeforePersisting()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Book");
+            Document.Info = null;
+            Document.Save();
+
+            ItemInfo Info = new ItemInfo();
+            Tripous.Json.LoadFromFile(Info, Document.InfoFilePath);
+
+            Assert.False(string.IsNullOrWhiteSpace(Info.Id));
+            Assert.Equal(ItemType.Document, Info.Type);
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that item information string setters normalize null values.
+    /// </summary>
+    [Fact]
+    public void ItemInfoStringSettersNormalizeNullValues()
+    {
+        ItemInfo Info = new ItemInfo();
+
+        Info.Id = null;
+        Info.Title = null;
+        Info.Category = null;
+        Info.TagList = null;
+        Info.LevelTitle = null;
+
+        Assert.Equal(string.Empty, Info.Id);
+        Assert.Equal(string.Empty, Info.Title);
+        Assert.Equal(string.Empty, Info.Category);
+        Assert.Equal(string.Empty, Info.TagList);
+        Assert.Equal(string.Empty, Info.LevelTitle);
     }
     /// <summary>
     /// Tests that project information is persisted and restored.
@@ -531,12 +791,37 @@ public class ProjectStorageTests
         }
     }
     /// <summary>
+    /// Tests that item ids are trimmed before they are persisted.
+    /// </summary>
+    [Fact]
+    public void ItemIdIsTrimmedBeforePersisting()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Book");
+            Document.Id = "  DocumentId  ";
+            Document.Save();
+
+            Project LoadedProject = LoadProject(ProjectPath);
+
+            Assert.Equal("DocumentId", Document.Id);
+            Assert.Equal("DocumentId", LoadedProject.Documents[0].Id);
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
     /// Tests that loading old project information without a title falls back to the project folder name.
     /// </summary>
     [Fact]
     public void ProjectInfoWithoutTitleFallsBackToProjectFolderName()
     {
-        string ProjectPath = Path.Combine(Path.GetTempPath(), "Deltos.Tests", "LegacyProject");
+        string ProjectPath = Path.Combine(Path.GetTempPath(), "Deltos.Tests", "Legacy_Project");
         DeleteFolder(ProjectPath);
 
         try
@@ -549,7 +834,7 @@ public class ProjectStorageTests
 
             Project LoadedProject = LoadProject(ProjectPath);
 
-            Assert.Equal("LegacyProject", LoadedProject.Title);
+            Assert.Equal("Legacy Project", LoadedProject.Title);
             Assert.Equal("LegacyId", LoadedProject.Id);
         }
         finally
@@ -584,6 +869,32 @@ public class ProjectStorageTests
         }
     }
     /// <summary>
+    /// Tests that loading a project rejects child order gaps.
+    /// </summary>
+    [Fact]
+    public void ProjectLoadRejectsDocumentOrderGap()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Project.AddDocument("First Book");
+            string GapDocumentPath = Path.Combine(Project.DocumentsFolderPath, "003._Third_Book");
+            Directory.CreateDirectory(GapDocumentPath);
+            ItemInfo Info = new ItemInfo();
+            Info.Id = "GapDocument";
+            Info.Type = ItemType.Document;
+            Tripous.Json.SaveToFile(Info, Path.Combine(GapDocumentPath, BaseItem.InfoFileName));
+
+            Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
     /// Tests that loading a project rejects invalid child storage folder names.
     /// </summary>
     [Fact]
@@ -595,6 +906,93 @@ public class ProjectStorageTests
         try
         {
             Directory.CreateDirectory(Path.Combine(Project.DocumentsFolderPath, "Invalid_Document"));
+
+            Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that loading a project rejects files inside storage buckets.
+    /// </summary>
+    [Fact]
+    public void ProjectLoadRejectsFileInsideDocumentsBucket()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            File.WriteAllText(Path.Combine(Project.DocumentsFolderPath, "Stray.txt"), "Invalid bucket file.");
+
+            Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that loading a structured document rejects a non-empty text files bucket.
+    /// </summary>
+    [Fact]
+    public void ProjectLoadRejectsStructuredDocumentTextFilesBucket()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Structured Book", CreateChapterSceneStructure());
+            Directory.CreateDirectory(Document.TextFilesFolderPath);
+            File.WriteAllText(Path.Combine(Document.TextFilesFolderPath, "Stray.txt"), "Invalid structured document bucket.");
+
+            Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that loading a flat document rejects a non-empty folders bucket.
+    /// </summary>
+    [Fact]
+    public void ProjectLoadRejectsFlatDocumentFoldersBucket()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Flat Book");
+            Directory.CreateDirectory(Document.FoldersFolderPath);
+            File.WriteAllText(Path.Combine(Document.FoldersFolderPath, "Stray.txt"), "Invalid flat document bucket.");
+
+            Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that loading a non-leaf folder rejects a non-empty text files bucket.
+    /// </summary>
+    [Fact]
+    public void ProjectLoadRejectsNonLeafFolderTextFilesBucket()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Structured Book", CreateChapterSceneStructure());
+            Folder Chapter = Document.AddFolder("Chapter One", string.Empty);
+            Directory.CreateDirectory(Chapter.TextFilesFolderPath);
+            File.WriteAllText(Path.Combine(Chapter.TextFilesFolderPath, "Stray.txt"), "Invalid non-leaf folder bucket.");
 
             Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
         }
@@ -672,6 +1070,28 @@ public class ProjectStorageTests
         }
     }
     /// <summary>
+    /// Tests that loading a project rejects document information marked as folder.
+    /// </summary>
+    [Fact]
+    public void ProjectLoadRejectsDocumentInfoWithFolderFlag()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Flat Book");
+            Document.Info.IsFolder = true;
+            Tripous.Json.SaveToFile(Document.Info, Document.InfoFilePath);
+
+            Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
     /// Tests that loading a project rejects duplicate child titles.
     /// </summary>
     [Fact]
@@ -698,6 +1118,77 @@ public class ProjectStorageTests
         }
     }
     /// <summary>
+    /// Tests that loading a project rejects duplicate child item ids.
+    /// </summary>
+    [Fact]
+    public void ProjectLoadRejectsDuplicateDocumentId()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("First Book");
+            string DuplicateDocumentPath = Path.Combine(Project.DocumentsFolderPath, "002._Second_Book");
+            Directory.CreateDirectory(DuplicateDocumentPath);
+            ItemInfo Info = new ItemInfo();
+            Info.Id = Document.Id;
+            Info.Type = ItemType.Document;
+            Tripous.Json.SaveToFile(Info, Path.Combine(DuplicateDocumentPath, BaseItem.InfoFileName));
+
+            Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that loading a project rejects duplicate ids across the whole item tree.
+    /// </summary>
+    [Fact]
+    public void ProjectLoadRejectsDuplicateTreeItemId()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Flat Book");
+            TextFile TextFileItem = Document.AddTextFile("Opening Scene");
+            TextFileItem.Id = Document.Id;
+            TextFileItem.Save();
+
+            Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that saving a project rejects duplicate ids across the runtime item tree.
+    /// </summary>
+    [Fact]
+    public void ProjectSaveRejectsDuplicateTreeItemId()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Flat Book");
+            TextFile TextFileItem = Document.AddTextFile("Opening Scene");
+            TextFileItem.Id = Document.Id;
+
+            Assert.Throws<InvalidOperationException>(() => Project.Save());
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
     /// Tests that loading a document rejects an invalid persisted folder structure.
     /// </summary>
     [Fact]
@@ -709,11 +1200,9 @@ public class ProjectStorageTests
         try
         {
             Document Document = Project.AddDocument("Structured Book");
-            FolderItem InvalidStructure = new FolderItem();
-            InvalidStructure.Title = "Chapter-Level";
-            Tripous.Json.SaveToFile(InvalidStructure, Document.StructureFilePath);
+            File.WriteAllText(Document.StructureFilePath, "{\"Title\":\"Chapter-Level\"}");
 
-            Assert.Throws<Exception>(() => LoadProject(ProjectPath));
+            Assert.ThrowsAny<Exception>(() => LoadProject(ProjectPath));
         }
         finally
         {
@@ -759,6 +1248,109 @@ public class ProjectStorageTests
         }
     }
     /// <summary>
+    /// Tests that null text file content is persisted as empty text.
+    /// </summary>
+    [Fact]
+    public void TextFileSavePersistsNullContentAsEmptyText()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Flat Book");
+            TextFile TextFileItem = Document.AddTextFile("Opening Scene");
+            TextFileItem.Text = null;
+            TextFileItem.Text2 = null;
+            TextFileItem.Abstraction = null;
+            TextFileItem.Draft = null;
+            TextFileItem.Save();
+
+            Assert.Equal(string.Empty, TextFileItem.Text);
+            Assert.Equal(string.Empty, TextFileItem.Text2);
+            Assert.Equal(string.Empty, TextFileItem.Abstraction);
+            Assert.Equal(string.Empty, TextFileItem.Draft);
+
+            Project LoadedProject = LoadProject(ProjectPath);
+            TextFile LoadedFile = LoadedProject.Documents[0].Files[0];
+
+            Assert.Equal(string.Empty, LoadedFile.Text);
+            Assert.Equal(string.Empty, LoadedFile.Text2);
+            Assert.Equal(string.Empty, LoadedFile.Abstraction);
+            Assert.Equal(string.Empty, LoadedFile.Draft);
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that loading a text file requires the primary markdown content file.
+    /// </summary>
+    [Fact]
+    public void ProjectLoadRejectsTextFileWithoutPrimaryContentFile()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Flat Book");
+            TextFile TextFileItem = Document.AddTextFile("Opening Scene");
+            File.Delete(TextFileItem.TextFilePath);
+
+            Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that loading a text file rejects unknown files in its storage folder.
+    /// </summary>
+    [Fact]
+    public void ProjectLoadRejectsTextFileUnknownStorageFile()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Flat Book");
+            TextFile TextFileItem = Document.AddTextFile("Opening Scene");
+            File.WriteAllText(Path.Combine(TextFileItem.FolderPath, "Unknown.txt"), "Unknown content.");
+
+            Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that loading a text file rejects child folders in its storage folder.
+    /// </summary>
+    [Fact]
+    public void ProjectLoadRejectsTextFileChildFolder()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Flat Book");
+            TextFile TextFileItem = Document.AddTextFile("Opening Scene");
+            Directory.CreateDirectory(Path.Combine(TextFileItem.FolderPath, "ChildFolder"));
+
+            Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
     /// Tests that a structured document persists folders, leaf text files, and reloads them.
     /// </summary>
     [Fact]
@@ -796,6 +1388,51 @@ public class ProjectStorageTests
             Assert.Empty(LoadedDocument.Files);
             Assert.True(LoadedScene.CanAddTextFile);
             Assert.Equal("Scene text.", LoadedFile.Text);
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that saving a folder requires a non-empty valid level title.
+    /// </summary>
+    [Fact]
+    public void FolderSaveRequiresValidLevelTitle()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Structured Book", CreateChapterSceneStructure());
+            Folder Folder = Document.AddFolder("Chapter One", string.Empty);
+            Folder.LevelTitle = string.Empty;
+
+            Assert.Throws<Exception>(() => Folder.Save());
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that loading a project rejects folder information not marked as folder.
+    /// </summary>
+    [Fact]
+    public void ProjectLoadRejectsFolderInfoWithoutFolderFlag()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Structured Book", CreateChapterSceneStructure());
+            Folder Folder = Document.AddFolder("Chapter One", string.Empty);
+            Folder.Info.IsFolder = false;
+            Tripous.Json.SaveToFile(Folder.Info, Folder.InfoFilePath);
+
+            Assert.Throws<InvalidOperationException>(() => LoadProject(ProjectPath));
         }
         finally
         {

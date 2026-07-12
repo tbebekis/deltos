@@ -43,6 +43,34 @@ public class ItemCommandTests
         Result.Child.Title = "Scene";
         return Result;
     }
+    /// <summary>
+    /// Adds placeholder folders to a folder.
+    /// </summary>
+    /// <param name="Folder">The parent folder.</param>
+    /// <param name="Count">The item count.</param>
+    static void AddPlaceholderFolders(Folder Folder, int Count)
+    {
+        for (int Index = 0; Index < Count; Index++)
+        {
+            Folder ChildFolder = new Folder();
+            ChildFolder.Title = $"Scene {Index + 1}";
+            Folder.Folders.Add(ChildFolder);
+        }
+    }
+    /// <summary>
+    /// Adds placeholder text files to a folder.
+    /// </summary>
+    /// <param name="Folder">The parent folder.</param>
+    /// <param name="Count">The item count.</param>
+    static void AddPlaceholderTextFiles(Folder Folder, int Count)
+    {
+        for (int Index = 0; Index < Count; Index++)
+        {
+            TextFile TextFile = new TextFile();
+            TextFile.Title = $"Text File {Index + 1}";
+            Folder.Files.Add(TextFile);
+        }
+    }
 
     // ● public
     /// <summary>
@@ -73,6 +101,54 @@ public class ItemCommandTests
         }
     }
     /// <summary>
+    /// Tests that renaming to the same trimmed title leaves persistent storage in place.
+    /// </summary>
+    [Fact]
+    public void RenameToSameTrimmedTitleKeepsPersistentFolder()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Flat Book");
+            TextFile TextFileItem = Document.AddTextFile("Opening Scene");
+            string FolderPath = TextFileItem.FolderPath;
+
+            TextFileItem.Rename("  Opening Scene  ");
+
+            Assert.Equal("Opening Scene", TextFileItem.Title);
+            Assert.Equal(FolderPath, TextFileItem.FolderPath);
+            Assert.True(Directory.Exists(FolderPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that item titles are trimmed before storage names are computed.
+    /// </summary>
+    [Fact]
+    public void ItemTitleIsTrimmedBeforeStorageNameIsComputed()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("  Flat Book  ");
+
+            Assert.Equal("Flat Book", Document.Title);
+            Assert.Equal("001._Flat_Book", Document.StorageName);
+            Assert.True(Directory.Exists(Path.Combine(Project.DocumentsFolderPath, "001._Flat_Book")));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
     /// Tests that renaming a project persists the new project title.
     /// </summary>
     [Fact]
@@ -90,6 +166,30 @@ public class ItemCommandTests
             Assert.Equal("Renamed Project", Project.Title);
             Assert.Equal("Renamed Project", OpenedProject.Title);
             Assert.True(File.Exists(Path.Combine(ProjectPath, BaseItem.InfoFileName)));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that project rename rejects storage that belongs to another project id.
+    /// </summary>
+    [Fact]
+    public void ProjectRenameRejectsDifferentExistingProjectId()
+    {
+        string ProjectPath;
+        Project ExistingProject = CreateProject(out ProjectPath);
+
+        try
+        {
+            Project Project = new Project();
+            Project.Title = "Other Project";
+            Project.ProjectPath = ExistingProject.ProjectPath;
+            Project.UpdateReferences(null);
+
+            Assert.Throws<InvalidOperationException>(() => Project.Rename("Renamed Project"));
+            Assert.Equal("Other Project", Project.Title);
         }
         finally
         {
@@ -458,6 +558,49 @@ public class ItemCommandTests
         }
     }
     /// <summary>
+    /// Tests that moving a text file to a full adjacent parent is rejected before mutation.
+    /// </summary>
+    [Fact]
+    public void CrossParentTextFileMoveRejectsFullTargetParent()
+    {
+        Project Project = new Project();
+        Project.Title = "Test Project";
+        Document Document = Project.AddDocument("Structured Book", CreateChapterSceneStructure());
+        Folder Chapter = Document.AddFolder("Chapter One", string.Empty);
+        Folder FirstScene = Chapter.AddFolder("First Scene Group", string.Empty);
+        Folder SecondScene = Chapter.AddFolder("Second Scene Group", string.Empty);
+        AddPlaceholderTextFiles(FirstScene, BaseItem.MaxOrderIndex);
+        TextFile Moving = SecondScene.AddTextFile("Moving Scene");
+        Document.UpdateReferences(Project);
+
+        Assert.False(Moving.CanMove(true));
+        Assert.False(Moving.Move(true));
+        Assert.Same(SecondScene, Moving.Parent);
+        Assert.Equal(BaseItem.MaxOrderIndex, FirstScene.Files.Count);
+        Assert.Single(SecondScene.Files);
+    }
+    /// <summary>
+    /// Tests that moving a folder to a full adjacent parent is rejected before mutation.
+    /// </summary>
+    [Fact]
+    public void CrossParentFolderMoveRejectsFullTargetParent()
+    {
+        Project Project = new Project();
+        Project.Title = "Test Project";
+        Document Document = Project.AddDocument("Structured Book", CreateChapterSceneStructure());
+        Folder FirstChapter = Document.AddFolder("First Chapter", string.Empty);
+        Folder SecondChapter = Document.AddFolder("Second Chapter", string.Empty);
+        AddPlaceholderFolders(FirstChapter, BaseItem.MaxOrderIndex);
+        Folder Moving = SecondChapter.AddFolder("Moving Scene", string.Empty);
+        Document.UpdateReferences(Project);
+
+        Assert.False(Moving.CanMove(true));
+        Assert.False(Moving.Move(true));
+        Assert.Same(SecondChapter, Moving.Parent);
+        Assert.Equal(BaseItem.MaxOrderIndex, FirstChapter.Folders.Count);
+        Assert.Single(SecondChapter.Folders);
+    }
+    /// <summary>
     /// Tests that adding a duplicate text file title is rejected.
     /// </summary>
     [Fact]
@@ -472,6 +615,28 @@ public class ItemCommandTests
             Document.AddTextFile("Opening Scene");
 
             Assert.Throws<InvalidOperationException>(() => Document.AddTextFile("Opening Scene"));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that duplicate title checks use trimmed titles.
+    /// </summary>
+    [Fact]
+    public void AddDuplicateTitleWithExtraSpacesIsRejected()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Flat Book");
+            Document.AddTextFile("Opening Scene");
+
+            Assert.Throws<InvalidOperationException>(() => Document.AddTextFile("  Opening Scene  "));
+            Assert.Single(Document.Files);
         }
         finally
         {
@@ -671,6 +836,36 @@ public class ItemCommandTests
         }
     }
     /// <summary>
+    /// Tests that removing the first folder deletes storage before renumbering siblings.
+    /// </summary>
+    [Fact]
+    public void DocumentRemoveFirstFolderRenumbersSiblingStorage()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Structured Book", CreateChapterSceneStructure());
+            Folder First = Document.AddFolder("First Chapter", string.Empty);
+            Folder Second = Document.AddFolder("Second Chapter", string.Empty);
+            string FirstFolderPath = First.FolderPath;
+
+            bool Removed = Document.RemoveFolder(First);
+
+            Assert.True(Removed);
+            Assert.False(Directory.Exists(FirstFolderPath));
+            Assert.Single(Document.Folders);
+            Assert.Same(Second, Document.Folders[0]);
+            Assert.Equal(1, Second.OrderIndex);
+            Assert.True(Directory.Exists(Path.Combine(Document.FoldersFolderPath, "001._Second_Chapter")));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
     /// Tests that Folder.RemoveTextFile deletes memory and persistent storage.
     /// </summary>
     [Fact]
@@ -694,6 +889,38 @@ public class ItemCommandTests
             Assert.Empty(Scene.Files);
             Assert.False(Directory.Exists(FileFolderPath));
             Assert.False(TextFileItem.CanDelete());
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that removing the first text file deletes storage before renumbering siblings.
+    /// </summary>
+    [Fact]
+    public void FolderRemoveFirstTextFileRenumbersSiblingStorage()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Structured Book", CreateChapterSceneStructure());
+            Folder Chapter = Document.AddFolder("Chapter One", string.Empty);
+            Folder Scene = Chapter.AddFolder("Scene Group", string.Empty);
+            TextFile First = Scene.AddTextFile("First Scene");
+            TextFile Second = Scene.AddTextFile("Second Scene");
+            string FirstFolderPath = First.FolderPath;
+
+            bool Removed = Scene.RemoveTextFile(First);
+
+            Assert.True(Removed);
+            Assert.False(Directory.Exists(FirstFolderPath));
+            Assert.Single(Scene.Files);
+            Assert.Same(Second, Scene.Files[0]);
+            Assert.Equal(1, Second.OrderIndex);
+            Assert.True(Directory.Exists(Path.Combine(Scene.TextFilesFolderPath, "001._Second_Scene")));
         }
         finally
         {
@@ -755,5 +982,19 @@ public class ItemCommandTests
         {
             DeleteFolder(ProjectPath);
         }
+    }
+    /// <summary>
+    /// Tests that DeleteFromParent returns false for a detached item.
+    /// </summary>
+    [Fact]
+    public void DeleteFromParentReturnsFalseForDetachedItem()
+    {
+        TextFile TextFileItem = new TextFile();
+        TextFileItem.Title = "Opening Scene";
+
+        bool Deleted = TextFileItem.DeleteFromParent();
+
+        Assert.False(Deleted);
+        Assert.False(TextFileItem.CanDelete());
     }
 }

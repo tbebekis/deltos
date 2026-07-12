@@ -21,6 +21,10 @@ public class BaseItem
     /// Field for the OrderIndex property.
     /// </summary>
     protected int fOrderIndex;
+    /// <summary>
+    /// Field for the Info property.
+    /// </summary>
+    protected ItemInfo fInfo = new();
     
     // ● construction
     /// <summary>
@@ -37,7 +41,10 @@ public class BaseItem
     protected virtual void UpdateInfo()
     {
         Info.Id = Id;
+        Info.Title = string.Empty;
         Info.Type = Type;
+        Info.Category = string.Empty;
+        Info.TagList = string.Empty;
         Info.IsFolder = false;
         Info.LevelTitle = string.Empty;
     }
@@ -48,6 +55,9 @@ public class BaseItem
     {
         if (Info.Type != ItemType.None && Info.Type != Type)
             throw new InvalidOperationException($"Invalid item info type. Expected {Type}, found {Info.Type}.");
+
+        if (Info.IsFolder != IsFolder)
+            throw new InvalidOperationException($"Invalid item folder flag. Expected {IsFolder}, found {Info.IsFolder}.");
 
         if (!string.IsNullOrWhiteSpace(Info.Id))
             Id = Info.Id;
@@ -151,9 +161,15 @@ public class BaseItem
         if (SourceItems == TargetItems)
             return MoveItem(SourceItems, Item, Up);
 
+        CheckCanAddItem(TargetItems);
         CheckDuplicateTitle(TargetItems, Item.Title);
 
         string OldFolderPath = Item.FolderPath;
+        int NewOrderIndex = Up ? TargetItems.Count + 1 : 1;
+        string NewFolderPath = GetTargetFolderPath(Item, TargetParent, NewOrderIndex);
+        if (!IsSamePath(OldFolderPath, NewFolderPath) && System.IO.Directory.Exists(NewFolderPath))
+            throw new InvalidOperationException($"Folder already exists: {NewFolderPath}");
+
         SourceItems.Remove(Item);
 
         int InsertIndex = Up ? TargetItems.Count : 0;
@@ -164,6 +180,40 @@ public class BaseItem
         RenumberItems(TargetItems);
         MoveStorage(OldFolderPath, Item.FolderPath);
         return true;
+    }
+    /// <summary>
+    /// Returns the target folder path for a cross-parent move.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="Item">The item to move.</param>
+    /// <param name="TargetParent">The target parent item.</param>
+    /// <param name="NewOrderIndex">The new one-based order index.</param>
+    /// <returns>The target folder path.</returns>
+    static protected string GetTargetFolderPath<T>(T Item, BaseItem TargetParent, int NewOrderIndex) where T: BaseItem
+    {
+        string StorageName = GetStorageName(NewOrderIndex, Item.Title);
+
+        Document DocumentParent = TargetParent as Document;
+        if (DocumentParent != null)
+        {
+            if (Item is Folder)
+                return System.IO.Path.Combine(DocumentParent.FoldersFolderPath, StorageName);
+
+            if (Item is TextFile)
+                return System.IO.Path.Combine(DocumentParent.TextFilesFolderPath, StorageName);
+        }
+
+        Folder FolderParent = TargetParent as Folder;
+        if (FolderParent != null)
+        {
+            if (Item is Folder)
+                return System.IO.Path.Combine(FolderParent.FoldersFolderPath, StorageName);
+
+            if (Item is TextFile)
+                return System.IO.Path.Combine(FolderParent.TextFilesFolderPath, StorageName);
+        }
+
+        return System.IO.Path.Combine(TargetParent.FolderPath, StorageName);
     }
     /// <summary>
     /// Moves an item folder from one path to another.
@@ -320,6 +370,7 @@ public class BaseItem
     protected virtual void SaveInfo()
     {
         PrepareInfo();
+        System.IO.Directory.CreateDirectory(FolderPath);
         Json.SaveToFile(Info, InfoFilePath);
     }
     /// <summary>
@@ -351,6 +402,10 @@ public class BaseItem
 
         if (System.IO.Directory.Exists(FolderPath))
         {
+            string[] FilePaths = System.IO.Directory.GetFiles(FolderPath);
+            if (FilePaths.Length > 0)
+                throw new InvalidOperationException($"Storage bucket contains files: {FolderPath}");
+
             string[] FolderPaths = System.IO.Directory.GetDirectories(FolderPath);
             foreach (string ItemFolderPath in FolderPaths)
             {
@@ -381,6 +436,10 @@ public class BaseItem
         for (int Index = 0; Index < Items.Count; Index++)
         {
             T Item = Items[Index];
+            int ExpectedOrderIndex = Index + 1;
+            if (Item.OrderIndex != ExpectedOrderIndex)
+                throw new InvalidOperationException($"Expected item order {ExpectedOrderIndex:000} but found {Item.OrderIndex:000} in folder: {FolderPath}");
+
             for (int OtherIndex = Index + 1; OtherIndex < Items.Count; OtherIndex++)
             {
                 T OtherItem = Items[OtherIndex];
@@ -389,6 +448,9 @@ public class BaseItem
 
                 if (Item.Title.IsSameText(OtherItem.Title))
                     throw new InvalidOperationException($"Duplicate item title {Item.Title} in folder: {FolderPath}");
+
+                if (Item.Id.IsSameText(OtherItem.Id))
+                    throw new InvalidOperationException($"Duplicate item id {Item.Id} in folder: {FolderPath}");
             }
         }
     }
@@ -402,6 +464,15 @@ public class BaseItem
             System.IO.Directory.Delete(ItemFolderPath, true);
     }
     /// <summary>
+    /// Checks that an unused storage bucket is empty.
+    /// </summary>
+    /// <param name="FolderPath">The unused bucket folder path.</param>
+    protected virtual void CheckUnusedStorageBucket(string FolderPath)
+    {
+        if (System.IO.Directory.Exists(FolderPath) && System.IO.Directory.EnumerateFileSystemEntries(FolderPath).Any())
+            throw new InvalidOperationException($"Unused storage bucket contains items: {FolderPath}");
+    }
+    /// <summary>
     /// Returns true if the item has a resolved project storage path.
     /// </summary>
     /// <returns>True if the item can persist storage; otherwise false.</returns>
@@ -409,9 +480,9 @@ public class BaseItem
     {
         Project ProjectItem = this as Project;
         if (ProjectItem != null)
-            return !string.IsNullOrWhiteSpace(ProjectItem.ProjectPath);
+            return !string.IsNullOrWhiteSpace(ProjectItem.ProjectPath) && System.IO.Path.IsPathFullyQualified(ProjectItem.ProjectPath);
 
-        return Project != null && !string.IsNullOrWhiteSpace(Project.ProjectPath);
+        return Project != null && !string.IsNullOrWhiteSpace(Project.ProjectPath) && System.IO.Path.IsPathFullyQualified(Project.ProjectPath);
     }
     /// <summary>
     /// Saves the item if it has a resolved project storage path.
@@ -421,6 +492,26 @@ public class BaseItem
     {
         if (CanPersistStorage())
             Item.Save();
+    }
+    /// <summary>
+    /// Returns true if an item list can receive another child item.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="Items">The item list.</param>
+    /// <returns>True if another item can be added; otherwise false.</returns>
+    static protected bool CanAddItem<T>(List<T> Items) where T: BaseItem
+    {
+        return Items.Count < MaxOrderIndex;
+    }
+    /// <summary>
+    /// Checks that an item list can receive another child item.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="Items">The item list.</param>
+    static protected void CheckCanAddItem<T>(List<T> Items) where T: BaseItem
+    {
+        if (!CanAddItem(Items))
+            throw new InvalidOperationException($"The item list cannot contain more than {MaxOrderIndex} items.");
     }
     /// <summary>
     /// Checks whether the item can be renamed.
@@ -437,9 +528,10 @@ public class BaseItem
     /// <param name="Title">The title to check.</param>
     static protected void CheckDuplicateTitle<T>(List<T> Items, string Title) where T: BaseItem
     {
+        string TrimmedTitle = Title == null ? string.Empty : Title.Trim();
         foreach (T Item in Items)
         {
-            if (Item.Title.IsSameText(Title))
+            if (Item.Title.IsSameText(TrimmedTitle))
                 throw new InvalidOperationException($"An item with the same title already exists: {Title}");
         }
     }
@@ -452,9 +544,10 @@ public class BaseItem
     /// <param name="IgnoredItem">The item to ignore.</param>
     static protected void CheckDuplicateTitle<T>(List<T> Items, string Title, T IgnoredItem) where T: BaseItem
     {
+        string TrimmedTitle = Title == null ? string.Empty : Title.Trim();
         foreach (T Item in Items)
         {
-            if (!ReferenceEquals(Item, IgnoredItem) && Item.Title.IsSameText(Title))
+            if (!ReferenceEquals(Item, IgnoredItem) && Item.Title.IsSameText(TrimmedTitle))
                 throw new InvalidOperationException($"An item with the same title already exists: {Title}");
         }
     }
@@ -467,9 +560,10 @@ public class BaseItem
     /// <returns>True if the title exists; otherwise false.</returns>
     static protected bool ContainsTitle<T>(List<T> Items, string Title) where T: BaseItem
     {
+        string TrimmedTitle = Title == null ? string.Empty : Title.Trim();
         foreach (T Item in Items)
         {
-            if (Item.Title.IsSameText(Title))
+            if (Item.Title.IsSameText(TrimmedTitle))
                 return true;
         }
 
@@ -494,6 +588,9 @@ public class BaseItem
     /// <returns>The item title.</returns>
     static public string DecodeTitle(string Title)
     {
+        if (Title == null)
+            return string.Empty;
+
         return Title.Replace('_', ' ');
     }
     /// <summary>
@@ -505,6 +602,9 @@ public class BaseItem
     static public string GetStorageName(int OrderIndex, string Title)
     {
         if (OrderIndex < 1)
+            throw new ArgumentOutOfRangeException(nameof(OrderIndex));
+
+        if (OrderIndex > MaxOrderIndex)
             throw new ArgumentOutOfRangeException(nameof(OrderIndex));
 
         return $"{OrderIndex:000}._{EncodeTitle(Title)}";
@@ -552,6 +652,9 @@ public class BaseItem
         Title = DecodeTitle(EncodedTitle);
         DisplayTitle = DecodeTitle(StorageName);
 
+        if (Title != Title.Trim())
+            return false;
+
         if (!AppHost.IsValidFileName(Title, false))
             return false;
 
@@ -569,7 +672,7 @@ public class BaseItem
             throw new ArgumentException($"Invalid storage name: {StorageName}", nameof(StorageName));
 
         fOrderIndex = OrderIndex;
-        fTitle = Title;
+        fTitle = Title.Trim();
     }
     /// <summary>
     /// Prepares persisted item information before saving the item.
@@ -618,6 +721,25 @@ public class BaseItem
         return new List<BaseItem>();
     }
     /// <summary>
+    /// Returns all descendant items.
+    /// </summary>
+    /// <param name="IncludeSelf">True to include this item in the result.</param>
+    /// <returns>The descendant items.</returns>
+    public virtual List<BaseItem> GetDescendantItems(bool IncludeSelf = false)
+    {
+        List<BaseItem> Result = new();
+        if (IncludeSelf)
+            Result.Add(this);
+
+        foreach (BaseItem ChildItem in GetChildItems())
+        {
+            Result.Add(ChildItem);
+            Result.AddRange(ChildItem.GetDescendantItems());
+        }
+
+        return Result;
+    }
+    /// <summary>
     /// Returns true if the item can move in the specified direction.
     /// </summary>
     /// <param name="Up">True for upward movement; false for downward movement.</param>
@@ -658,6 +780,21 @@ public class BaseItem
     public virtual bool Move(bool Up)
     {
         return false;
+    }
+    /// <summary>
+    /// Sets a document folder structure.
+    /// </summary>
+    /// <param name="Structure">The document folder structure.</param>
+    public virtual void SetStructure(FolderItem Structure)
+    {
+        throw new InvalidOperationException("This item does not support a document structure.");
+    }
+    /// <summary>
+    /// Clears a document folder structure.
+    /// </summary>
+    public virtual void ClearStructure()
+    {
+        throw new InvalidOperationException("This item does not support a document structure.");
     }
     /// <summary>
     /// Adds a child document.
@@ -746,7 +883,7 @@ public class BaseItem
         Title = NewTitle;
 
         string NewFolderPath = FolderPath;
-        if (OldFolderPath != NewFolderPath)
+        if (!IsSamePath(OldFolderPath, NewFolderPath))
         {
             if (System.IO.Directory.Exists(NewFolderPath))
             {
@@ -777,6 +914,10 @@ public class BaseItem
     }
     
     // ● properties
+    /// <summary>
+    /// Gets the maximum supported order index for three-digit storage names.
+    /// </summary>
+    static public int MaxOrderIndex => 999;
     /// <summary>
     /// Gets the parent item.
     /// </summary>
@@ -847,6 +988,21 @@ public class BaseItem
     [JsonIgnore]
     public virtual bool CanAddDocument => false;
     /// <summary>
+    /// Gets a value indicating whether a structured document can be added to this item.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanAddStructuredDocument => false;
+    /// <summary>
+    /// Gets a value indicating whether a folder structure can be set.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanSetStructure => false;
+    /// <summary>
+    /// Gets a value indicating whether a folder structure can be cleared.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanClearStructure => false;
+    /// <summary>
     /// Gets a value indicating whether a folder can be added to this item.
     /// </summary>
     [JsonIgnore]
@@ -867,7 +1023,7 @@ public class BaseItem
                 fId = Sys.GenId(UseBrackets: false);
             return fId;
         }
-        set => fId = value;
+        set => fId = value == null ? string.Empty : value.Trim();
     }
     /// <summary>
     /// Gets or sets the item title.
@@ -878,7 +1034,7 @@ public class BaseItem
         set
         {
             AppHost.CheckValidFileName(value);
-            fTitle = value;
+            fTitle = value.Trim();
         }
     }
     /// <summary>
@@ -920,7 +1076,11 @@ public class BaseItem
     /// <summary>
     /// Gets or sets the persisted item information.
     /// </summary>
-    public virtual ItemInfo Info { get; set; } = new();
+    public virtual ItemInfo Info
+    {
+        get => fInfo;
+        set => fInfo = value ?? new ItemInfo();
+    }
     /// <summary>
     /// Gets the file-system path of the item information file.
     /// </summary>

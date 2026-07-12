@@ -26,6 +26,7 @@ public class AppHostTests
     {
         Assert.False(AppHost.IsValidFileName(string.Empty, false));
         Assert.False(AppHost.IsValidFileName("123 Project", false));
+        Assert.False(AppHost.IsValidFileName(" 123 Project ", false));
         Assert.False(AppHost.IsValidFileName("Project-Name", false));
         Assert.False(AppHost.IsValidFileName("Project_Name", false));
         Assert.False(AppHost.IsValidFileName("Project.Name", false));

@@ -13,6 +13,14 @@ public class Document: BaseItem
     /// Field for the Structure property.
     /// </summary>
     protected FolderItem fStructure = new();
+    /// <summary>
+    /// Field for the Folders property.
+    /// </summary>
+    protected List<Folder> fFolders = new();
+    /// <summary>
+    /// Field for the Files property.
+    /// </summary>
+    protected List<TextFile> fFiles = new();
 
     // ● private
     /// <summary>
@@ -152,6 +160,7 @@ public class Document: BaseItem
         if (!CanAddFolder)
             throw new InvalidOperationException("The document has no folder structure.");
 
+        CheckCanAddItem(Folders);
         CheckDuplicateTitle(Folders, Title);
 
         Folder Result = new Folder();
@@ -173,6 +182,7 @@ public class Document: BaseItem
         if (!CanAddTextFile)
             throw new InvalidOperationException("This document cannot contain text files.");
 
+        CheckCanAddItem(Files);
         CheckDuplicateTitle(Files, Title);
 
         TextFile Result = new TextFile();
@@ -187,7 +197,7 @@ public class Document: BaseItem
     /// Sets the document folder structure.
     /// </summary>
     /// <param name="Value">The folder structure.</param>
-    public void SetStructure(FolderItem Value)
+    public override void SetStructure(FolderItem Value)
     {
         if (!CanSetStructure)
             throw new InvalidOperationException("Cannot set a folder structure while the document contains child items.");
@@ -196,7 +206,7 @@ public class Document: BaseItem
             throw new ArgumentNullException(nameof(Value));
 
         Value.CheckValid();
-        fStructure = Value;
+        fStructure = Value.Clone();
         Structure.UpdateReferences(null);
         CheckContentModel();
         if (CanPersistStorage())
@@ -205,7 +215,7 @@ public class Document: BaseItem
     /// <summary>
     /// Clears the document folder structure and turns the document into a flat document.
     /// </summary>
-    public void ClearStructure()
+    public override void ClearStructure()
     {
         if (!CanClearStructure)
             throw new InvalidOperationException("Cannot clear the folder structure while the document contains folders.");
@@ -399,12 +409,11 @@ public class Document: BaseItem
             throw new InvalidOperationException("This document cannot be deleted.");
 
         string ItemFolderPath = FolderPath;
+        DeleteStorage(ItemFolderPath);
 
         Project ProjectItem = Parent as Project;
         if (ProjectItem != null)
             ProjectItem.DetachDocument(this);
-
-        DeleteStorage(ItemFolderPath);
     }
     /// <summary>
     /// Saves the document to persistent storage.
@@ -458,6 +467,12 @@ public class Document: BaseItem
 
         Folders = new List<Folder>();
         Files = new List<TextFile>();
+        if (!CanContainFolders)
+            CheckUnusedStorageBucket(FoldersFolderPath);
+
+        if (!CanContainTextFiles)
+            CheckUnusedStorageBucket(TextFilesFolderPath);
+
         Folders = CanContainFolders ? LoadItems<Folder>(FoldersFolderPath) : new List<Folder>();
         Files = CanContainTextFiles ? LoadItems<TextFile>(TextFilesFolderPath) : new List<TextFile>();
         UpdateReferences(Parent);
@@ -606,12 +621,12 @@ public class Document: BaseItem
     /// Gets a value indicating whether a folder structure can be set.
     /// </summary>
     [JsonIgnore]
-    public bool CanSetStructure => Files.Count == 0 && Folders.Count == 0;
+    public override bool CanSetStructure => Files.Count == 0 && Folders.Count == 0;
     /// <summary>
     /// Gets a value indicating whether the folder structure can be cleared.
     /// </summary>
     [JsonIgnore]
-    public bool CanClearStructure => Folders.Count == 0;
+    public override bool CanClearStructure => HasFolderStructure && Folders.Count == 0;
     /// <summary>
     /// Gets a value indicating whether this document can contain root folders.
     /// </summary>
@@ -626,20 +641,28 @@ public class Document: BaseItem
     /// Gets a value indicating whether a root folder can be added.
     /// </summary>
     [JsonIgnore]
-    public override bool CanAddFolder => CanContainFolders;
+    public override bool CanAddFolder => CanContainFolders && CanAddItem(Folders);
     /// <summary>
     /// Gets a value indicating whether a text file can be added.
     /// </summary>
     [JsonIgnore]
-    public override bool CanAddTextFile => CanContainTextFiles;
+    public override bool CanAddTextFile => CanContainTextFiles && CanAddItem(Files);
     /// <summary>
     /// Gets or sets the document folders.
     /// </summary>
-    public List<Folder> Folders { get; set; } = new();
+    public List<Folder> Folders
+    {
+        get => fFolders;
+        set => fFolders = value ?? new List<Folder>();
+    }
     /// <summary>
     /// Gets or sets the document text files.
     /// </summary>
-    public List<TextFile> Files { get; set; } = new();
+    public List<TextFile> Files
+    {
+        get => fFiles;
+        set => fFiles = value ?? new List<TextFile>();
+    }
     /// <summary>
     /// Gets or sets the document folder structure.
     /// </summary>

@@ -20,7 +20,8 @@ already contain other projects or unrelated files. `Project.Create()` creates
 the actual project root as a subfolder of the selected parent folder, using the
 project title as the folder name with spaces encoded as underscores. The title
 must pass `AppHost.IsValidFileName`. The create entry point rejects only an
-existing non-empty project subfolder with the same title.
+existing non-empty project subfolder with the same title. An existing empty
+project subfolder may be used.
 
 Use `Project.GetProjectFolderPath(ParentFolderPath, Title)` when the UI needs
 to preview or validate the actual project root path before creation.
@@ -231,8 +232,9 @@ The old StoryWriter codebase at
 `/home/teo/Dev/CSharp/tb.StoryWriter/StoryWriter.App` is a loose reference for
 this behavior, especially the `Entities/Scene.cs` implementation.
 
-Move implementation is intentionally deferred until this operation can be
-designed as a safe, transaction-like workflow.
+Move implementation follows this workflow and is covered by filesystem-backed
+tests for same-parent moves, cross-parent moves, duplicate-title rejection, and
+sibling renumbering after removals.
 
 Although these items are called `TextFile`, each one is stored in its own folder
 in the file system. A `TextFile` folder contains:
