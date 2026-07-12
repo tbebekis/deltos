@@ -16,6 +16,17 @@ public class FolderItem
     {
     }
 
+    // ● public
+    /// <summary>
+    /// Updates runtime references after loading the folder item graph.
+    /// </summary>
+    /// <param name="ParentItem">The parent folder item.</param>
+    public void UpdateReferences(FolderItem ParentItem)
+    {
+        Parent = ParentItem;
+        Child?.UpdateReferences(this);
+    }
+
     // ● properties
     /// <summary>
     /// Gets or sets the parent folder item.

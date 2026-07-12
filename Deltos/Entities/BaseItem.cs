@@ -33,6 +33,94 @@ public class BaseItem
     public BaseItem()
     {
     }
+
+    // ● protected
+    /// <summary>
+    /// Updates the item information before saving it.
+    /// </summary>
+    protected virtual void UpdateInfo()
+    {
+        Info.Id = Id;
+        Info.Type = Type;
+        Info.IsFolder = false;
+        Info.LevelTitle = string.Empty;
+    }
+    /// <summary>
+    /// Applies the item information after loading it.
+    /// </summary>
+    protected virtual void ApplyInfoCore()
+    {
+        if (Info.Type != ItemType.None && Info.Type != Type)
+            throw new InvalidOperationException($"Invalid item info type. Expected {Type}, found {Info.Type}.");
+
+        if (!string.IsNullOrWhiteSpace(Info.Id))
+            Id = Info.Id;
+    }
+    /// <summary>
+    /// Renumbers a list of child items.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="Items">The items to renumber.</param>
+    static protected void RenumberItems<T>(List<T> Items) where T: BaseItem
+    {
+        for (int Index = 0; Index < Items.Count; Index++)
+            Items[Index].fOrderIndex = Index + 1;
+    }
+    /// <summary>
+    /// Saves the item information file.
+    /// </summary>
+    protected virtual void SaveInfo()
+    {
+        PrepareInfo();
+        Json.SaveToFile(Info, InfoFilePath);
+    }
+    /// <summary>
+    /// Loads the item information file.
+    /// </summary>
+    protected virtual void LoadInfo()
+    {
+        Json.LoadFromFile(Info, InfoFilePath);
+        ApplyInfo();
+    }
+    /// <summary>
+    /// Loads child items from a folder.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="FolderPath">The folder path.</param>
+    /// <returns>The loaded items.</returns>
+    protected List<T> LoadItems<T>(string FolderPath) where T: BaseItem, new()
+    {
+        List<T> Result = new();
+
+        if (System.IO.Directory.Exists(FolderPath))
+        {
+            string[] FolderPaths = System.IO.Directory.GetDirectories(FolderPath);
+            foreach (string ItemFolderPath in FolderPaths)
+            {
+                string StorageName = System.IO.Path.GetFileName(ItemFolderPath);
+                if (TryParseStorageName(StorageName, out _, out _, out _))
+                {
+                    T Item = new();
+                    Item.SetStorageName(StorageName);
+                    Item.UpdateReferences(this);
+                    Item.Load();
+                    Result.Add(Item);
+                }
+            }
+        }
+
+        Result.Sort((A, B) => A.OrderIndex.CompareTo(B.OrderIndex));
+        return Result;
+    }
+    /// <summary>
+    /// Deletes the item folder from persistent storage.
+    /// </summary>
+    /// <param name="ItemFolderPath">The item folder path.</param>
+    protected virtual void DeleteStorage(string ItemFolderPath)
+    {
+        if (!string.IsNullOrWhiteSpace(ItemFolderPath) && System.IO.Directory.Exists(ItemFolderPath))
+            System.IO.Directory.Delete(ItemFolderPath, true);
+    }
     
     // ● static public
     /// <summary>
@@ -128,6 +216,26 @@ public class BaseItem
         fDisplayTitle = DisplayTitle;
     }
     /// <summary>
+    /// Prepares persisted item information before saving the item.
+    /// </summary>
+    public virtual void PrepareInfo()
+    {
+        UpdateInfo();
+    }
+    /// <summary>
+    /// Applies persisted item information after loading the item.
+    /// </summary>
+    public virtual void ApplyInfo()
+    {
+        ApplyInfoCore();
+    }
+    /// <summary>
+    /// Renumbers child items.
+    /// </summary>
+    public virtual void RenumberChildren()
+    {
+    }
+    /// <summary>
     /// Updates runtime references after loading the item graph.
     /// </summary>
     /// <param name="ParentItem">The parent item.</param>
@@ -141,12 +249,21 @@ public class BaseItem
     /// </summary>
     public virtual void Save()
     {
+        SaveInfo();
     }
     /// <summary>
     /// Loads the item from persistent storage.
     /// </summary>
     public virtual void Load()
     {
+        LoadInfo();
+    }
+    /// <summary>
+    /// Deletes the item from persistent storage.
+    /// </summary>
+    public virtual void Delete()
+    {
+        DeleteStorage(FolderPath);
     }
     
     // ● properties
@@ -225,6 +342,25 @@ public class BaseItem
     /// </summary>
     public virtual string DisplayTitle => fDisplayTitle;
     /// <summary>
+    /// Gets the file-system storage name of the item folder.
+    /// </summary>
+    [JsonIgnore]
+    public virtual string StorageName => GetStorageName(OrderIndex, Title);
+    /// <summary>
+    /// Gets the file-system folder path of the item.
+    /// </summary>
+    [JsonIgnore]
+    public virtual string FolderPath
+    {
+        get
+        {
+            if (Parent == null)
+                return string.Empty;
+
+            return System.IO.Path.Combine(Parent.FolderPath, StorageName);
+        }
+    }
+    /// <summary>
     /// Gets the item order index among its siblings.
     /// </summary>
     public virtual int OrderIndex => fOrderIndex;
@@ -232,6 +368,11 @@ public class BaseItem
     /// Gets or sets the persisted item information.
     /// </summary>
     public virtual ItemInfo Info { get; set; } = new();
+    /// <summary>
+    /// Gets the file-system path of the item information file.
+    /// </summary>
+    [JsonIgnore]
+    public string InfoFilePath => System.IO.Path.Combine(FolderPath, InfoFileName);
     /// <summary>
     /// Gets the item information file name.
     /// </summary>

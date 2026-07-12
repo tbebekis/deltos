@@ -16,7 +16,164 @@ public class Document: BaseItem
     {
     }
 
+    // ● protected
+    /// <summary>
+    /// Saves the document structure file.
+    /// </summary>
+    protected virtual void SaveStructure()
+    {
+        Json.SaveToFile(Structure, StructureFilePath);
+    }
+    /// <summary>
+    /// Loads the document structure file.
+    /// </summary>
+    protected virtual void LoadStructure()
+    {
+        Json.LoadFromFile(Structure, StructureFilePath);
+        Structure?.UpdateReferences(null);
+    }
+
     // ● public
+    /// <summary>
+    /// Adds a folder.
+    /// </summary>
+    /// <param name="Title">The folder title.</param>
+    /// <param name="LevelTitle">The document level title.</param>
+    /// <returns>The added folder.</returns>
+    public Folder AddFolder(string Title, string LevelTitle)
+    {
+        AppHost.CheckValidFileName(Title);
+
+        Folder Result = new Folder();
+        Result.Title = Title;
+        Result.LevelTitle = LevelTitle;
+        Folders.Add(Result);
+        Result.UpdateReferences(this);
+        RenumberChildren();
+        return Result;
+    }
+    /// <summary>
+    /// Adds a text file.
+    /// </summary>
+    /// <param name="Title">The text file title.</param>
+    /// <returns>The added text file.</returns>
+    public TextFile AddTextFile(string Title)
+    {
+        AppHost.CheckValidFileName(Title);
+
+        TextFile Result = new TextFile();
+        Result.Title = Title;
+        Files.Add(Result);
+        Result.UpdateReferences(this);
+        RenumberChildren();
+        return Result;
+    }
+    /// <summary>
+    /// Removes a folder.
+    /// </summary>
+    /// <param name="Folder">The folder to remove.</param>
+    /// <returns>True if the folder is removed; otherwise false.</returns>
+    public bool RemoveFolder(Folder Folder)
+    {
+        bool Result = Folders.Remove(Folder);
+        if (Result)
+            RenumberChildren();
+
+        return Result;
+    }
+    /// <summary>
+    /// Removes a text file.
+    /// </summary>
+    /// <param name="File">The text file to remove.</param>
+    /// <returns>True if the text file is removed; otherwise false.</returns>
+    public bool RemoveTextFile(TextFile File)
+    {
+        bool Result = Files.Remove(File);
+        if (Result)
+            RenumberChildren();
+
+        return Result;
+    }
+    /// <summary>
+    /// Deletes the document from persistent storage.
+    /// </summary>
+    public override void Delete()
+    {
+        string ItemFolderPath = FolderPath;
+
+        Project ProjectItem = Parent as Project;
+        if (ProjectItem != null)
+            ProjectItem.RemoveDocument(this);
+
+        DeleteStorage(ItemFolderPath);
+    }
+    /// <summary>
+    /// Saves the document to persistent storage.
+    /// </summary>
+    public override void Save()
+    {
+        RenumberChildren();
+        base.Save();
+        SaveStructure();
+
+        System.IO.Directory.CreateDirectory(FoldersFolderPath);
+        System.IO.Directory.CreateDirectory(TextFilesFolderPath);
+
+        foreach (Folder Folder in Folders)
+            Folder.Save();
+
+        foreach (TextFile File in Files)
+            File.Save();
+    }
+    /// <summary>
+    /// Loads the document from persistent storage.
+    /// </summary>
+    public override void Load()
+    {
+        base.Load();
+        LoadStructure();
+
+        Folders = LoadItems<Folder>(FoldersFolderPath);
+        Files = LoadItems<TextFile>(TextFilesFolderPath);
+        UpdateReferences(Parent);
+    }
+    /// <summary>
+    /// Prepares persisted item information before saving the document.
+    /// </summary>
+    public override void PrepareInfo()
+    {
+        base.PrepareInfo();
+
+        foreach (Folder Folder in Folders)
+            Folder.PrepareInfo();
+
+        foreach (TextFile File in Files)
+            File.PrepareInfo();
+    }
+    /// <summary>
+    /// Applies persisted item information after loading the document.
+    /// </summary>
+    public override void ApplyInfo()
+    {
+        base.ApplyInfo();
+
+        foreach (Folder Folder in Folders)
+            Folder.ApplyInfo();
+
+        foreach (TextFile File in Files)
+            File.ApplyInfo();
+    }
+    /// <summary>
+    /// Renumbers document child items.
+    /// </summary>
+    public override void RenumberChildren()
+    {
+        RenumberItems(Folders);
+        RenumberItems(Files);
+
+        foreach (Folder Folder in Folders)
+            Folder.RenumberChildren();
+    }
     /// <summary>
     /// Updates runtime references after loading the document graph.
     /// </summary>
@@ -24,9 +181,13 @@ public class Document: BaseItem
     public override void UpdateReferences(BaseItem ParentItem)
     {
         base.UpdateReferences(ParentItem);
+        Structure?.UpdateReferences(null);
 
         foreach (Folder Folder in Folders)
             Folder.UpdateReferences(this);
+
+        foreach (TextFile File in Files)
+            File.UpdateReferences(this);
     }
     
     // ● properties
@@ -38,6 +199,14 @@ public class Document: BaseItem
     /// Gets the document structure file name.
     /// </summary>
     static public string StructureFileName => "Structure.json";
+    /// <summary>
+    /// Gets the folders bucket folder name.
+    /// </summary>
+    static public string FoldersFolderName => "Folders";
+    /// <summary>
+    /// Gets the text files bucket folder name.
+    /// </summary>
+    static public string TextFilesFolderName => "TextFiles";
     /// <summary>
     /// Gets or sets the document title.
     /// </summary>
@@ -51,9 +220,43 @@ public class Document: BaseItem
     /// </summary>
     public override string DisplayTitle => base.DisplayTitle;
     /// <summary>
+    /// Gets the file-system folder path of the document.
+    /// </summary>
+    [JsonIgnore]
+    public override string FolderPath
+    {
+        get
+        {
+            Project ProjectItem = Parent as Project;
+            if (ProjectItem != null)
+                return System.IO.Path.Combine(ProjectItem.DocumentsFolderPath, StorageName);
+
+            return base.FolderPath;
+        }
+    }
+    /// <summary>
+    /// Gets the file-system folder path of the child folders bucket.
+    /// </summary>
+    [JsonIgnore]
+    public string FoldersFolderPath => System.IO.Path.Combine(FolderPath, FoldersFolderName);
+    /// <summary>
+    /// Gets the file-system folder path of the child text files bucket.
+    /// </summary>
+    [JsonIgnore]
+    public string TextFilesFolderPath => System.IO.Path.Combine(FolderPath, TextFilesFolderName);
+    /// <summary>
+    /// Gets the file-system path of the document structure file.
+    /// </summary>
+    [JsonIgnore]
+    public string StructureFilePath => System.IO.Path.Combine(FolderPath, StructureFileName);
+    /// <summary>
     /// Gets or sets the document folders.
     /// </summary>
     public List<Folder> Folders { get; set; } = new();
+    /// <summary>
+    /// Gets or sets the document text files.
+    /// </summary>
+    public List<TextFile> Files { get; set; } = new();
     /// <summary>
     /// Gets or sets the document folder structure.
     /// </summary>

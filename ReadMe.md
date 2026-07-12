@@ -51,10 +51,10 @@ Each `BaseItem` folder contains an `Info.json` file. This file stores
 - `TagList`: a semicolon-separated list of textual tags, valid only for
   `Component` items.
 - `IsFolder`: `true` or `false`.
-- `FolderTitle`: valid only for folders. Example values are `Part`, `Chapter`,
+- `LevelTitle`: valid only for folders. Example values are `Part`, `Chapter`,
   `Section`, and similar user-defined level names.
 
-`FolderTitle` is needed because documents use the following model:
+`LevelTitle` is needed because documents use the following model:
 
 ``` text
 Project
@@ -66,7 +66,7 @@ Project
 
 When the user creates a new `Document`, the user defines the folder structure of
 that document. This is represented by `Document.Structure` and the `FolderItem`
-class. The structure defines the tree of folder levels and the `FolderTitle` for
+class. The structure defines the tree of folder levels and the `LevelTitle` for
 each level.
 
 The `Document` folder also contains a `Structure.json` file. This file stores
@@ -75,6 +75,71 @@ structure is loaded from this file.
 
 A folder `BaseItem` may contain one or more child folder `BaseItem` instances
 and one or more `TextFile` items.
+
+Child items are stored in type-specific bucket folders. This keeps ordering
+separate per parent and per item type, and avoids name collisions between
+folders and text files.
+
+The project root stores documents under:
+
+``` text
+Documents/
+    001._My_Book/
+```
+
+Each `Document` and each `Folder` stores child folders and text files under:
+
+``` text
+Folders/
+    001._Part_One/
+TextFiles/
+    001._Opening/
+```
+
+The `OrderIndex` is scoped by parent and item type. For example, child folders
+under `Folders/` have their own numbering, and text files under `TextFiles/`
+have their own numbering.
+
+## Move Semantics
+
+Moving folders and text files is one of the most sensitive parts of the storage
+model because the in-memory tree and the file system must remain synchronized.
+
+A `Folder` may move:
+
+- within the same parent `Document` or `Folder`;
+- to the previous or next parent folder;
+- only inside the same `Document`.
+
+A `TextFile` may move:
+
+- within the same parent `Document` or `Folder`;
+- to the previous or next parent folder;
+- only inside the same `Document`.
+
+Every move must update:
+
+- the source parent collection;
+- the target parent collection;
+- runtime references such as `Parent`, `Project`, and `Document`;
+- `OrderIndex` values for the source sibling bucket;
+- `OrderIndex` values for the target sibling bucket;
+- the corresponding file-system folder paths.
+
+The file-system operation must move or rename the affected item folders. A move
+must be designed carefully to avoid collisions, partial updates, and broken
+references. The previous StoryWriter implementation used a path snapshot before
+the move, then changed the in-memory list or parent, and finally moved the
+folder from the old path to the new computed path. Deltos should follow the same
+principle, but with extra care for the `Documents`, `Folders`, and `TextFiles`
+bucket folders.
+
+The old StoryWriter codebase at
+`/home/teo/Dev/CSharp/tb.StoryWriter/StoryWriter.App` is a loose reference for
+this behavior, especially the `Entities/Scene.cs` implementation.
+
+Move implementation is intentionally deferred until this operation can be
+designed as a safe, transaction-like workflow.
 
 Although these items are called `TextFile`, each one is stored in its own folder
 in the file system. A `TextFile` folder contains:

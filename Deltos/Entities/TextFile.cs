@@ -8,6 +8,30 @@ namespace Deltos;
 /// </summary>
 public class TextFile: BaseItem
 {
+    // ● private
+    /// <summary>
+    /// Saves a text file.
+    /// </summary>
+    /// <param name="FilePath">The file path.</param>
+    /// <param name="Text">The text to save.</param>
+    static void SaveTextFile(string FilePath, string Text)
+    {
+        string Folder = System.IO.Path.GetDirectoryName(FilePath);
+        if (!string.IsNullOrWhiteSpace(Folder))
+            System.IO.Directory.CreateDirectory(Folder);
+
+        System.IO.File.WriteAllText(FilePath, Text);
+    }
+    /// <summary>
+    /// Loads a text file.
+    /// </summary>
+    /// <param name="FilePath">The file path.</param>
+    /// <returns>The loaded text.</returns>
+    static string LoadTextFile(string FilePath)
+    {
+        return System.IO.File.Exists(FilePath) ? System.IO.File.ReadAllText(FilePath) : string.Empty;
+    }
+
     // ● construction
     /// <summary>
     /// Initializes a new instance of the TextFile class.
@@ -17,6 +41,47 @@ public class TextFile: BaseItem
     }
 
     // ● public
+    /// <summary>
+    /// Saves the text file to persistent storage.
+    /// </summary>
+    public override void Save()
+    {
+        base.Save();
+
+        SaveTextFile(TextFilePath, Text);
+        SaveTextFile(Text2FilePath, Text2);
+        SaveTextFile(AbstractionFilePath, Abstraction);
+        SaveTextFile(DraftFilePath, Draft);
+    }
+    /// <summary>
+    /// Loads the text file from persistent storage.
+    /// </summary>
+    public override void Load()
+    {
+        base.Load();
+
+        Text = LoadTextFile(TextFilePath);
+        Text2 = LoadTextFile(Text2FilePath);
+        Abstraction = LoadTextFile(AbstractionFilePath);
+        Draft = LoadTextFile(DraftFilePath);
+    }
+    /// <summary>
+    /// Deletes the text file from persistent storage.
+    /// </summary>
+    public override void Delete()
+    {
+        string ItemFolderPath = FolderPath;
+
+        Document DocumentItem = Parent as Document;
+        if (DocumentItem != null)
+            DocumentItem.RemoveTextFile(this);
+
+        Folder FolderItem = Parent as Folder;
+        if (FolderItem != null)
+            FolderItem.RemoveTextFile(this);
+
+        DeleteStorage(ItemFolderPath);
+    }
     /// <summary>
     /// Updates runtime references after loading the text file.
     /// </summary>
@@ -60,10 +125,59 @@ public class TextFile: BaseItem
     /// </summary>
     public override string DisplayTitle => base.DisplayTitle;
     /// <summary>
+    /// Gets the file-system folder path of the text file.
+    /// </summary>
+    [JsonIgnore]
+    public override string FolderPath
+    {
+        get
+        {
+            Document DocumentItem = Parent as Document;
+            if (DocumentItem != null)
+                return System.IO.Path.Combine(DocumentItem.TextFilesFolderPath, StorageName);
+
+            Folder FolderItem = Parent as Folder;
+            if (FolderItem != null)
+                return System.IO.Path.Combine(FolderItem.TextFilesFolderPath, StorageName);
+
+            return base.FolderPath;
+        }
+    }
+    /// <summary>
     /// Gets the owning folder.
     /// </summary>
     [JsonIgnore]
     public Folder Folder => Parent as Folder;
+    /// <summary>
+    /// Gets a value indicating whether the text file belongs directly to a document.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsDocumentFile => Parent is Document;
+    /// <summary>
+    /// Gets a value indicating whether the text file belongs to a folder.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsFolderFile => Parent is Folder;
+    /// <summary>
+    /// Gets the file-system path of the primary text file.
+    /// </summary>
+    [JsonIgnore]
+    public string TextFilePath => System.IO.Path.Combine(FolderPath, TextFileName);
+    /// <summary>
+    /// Gets the file-system path of the secondary text file.
+    /// </summary>
+    [JsonIgnore]
+    public string Text2FilePath => System.IO.Path.Combine(FolderPath, Text2FileName);
+    /// <summary>
+    /// Gets the file-system path of the abstraction text file.
+    /// </summary>
+    [JsonIgnore]
+    public string AbstractionFilePath => System.IO.Path.Combine(FolderPath, AbstractionFileName);
+    /// <summary>
+    /// Gets the file-system path of the draft text file.
+    /// </summary>
+    [JsonIgnore]
+    public string DraftFilePath => System.IO.Path.Combine(FolderPath, DraftFileName);
     /// <summary>
     /// Gets or sets the primary text.
     /// </summary>

@@ -38,7 +38,7 @@ public class ItemInfo
     /// </summary>
     public bool IsFolder { get; set; }
     /// <summary>
-    /// Gets or sets the document folder level title, such as Part, Chapter, or Section.
+    /// Gets or sets the document level title, such as Part, Chapter, or Section.
     /// </summary>
-    public string FolderTitle { get; set; } = string.Empty;
+    public string LevelTitle { get; set; } = string.Empty;
 }
