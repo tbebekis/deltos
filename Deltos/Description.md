@@ -98,7 +98,7 @@ Project
 
 -   Κύρια γλώσσα
 -   Δευτερεύουσα γλώσσα
--   Abstraction
+-   Synopsis
 -   Draft
 
 Οι δύο γλώσσες εμφανίζονται δίπλα-δίπλα με splitter και η δεύτερη μπορεί
@@ -113,7 +113,7 @@ Project
 Για κάθε Text υπάρχουν tabs:
 
 -   Text
--   Abstraction
+-   Synopsis
 -   Temp
 
 Αντίστοιχα ανοίγουν και οι editors των Components.
@@ -144,7 +144,7 @@ Project
 Αναζητά:
 
 -   Text
--   Abstraction
+-   Synopsis
 -   Temp
 -   Components
 
@@ -181,7 +181,7 @@ Project
 | Left Sidebar |             Editors (TabControl)               |
 |--------------|----------------------------------------------- |
 | Documents    |  Text (Primary / Secondary)                    |
-| Components   |  Abstraction                                   |
+| Components   |  Synopsis                                      |
 | Categories   |  Temp                                          |
 | Tags         |                                                |
 | Search       |                                                |

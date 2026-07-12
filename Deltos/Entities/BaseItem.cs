@@ -374,6 +374,28 @@ public class BaseItem
         Json.SaveToFile(Info, InfoFilePath);
     }
     /// <summary>
+    /// Saves a markdown text file.
+    /// </summary>
+    /// <param name="FilePath">The file path.</param>
+    /// <param name="Text">The text to save.</param>
+    static protected void SaveMarkdownFile(string FilePath, string Text)
+    {
+        string Folder = System.IO.Path.GetDirectoryName(FilePath);
+        if (!string.IsNullOrWhiteSpace(Folder))
+            System.IO.Directory.CreateDirectory(Folder);
+
+        System.IO.File.WriteAllText(FilePath, Text ?? string.Empty);
+    }
+    /// <summary>
+    /// Loads a markdown text file.
+    /// </summary>
+    /// <param name="FilePath">The file path.</param>
+    /// <returns>The loaded text.</returns>
+    static protected string LoadMarkdownFile(string FilePath)
+    {
+        return System.IO.File.Exists(FilePath) ? System.IO.File.ReadAllText(FilePath) : string.Empty;
+    }
+    /// <summary>
     /// Loads the item information file.
     /// </summary>
     protected virtual void LoadInfo()

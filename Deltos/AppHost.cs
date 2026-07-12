@@ -9,7 +9,7 @@ static public partial class AppHost
     /// <summary>
     /// Matches valid title characters.
     /// </summary>
-    static Regex EnglishLettersRegex = new Regex("^[a-zA-Z0-9 ]*$");
+    static Regex TitleCharsRegex = new Regex(@"^[\p{L}\p{N} ]*$");
     /// <summary>
     /// The invalid title message format.
     /// </summary>
@@ -22,7 +22,6 @@ A valid title
   • can contain only letters, numbers and spaces
   • cannot contain special characters
   • cannot start with a number
-  • must be in English
 ";
     /// <summary>
     /// The invalid title error message format.
@@ -53,7 +52,7 @@ A valid title
             if (char.IsDigit(TrimmedTitle[0]))
                 return false;
 
-            if (!EnglishLettersRegex.IsMatch(TrimmedTitle))
+            if (!TitleCharsRegex.IsMatch(TrimmedTitle))
                 return false;
 
             return true;

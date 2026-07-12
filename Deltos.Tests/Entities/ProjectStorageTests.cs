@@ -1221,8 +1221,10 @@ public class ProjectStorageTests
         try
         {
             Document Document = Project.AddDocument("Flat Book");
+            Document.Synopsis = "Flat document synopsis.";
             TextFile TextFileItem = Document.AddTextFile("Opening Scene");
             TextFileItem.Text = "Opening text.";
+            TextFileItem.Synopsis = "Opening synopsis.";
             TextFileItem.Save();
             Project.Save();
 
@@ -1231,6 +1233,8 @@ public class ProjectStorageTests
             Assert.True(Directory.Exists(FilePath));
             Assert.True(File.Exists(Path.Combine(FilePath, BaseItem.InfoFileName)));
             Assert.True(File.Exists(Path.Combine(FilePath, TextFile.TextFileName)));
+            Assert.True(File.Exists(Path.Combine(FilePath, TextFile.SynopsisFileName)));
+            Assert.True(File.Exists(Path.Combine(DocumentPath, Document.SynopsisFileName)));
             Assert.False(File.Exists(Path.Combine(DocumentPath, Document.StructureFileName)));
 
             Project LoadedProject = LoadProject(ProjectPath);
@@ -1240,7 +1244,9 @@ public class ProjectStorageTests
             Assert.True(LoadedDocument.IsFlatDocument);
             Assert.Single(LoadedDocument.Files);
             Assert.Empty(LoadedDocument.Folders);
+            Assert.Equal("Flat document synopsis.", LoadedDocument.Synopsis);
             Assert.Equal("Opening text.", LoadedFile.Text);
+            Assert.Equal("Opening synopsis.", LoadedFile.Synopsis);
         }
         finally
         {
@@ -1260,23 +1266,28 @@ public class ProjectStorageTests
         {
             Document Document = Project.AddDocument("Flat Book");
             TextFile TextFileItem = Document.AddTextFile("Opening Scene");
+            Document.Synopsis = null;
             TextFileItem.Text = null;
             TextFileItem.Text2 = null;
-            TextFileItem.Abstraction = null;
+            TextFileItem.Synopsis = null;
             TextFileItem.Draft = null;
+            Document.Save();
             TextFileItem.Save();
 
+            Assert.Equal(string.Empty, Document.Synopsis);
             Assert.Equal(string.Empty, TextFileItem.Text);
             Assert.Equal(string.Empty, TextFileItem.Text2);
-            Assert.Equal(string.Empty, TextFileItem.Abstraction);
+            Assert.Equal(string.Empty, TextFileItem.Synopsis);
             Assert.Equal(string.Empty, TextFileItem.Draft);
 
             Project LoadedProject = LoadProject(ProjectPath);
+            Document LoadedDocument = LoadedProject.Documents[0];
             TextFile LoadedFile = LoadedProject.Documents[0].Files[0];
 
+            Assert.Equal(string.Empty, LoadedDocument.Synopsis);
             Assert.Equal(string.Empty, LoadedFile.Text);
             Assert.Equal(string.Empty, LoadedFile.Text2);
-            Assert.Equal(string.Empty, LoadedFile.Abstraction);
+            Assert.Equal(string.Empty, LoadedFile.Synopsis);
             Assert.Equal(string.Empty, LoadedFile.Draft);
         }
         finally

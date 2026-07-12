@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:AvaloniaEdit="https://github.com/avaloniaui/avaloniaedit"
+             x:Class="Deltos.Forms.TextEditorForm">
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- ToolBar -->
+        <Border Name="ToolBarBorder"
+                Grid.Row="0"
+                Classes="ToolbarContainer">
+            <Grid ColumnDefinitions="Auto,*">
+                <StackPanel Name="pnlToolBar"
+                            Grid.Column="0"
+                            Classes="ToolBar"
+                            MinHeight="32" />
+                <TextBox Name="edtTitle"
+                         Grid.Column="1"
+                         Margin="8,2,0,2"
+                         IsReadOnly="True"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         FontSize="14"
+                         FontWeight="Bold"
+                         VerticalContentAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!-- Editor -->
+        <AvaloniaEdit:TextEditor Name="edtText"
+                                 Grid.Row="1"
+                                 WordWrap="True"
+                                 ShowLineNumbers="False" />
+
+        <!-- StatusBar -->
+        <Border Name="StatusBar"
+                Grid.Row="2"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                BorderThickness="0,1,0,0"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                Padding="6,3">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*"
+                  ColumnSpacing="14">
+                <TextBlock Name="lblLineColumn"
+                           Grid.Column="0"
+                           VerticalAlignment="Center" />
+                <TextBlock Name="lblMetrics"
+                           Grid.Column="1"
+                           VerticalAlignment="Center" />
+                <TextBlock Name="lblReadOnly"
+                           Grid.Column="2"
+                           VerticalAlignment="Center" />
+                <TextBlock Name="lblModified"
+                           Grid.Column="3"
+                           VerticalAlignment="Center" />
+                <TextBlock Name="lblFilePath"
+                           Grid.Column="4"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -10,6 +10,10 @@ public partial class MainWindow : Window
 {
     // ● private fields
     private Tripous.Desktop.ToolBar fToolBar;
+    private AppFormPagerHandler fSideBarHandler;
+    private AppFormPagerHandler fContentHandler;
+    private GridLength fSideBarWidth;
+    private GridLength fLogHeight;
 
     // ● private
     /// <summary>
@@ -17,8 +21,179 @@ public partial class MainWindow : Window
     /// </summary>
     private void WindowInitialize()
     {
+        LogBox.Initialize(edtLog);
+        fSideBarHandler = new AppFormPagerHandler(pagerSideBar);
+        fContentHandler = new AppFormPagerHandler(pagerContent);
+        AppHost.InitializeUi(fSideBarHandler, fContentHandler);
+
+        fSideBarWidth = MainPanel.ColumnDefinitions[0].Width;
+        fLogHeight = RightPanel.RowDefinitions[2].Height;
+
         CreateToolBar();
-        UpdateStatusBar("Ready", "No project open");
+        UpdateProjectStatus("Ready");
+        LogBox.AppendLine("Application started.");
+    }
+
+    /// <summary>
+    /// Configures a toolbar button.
+    /// </summary>
+    /// <param name="Button">The button to configure.</param>
+    /// <param name="CommandName">The command name.</param>
+    private void ConfigureToolBarButton(Button Button, string CommandName)
+    {
+        Button.Tag = CommandName;
+        Button.Width = 34;
+        Button.Height = 34;
+        Button.MinWidth = 0;
+        Button.Padding = new Thickness(2);
+        Button.Margin = new Thickness(0);
+    }
+
+    /// <summary>
+    /// Adds a toolbar button.
+    /// </summary>
+    /// <param name="ImageFileName">The image file name.</param>
+    /// <param name="ToolTipText">The tooltip text.</param>
+    /// <param name="CommandName">The command name.</param>
+    /// <returns>The created button.</returns>
+    private Button AddToolBarButton(string ImageFileName, string ToolTipText, string CommandName)
+    {
+        Button Result = fToolBar.AddButton(ImageFileName, ToolTipText, AnyToolBarClick);
+        ConfigureToolBarButton(Result, CommandName);
+        return Result;
+    }
+
+    /// <summary>
+    /// Adds a toolbar separator.
+    /// </summary>
+    private void AddToolBarSeparator()
+    {
+        Border Separator = fToolBar.AddSeparator();
+        Separator.Margin = new Thickness(3, 0);
+    }
+
+    /// <summary>
+    /// Prompts the user to select the project parent folder.
+    /// </summary>
+    /// <returns>The selected parent folder path, or an empty string.</returns>
+    private async Task<string> SelectProjectParentFolder()
+    {
+        TopLevel TopLevel = TopLevel.GetTopLevel(this);
+        if (TopLevel?.StorageProvider == null)
+            return string.Empty;
+
+        FolderPickerOpenOptions Options = new FolderPickerOpenOptions();
+        Options.Title = "Select Project Parent Folder";
+        Options.AllowMultiple = false;
+
+        IReadOnlyList<IStorageFolder> Folders = await TopLevel.StorageProvider.OpenFolderPickerAsync(Options);
+        if (Folders == null || Folders.Count == 0)
+            return string.Empty;
+
+        return Folders[0].Path.LocalPath;
+    }
+    /// <summary>
+    /// Prompts the user to select the project folder.
+    /// </summary>
+    /// <returns>The selected project folder path, or an empty string.</returns>
+    private async Task<string> SelectProjectFolder()
+    {
+        TopLevel TopLevel = TopLevel.GetTopLevel(this);
+        if (TopLevel?.StorageProvider == null)
+            return string.Empty;
+
+        FolderPickerOpenOptions Options = new FolderPickerOpenOptions();
+        Options.Title = "Open Project Folder";
+        Options.AllowMultiple = false;
+
+        IReadOnlyList<IStorageFolder> Folders = await TopLevel.StorageProvider.OpenFolderPickerAsync(Options);
+        if (Folders == null || Folders.Count == 0)
+            return string.Empty;
+
+        return Folders[0].Path.LocalPath;
+    }
+
+    /// <summary>
+    /// Creates a new project using UI prompts.
+    /// </summary>
+    private async Task CreateNewProject()
+    {
+        InputBoxData Data = await InputBox.ShowModal("Project title", string.Empty, this);
+        if (Data == null || !Data.Result)
+            return;
+
+        string Title = Data.Value.Trim();
+        if (!AppHost.IsValidFileName(Title, false))
+        {
+            await Tripous.Desktop.MessageBox.Error($"Invalid project title: {Title}", this);
+            return;
+        }
+
+        string ParentFolderPath = await SelectProjectParentFolder();
+        if (string.IsNullOrWhiteSpace(ParentFolderPath))
+            return;
+
+        try
+        {
+            AppHost.ShowPleaseWait("Creating project...", this);
+
+            Project Project = AppHost.CreateProject(ParentFolderPath, Title);
+
+            UpdateProjectStatus($"Project created: {Project.Title}");
+            LogBox.AppendLine($"Project created: {Project.ProjectPath}");
+        }
+        catch (Exception e)
+        {
+            LogBox.AppendLine(e);
+            AppHost.HidePleaseWait();
+            await Tripous.Desktop.MessageBox.Error(e, this);
+        }
+        finally
+        {
+            AppHost.HidePleaseWait();
+        }
+    }
+    /// <summary>
+    /// Opens a project using UI prompts.
+    /// </summary>
+    private async Task OpenProject()
+    {
+        string ProjectPath = await SelectProjectFolder();
+        if (string.IsNullOrWhiteSpace(ProjectPath))
+            return;
+
+        try
+        {
+            AppHost.ShowPleaseWait("Opening project...", this);
+
+            Project Project = AppHost.OpenProject(ProjectPath);
+
+            UpdateProjectStatus($"Project opened: {Project.Title}");
+            LogBox.AppendLine($"Project opened: {Project.ProjectPath}");
+        }
+        catch (Exception e)
+        {
+            LogBox.AppendLine(e);
+            AppHost.HidePleaseWait();
+            await Tripous.Desktop.MessageBox.Error(e, this);
+        }
+        finally
+        {
+            AppHost.HidePleaseWait();
+        }
+    }
+    /// <summary>
+    /// Shows the current project folder in the file explorer.
+    /// </summary>
+    private async Task ShowProjectFolder()
+    {
+        if (AppHost.CurrentProject == null)
+        {
+            await Tripous.Desktop.MessageBox.Info("No project is open.", this);
+            return;
+        }
+
+        Sys.OpenFileExplorer(AppHost.CurrentProject.ProjectPath);
     }
 
     /// <summary>
@@ -29,39 +204,53 @@ public partial class MainWindow : Window
         fToolBar = new();
         fToolBar.Panel = pnlToolBar;
 
-        Button Button = fToolBar.AddButton("book_add.png", "New Project", AnyToolBarClick);
-        Button.Tag = "NewProject";
+        AddToolBarButton("application_add.png", "New Project", "NewProject");
+        AddToolBarButton("application_go.png", "Open Project", "OpenProject");
+        AddToolBarButton("folder_go.png", "Show Project Folder", "ShowProjectFolder");
 
-        Button = fToolBar.AddButton("book_open.png", "Open Project", AnyToolBarClick);
-        Button.Tag = "OpenProject";
+        AddToolBarSeparator();
 
-        Button = fToolBar.AddButton("disk.png", "Save Project", AnyToolBarClick);
-        Button.Tag = "SaveProject";
+        AddToolBarButton("setting_tools.png", "Settings", "Settings");
 
-        fToolBar.AddSeparator();
+        AddToolBarSeparator();
 
-        Button = fToolBar.AddButton("document_torn.png", "New Document", AnyToolBarClick);
-        Button.Tag = "NewDocument";
+        AddToolBarButton("layout_sidebar.png", "Show/Hide SideBar", "ToggleSideBar");
+        AddToolBarButton("error_log.png", "Show/Hide Log", "ToggleLog");
 
-        Button = fToolBar.AddButton("folder.png", "New Folder", AnyToolBarClick);
-        Button.Tag = "NewFolder";
+        AddToolBarSeparator();
 
-        Button = fToolBar.AddButton("file_extension_txt.png", "New Text File", AnyToolBarClick);
-        Button.Tag = "NewTextFile";
+        AddToolBarButton("information.png", "About Deltos", "About");
+        AddToolBarButton("door_out.png", "Exit Application", "Exit");
+    }
 
-        fToolBar.AddSeparator();
+    /// <summary>
+    /// Shows or hides the sidebar.
+    /// </summary>
+    private void ToggleSideBar()
+    {
+        bool IsVisible = pagerSideBar.IsVisible;
 
-        Button = fToolBar.AddButton("arrow_up.png", "Move Up", AnyToolBarClick);
-        Button.Tag = "MoveUp";
+        pagerSideBar.IsVisible = !IsVisible;
+        MainSplitter.IsVisible = !IsVisible;
+        MainPanel.ColumnDefinitions[0].Width = IsVisible ? new GridLength(0) : fSideBarWidth;
+        MainPanel.ColumnDefinitions[1].Width = IsVisible ? new GridLength(0) : GridLength.Auto;
 
-        Button = fToolBar.AddButton("arrow_down.png", "Move Down", AnyToolBarClick);
-        Button.Tag = "MoveDown";
+        UpdateStatusBar(IsVisible ? "SideBar hidden" : "SideBar visible", lblProjectStatus.Text);
+    }
 
-        Button = fToolBar.AddButton("bullet_edit.png", "Rename", AnyToolBarClick);
-        Button.Tag = "Rename";
+    /// <summary>
+    /// Shows or hides the log panel.
+    /// </summary>
+    private void ToggleLog()
+    {
+        bool IsVisible = edtLog.IsVisible;
 
-        Button = fToolBar.AddButton("bin.png", "Delete", AnyToolBarClick);
-        Button.Tag = "Delete";
+        edtLog.IsVisible = !IsVisible;
+        LogSplitter.IsVisible = !IsVisible;
+        RightPanel.RowDefinitions[1].Height = IsVisible ? new GridLength(0) : new GridLength(4);
+        RightPanel.RowDefinitions[2].Height = IsVisible ? new GridLength(0) : fLogHeight;
+
+        UpdateStatusBar(IsVisible ? "Log hidden" : "Log visible", lblProjectStatus.Text);
     }
 
     /// <summary>
@@ -69,10 +258,50 @@ public partial class MainWindow : Window
     /// </summary>
     /// <param name="Sender">The event sender.</param>
     /// <param name="Args">The event arguments.</param>
-    private void AnyToolBarClick(object Sender, RoutedEventArgs Args)
+    private async void AnyToolBarClick(object Sender, RoutedEventArgs Args)
     {
         if (Sender is Control Control && Control.Tag is string CommandName)
-            UpdateStatusBar($"Command: {CommandName}", "No project open");
+            await ExecuteToolBarCommand(CommandName);
+    }
+
+    /// <summary>
+    /// Executes a toolbar command.
+    /// </summary>
+    /// <param name="CommandName">The command name.</param>
+    private async Task ExecuteToolBarCommand(string CommandName)
+    {
+        switch (CommandName)
+        {
+            case "NewProject":
+                await CreateNewProject();
+                break;
+            case "OpenProject":
+                await OpenProject();
+                break;
+            case "ShowProjectFolder":
+                await ShowProjectFolder();
+                break;
+            case "Settings":
+                UpdateStatusBar($"Command: {CommandName}", "No project open");
+                LogBox.AppendLine($"Command not implemented yet: {CommandName}");
+                break;
+            case "ToggleSideBar":
+                ToggleSideBar();
+                break;
+            case "ToggleLog":
+                ToggleLog();
+                break;
+            case "About":
+                await DialogWindow.ShowModal<AboutDialog>(null, this);
+                UpdateStatusBar("Ready", "No project open");
+                break;
+            case "Exit":
+                Close();
+                break;
+            default:
+                UpdateStatusBar($"Command: {CommandName}", "No project open");
+                break;
+        }
     }
 
     /// <summary>
@@ -85,6 +314,15 @@ public partial class MainWindow : Window
         lblStatus.Text = StatusText;
         lblProjectStatus.Text = ProjectText;
     }
+    /// <summary>
+    /// Updates the status bar based on the current project.
+    /// </summary>
+    /// <param name="StatusText">The main status text.</param>
+    private void UpdateProjectStatus(string StatusText)
+    {
+        string ProjectText = AppHost.CurrentProject == null ? "No project open" : AppHost.CurrentProject.ProjectPath;
+        UpdateStatusBar(StatusText, ProjectText);
+    }
 
     // ● construction
     /// <summary>
@@ -95,4 +333,14 @@ public partial class MainWindow : Window
         InitializeComponent();
         WindowInitialize();
     }
+
+    // ● properties
+    /// <summary>
+    /// Gets the sidebar pager handler.
+    /// </summary>
+    public AppFormPagerHandler SideBarHandler => fSideBarHandler;
+    /// <summary>
+    /// Gets the content pager handler.
+    /// </summary>
+    public AppFormPagerHandler ContentHandler => fContentHandler;
 }

@@ -18,37 +18,13 @@ public class TextFile: BaseItem
     /// </summary>
     protected string fText2 = string.Empty;
     /// <summary>
-    /// Field for the Abstraction property.
+    /// Field for the Synopsis property.
     /// </summary>
-    protected string fAbstraction = string.Empty;
+    protected string fSynopsis = string.Empty;
     /// <summary>
     /// Field for the Draft property.
     /// </summary>
     protected string fDraft = string.Empty;
-
-    // ● private
-    /// <summary>
-    /// Saves a text file.
-    /// </summary>
-    /// <param name="FilePath">The file path.</param>
-    /// <param name="Text">The text to save.</param>
-    static void SaveTextFile(string FilePath, string Text)
-    {
-        string Folder = System.IO.Path.GetDirectoryName(FilePath);
-        if (!string.IsNullOrWhiteSpace(Folder))
-            System.IO.Directory.CreateDirectory(Folder);
-
-        System.IO.File.WriteAllText(FilePath, Text ?? string.Empty);
-    }
-    /// <summary>
-    /// Loads a text file.
-    /// </summary>
-    /// <param name="FilePath">The file path.</param>
-    /// <returns>The loaded text.</returns>
-    static string LoadTextFile(string FilePath)
-    {
-        return System.IO.File.Exists(FilePath) ? System.IO.File.ReadAllText(FilePath) : string.Empty;
-    }
 
     // ● protected
     /// <summary>
@@ -72,7 +48,7 @@ public class TextFile: BaseItem
         FileNames.Add(InfoFileName);
         FileNames.Add(TextFileName);
         FileNames.Add(Text2FileName);
-        FileNames.Add(AbstractionFileName);
+        FileNames.Add(SynopsisFileName);
         FileNames.Add(DraftFileName);
 
         foreach (string FilePath in System.IO.Directory.GetFiles(FolderPath))
@@ -113,10 +89,10 @@ public class TextFile: BaseItem
     {
         base.Save();
 
-        SaveTextFile(TextFilePath, Text);
-        SaveTextFile(Text2FilePath, Text2);
-        SaveTextFile(AbstractionFilePath, Abstraction);
-        SaveTextFile(DraftFilePath, Draft);
+        SaveMarkdownFile(TextFilePath, Text);
+        SaveMarkdownFile(Text2FilePath, Text2);
+        SaveMarkdownFile(SynopsisFilePath, Synopsis);
+        SaveMarkdownFile(DraftFilePath, Draft);
     }
     /// <summary>
     /// Loads the text file from persistent storage.
@@ -127,10 +103,10 @@ public class TextFile: BaseItem
         CheckStorageFolder();
         CheckRequiredContentFiles();
 
-        Text = LoadTextFile(TextFilePath);
-        Text2 = LoadTextFile(Text2FilePath);
-        Abstraction = LoadTextFile(AbstractionFilePath);
-        Draft = LoadTextFile(DraftFilePath);
+        Text = LoadMarkdownFile(TextFilePath);
+        Text2 = LoadMarkdownFile(Text2FilePath);
+        Synopsis = LoadMarkdownFile(SynopsisFilePath);
+        Draft = LoadMarkdownFile(DraftFilePath);
     }
     /// <summary>
     /// Deletes the text file from persistent storage.
@@ -264,9 +240,9 @@ public class TextFile: BaseItem
     /// </summary>
     static public string Text2FileName => "Text2.md";
     /// <summary>
-    /// Gets the abstraction text file name.
+    /// Gets the synopsis text file name.
     /// </summary>
-    static public string AbstractionFileName => "Abstraction.md";
+    static public string SynopsisFileName => "Synopsis.md";
     /// <summary>
     /// Gets the draft text file name.
     /// </summary>
@@ -328,10 +304,10 @@ public class TextFile: BaseItem
     [JsonIgnore]
     public string Text2FilePath => System.IO.Path.Combine(FolderPath, Text2FileName);
     /// <summary>
-    /// Gets the file-system path of the abstraction text file.
+    /// Gets the file-system path of the synopsis text file.
     /// </summary>
     [JsonIgnore]
-    public string AbstractionFilePath => System.IO.Path.Combine(FolderPath, AbstractionFileName);
+    public string SynopsisFilePath => System.IO.Path.Combine(FolderPath, SynopsisFileName);
     /// <summary>
     /// Gets the file-system path of the draft text file.
     /// </summary>
@@ -354,12 +330,12 @@ public class TextFile: BaseItem
         set => fText2 = value ?? string.Empty;
     }
     /// <summary>
-    /// Gets or sets the abstraction text.
+    /// Gets or sets the synopsis text.
     /// </summary>
-    public string Abstraction
+    public string Synopsis
     {
-        get => fAbstraction;
-        set => fAbstraction = value ?? string.Empty;
+        get => fSynopsis;
+        set => fSynopsis = value ?? string.Empty;
     }
     /// <summary>
     /// Gets or sets the draft text.

@@ -1,0 +1,52 @@
+<desktop:DialogWindow xmlns="https://github.com/avaloniaui"
+                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                      xmlns:desktop="clr-namespace:Tripous.Desktop;assembly=Tripous.Desktop"
+                      x:Class="Deltos.AboutDialog"
+                      Title="About Deltos"
+                      Width="520"
+                      Height="360"
+                      MinWidth="520"
+                      MinHeight="360"
+                      CanResize="False"
+                      WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="*,Auto"
+          Margin="22"
+          RowSpacing="18">
+        <Grid ColumnDefinitions="96,*"
+              ColumnSpacing="18">
+            <Image Grid.Column="0"
+                   Width="88"
+                   Height="88"
+                   VerticalAlignment="Top"
+                   Stretch="Uniform"
+                   Source="avares://Deltos/Resources/Images/Deltos.png" />
+            <StackPanel Grid.Column="1"
+                        Spacing="8">
+                <TextBlock Text="Deltos"
+                           FontSize="28"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="A desktop writing environment for long-form structured projects."
+                           TextWrapping="Wrap" />
+                <TextBlock Text="Deltos stores projects directly in the file system, preserving the document structure, ordering, and text assets as ordinary folders and files."
+                           TextWrapping="Wrap" />
+                <TextBlock Text="Copyright (c) 2026 Theodoros Bebekis"
+                           Margin="0,12,0,0" />
+                <TextBlock Text="Licensed under the MIT License." />
+                <TextBlock Text="Includes Silk icons by Mark James."
+                           FontSize="12"
+                           Opacity="0.78"
+                           Margin="0,8,0,0" />
+            </StackPanel>
+        </Grid>
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Name="btnClose"
+                    Content="Close"
+                    Width="90"
+                    IsDefault="True"
+                    IsCancel="True"
+                    Click="Close_Click" />
+        </StackPanel>
+    </Grid>
+</desktop:DialogWindow>

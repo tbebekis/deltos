@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:forms="clr-namespace:Deltos.Forms"
+             x:Class="Deltos.Forms.DocumentListForm">
+    <DockPanel Margin="2">
+        <!-- ToolBar -->
+        <Border DockPanel.Dock="Top"
+                Classes="ToolbarContainer">
+            <StackPanel Name="pnlToolBar"
+                        Classes="ToolBar"
+                        MinHeight="32" />
+        </Border>
+
+        <!-- Project Title -->
+        <Border DockPanel.Dock="Top"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                BorderThickness="0,0,0,1"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                Padding="8,5">
+            <TextBlock Name="lblProjectTitle"
+                       FontWeight="SemiBold"
+                       Text="No project open"
+                       TextTrimming="CharacterEllipsis" />
+        </Border>
+
+        <Grid RowDefinitions="2*,Auto,*">
+            <!-- Tree and Metrics -->
+            <Grid Grid.Row="0"
+                  ColumnDefinitions="*,Auto,*">
+                <TreeView Name="tvProject"
+                          Grid.Column="0"
+                          MinWidth="180"
+                          FontSize="13"
+                          Margin="0,2,2,2" />
+
+                <GridSplitter Name="TreeMetricsSplitter"
+                              Grid.Column="1"
+                              Width="4"
+                              ResizeDirection="Columns" />
+
+                <Border Grid.Column="2"
+                        MinWidth="180"
+                        BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                        BorderThickness="1,0,0,0"
+                        Padding="8,6"
+                        Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Text Metrics"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Name="txtMetrics"
+                                       FontFamily="Cascadia Code, Consolas, Monospace"
+                                       FontSize="12"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <GridSplitter Grid.Row="1"
+                          Height="4"
+                          ResizeDirection="Rows" />
+
+            <!-- Text Preview -->
+            <Grid Grid.Row="2"
+                  RowDefinitions="Auto,*">
+                <Border Grid.Row="0"
+                        BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                        BorderThickness="0,1,0,1"
+                        Padding="6,4"
+                        Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+                    <TextBlock Name="lblTextTitle"
+                               FontSize="14"
+                               FontWeight="Bold"
+                               Text="Text" />
+                </Border>
+
+                <forms:TextEditorForm Name="Editor"
+                                      Grid.Row="1"
+                                      ToolBarVisible="False"
+                                      ReadOnly="True" />
+            </Grid>
+        </Grid>
+    </DockPanel>
+</UserControl>

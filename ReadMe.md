@@ -193,6 +193,9 @@ level uses only one child bucket: either `Folders/` for non-leaf folders, or
 A valid document also uses only one child bucket: either `Folders/` for
 structured documents, or `TextFiles/` for flat documents.
 
+Each `Document` and each `Folder` also stores its own synopsis text in a
+`Synopsis.md` file inside its item folder.
+
 ## Move Semantics
 
 Moving folders and text files is one of the most sensitive parts of the storage
@@ -242,10 +245,40 @@ in the file system. A `TextFile` folder contains:
 - `Info.json`.
 - `Text.md`.
 - `Text2.md`.
-- `Abstraction.md`.
+- `Synopsis.md`.
 - `Draft.md`.
 
 `Project.Load()` loads the entire project into memory. Immediately after
 loading, it calls `UpdateReferences(null)`. This causes
 `UpdateReferences(BaseItem ParentItem)` to be called for all child items as
 well.
+
+## User Interface Forms
+
+All Deltos application forms hosted inside the main window pagers inherit from
+`Tripous.Desktop.AppForm`.
+
+Project tree item icons:
+
+- `Document`: `book.png`.
+- `Folder`: `folder.png`.
+- `TextFile`: `table.png`.
+
+## About Dialog
+
+The application includes an `AboutDialog` based on
+`Tripous.Desktop.DialogWindow`. It displays the application title, the Deltos
+image, a short product description, copyright and license information, and a
+small attribution note for the icon set used by the user interface.
+
+## Silk Icons
+
+The Hermes user interface includes icons from the Silk icon set 1.3.
+
+Author: Mark James
+
+Project: https://github.com/legacy-icons/famfamfam-silk
+
+License: Creative Commons Attribution 2.5
+
+License URL: http://creativecommons.org/licenses/by/2.5/

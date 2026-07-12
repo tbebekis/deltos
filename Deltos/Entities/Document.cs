@@ -10,6 +10,10 @@ public class Document: BaseItem
 {
     // ● protected
     /// <summary>
+    /// Field for the Synopsis property.
+    /// </summary>
+    protected string fSynopsis = string.Empty;
+    /// <summary>
     /// Field for the Structure property.
     /// </summary>
     protected FolderItem fStructure = new();
@@ -424,6 +428,8 @@ public class Document: BaseItem
         RenumberChildren();
         UpdateReferences(Parent);
         base.Save();
+        SaveMarkdownFile(SynopsisFilePath, Synopsis);
+
         if (HasFolderStructure)
         {
             SaveStructure();
@@ -463,6 +469,7 @@ public class Document: BaseItem
     public override void Load()
     {
         base.Load();
+        Synopsis = LoadMarkdownFile(SynopsisFilePath);
         LoadStructure();
 
         Folders = new List<Folder>();
@@ -566,6 +573,10 @@ public class Document: BaseItem
     /// </summary>
     static public string TextFilesFolderName => "TextFiles";
     /// <summary>
+    /// Gets the synopsis text file name.
+    /// </summary>
+    static public string SynopsisFileName => "Synopsis.md";
+    /// <summary>
     /// Gets or sets the document title.
     /// </summary>
     public override string Title
@@ -607,6 +618,11 @@ public class Document: BaseItem
     /// </summary>
     [JsonIgnore]
     public string StructureFilePath => System.IO.Path.Combine(FolderPath, StructureFileName);
+    /// <summary>
+    /// Gets the file-system path of the document synopsis file.
+    /// </summary>
+    [JsonIgnore]
+    public string SynopsisFilePath => System.IO.Path.Combine(FolderPath, SynopsisFileName);
     /// <summary>
     /// Gets a value indicating whether this document has a folder structure.
     /// </summary>
@@ -662,6 +678,14 @@ public class Document: BaseItem
     {
         get => fFiles;
         set => fFiles = value ?? new List<TextFile>();
+    }
+    /// <summary>
+    /// Gets or sets the document synopsis.
+    /// </summary>
+    public string Synopsis
+    {
+        get => fSynopsis;
+        set => fSynopsis = value ?? string.Empty;
     }
     /// <summary>
     /// Gets or sets the document folder structure.

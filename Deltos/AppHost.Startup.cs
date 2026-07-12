@@ -39,6 +39,13 @@ static public partial class AppHost
         LogBox.AppendLine(Error.ToString());
     }
     /// <summary>
+    /// Loads application settings.
+    /// </summary>
+    static void LoadSettings()
+    {
+        Settings = new AppSettings();
+        Settings.Load();
+    }
     /// Returns the active owner window for owned dialogs.
     /// </summary>
     /// <returns>The active owner window, or null.</returns>
@@ -61,6 +68,7 @@ static public partial class AppHost
     static public StartupWindow CreateStartupWindow()
     {
         StartupWindow = new StartupWindow();
+        Ui.MainWindow = StartupWindow;
         return StartupWindow;
     }
     /// <summary>
@@ -76,10 +84,13 @@ static public partial class AppHost
         {
             InitializeGlobalExceptionHandling();
             Initialize();
+            OpenLastProject();
 
             MainWindow = new MainWindow();
             AvaloniaDesktop.MainWindow = MainWindow;
+            Ui.MainWindow = MainWindow;
             MainWindow.Show();
+            ShowSideBarForms();
         }
         catch (Exception e)
         {
@@ -102,6 +113,7 @@ static public partial class AppHost
     {
         SysConfig.ApplicationMode = ApplicationMode.Desktop;
         SysConfig.MainAssembly = typeof(AppHost).Assembly;
+        LoadSettings();
     }
     /// <summary>
     /// Shows the please-wait window.
@@ -150,6 +162,14 @@ static public partial class AppHost
     /// Gets the main window.
     /// </summary>
     static public MainWindow MainWindow { get; private set; }
+    /// <summary>
+    /// Gets or sets the current project.
+    /// </summary>
+    static public Project CurrentProject { get; private set; }
+    /// <summary>
+    /// Gets the application settings.
+    /// </summary>
+    static public AppSettings Settings { get; private set; }
     /// <summary>
     /// Gets the please-wait window.
     /// </summary>

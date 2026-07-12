@@ -10,6 +10,10 @@ public class Folder: BaseItem
 {
     // ● protected
     /// <summary>
+    /// Field for the Synopsis property.
+    /// </summary>
+    protected string fSynopsis = string.Empty;
+    /// <summary>
     /// Field for the LevelTitle property.
     /// </summary>
     protected string fLevelTitle = string.Empty;
@@ -413,6 +417,7 @@ public class Folder: BaseItem
         RenumberChildren();
         UpdateReferences(Parent);
         base.Save();
+        SaveMarkdownFile(SynopsisFilePath, Synopsis);
 
         if (CanContainFolders)
         {
@@ -444,6 +449,7 @@ public class Folder: BaseItem
     public override void Load()
     {
         base.Load();
+        Synopsis = LoadMarkdownFile(SynopsisFilePath);
 
         Folders = new List<Folder>();
         Files = new List<TextFile>();
@@ -572,6 +578,10 @@ public class Folder: BaseItem
     /// </summary>
     static public string TextFilesFolderName => "TextFiles";
     /// <summary>
+    /// Gets the synopsis text file name.
+    /// </summary>
+    static public string SynopsisFileName => "Synopsis.md";
+    /// <summary>
     /// Gets the file-system folder path of the child folders bucket.
     /// </summary>
     [JsonIgnore]
@@ -581,6 +591,11 @@ public class Folder: BaseItem
     /// </summary>
     [JsonIgnore]
     public string TextFilesFolderPath => System.IO.Path.Combine(FolderPath, TextFilesFolderName);
+    /// <summary>
+    /// Gets the file-system path of the folder synopsis file.
+    /// </summary>
+    [JsonIgnore]
+    public string SynopsisFilePath => System.IO.Path.Combine(FolderPath, SynopsisFileName);
     /// <summary>
     /// Gets or sets the document level title, such as Part, Chapter, or Section.
     /// </summary>
@@ -669,5 +684,13 @@ public class Folder: BaseItem
     {
         get => fFiles;
         set => fFiles = value ?? new List<TextFile>();
+    }
+    /// <summary>
+    /// Gets or sets the folder synopsis.
+    /// </summary>
+    public string Synopsis
+    {
+        get => fSynopsis;
+        set => fSynopsis = value ?? string.Empty;
     }
 }
