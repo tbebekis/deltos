@@ -24,13 +24,14 @@ public class Project: BaseItem
     /// <returns>The added document.</returns>
     public Document AddDocument(string Title)
     {
-        AppHost.CheckValidFileName(Title);
+        CheckDuplicateTitle(Documents, Title);
 
         Document Result = new Document();
         Result.Title = Title;
         Documents.Add(Result);
         Result.UpdateReferences(this);
         RenumberChildren();
+        SaveItemIfStorageReady(Result);
         return Result;
     }
     /// <summary>
@@ -42,7 +43,39 @@ public class Project: BaseItem
     {
         bool Result = Documents.Remove(Document);
         if (Result)
+        {
+            Document.ClearReferences();
             RenumberChildren();
+            UpdateReferences(null);
+        }
+
+        return Result;
+    }
+    /// <summary>
+    /// Deletes a child item from memory and persistent storage.
+    /// </summary>
+    /// <param name="Item">The child item to delete.</param>
+    /// <returns>True if the child item is deleted; otherwise false.</returns>
+    public override bool RemoveChild(BaseItem Item)
+    {
+        Document Document = Item as Document;
+        if (Document == null || !Documents.Contains(Document))
+            return false;
+
+        Document.Delete();
+        return true;
+    }
+    /// <summary>
+    /// Moves a document inside the project documents list.
+    /// </summary>
+    /// <param name="Document">The document to move.</param>
+    /// <param name="NewOrderIndex">The new one-based order index.</param>
+    /// <returns>True if the document is moved; otherwise false.</returns>
+    public bool MoveDocument(Document Document, int NewOrderIndex)
+    {
+        bool Result = MoveItem(Documents, Document, NewOrderIndex);
+        if (Result)
+            UpdateReferences(null);
 
         return Result;
     }
@@ -51,8 +84,8 @@ public class Project: BaseItem
     /// </summary>
     public override void Save()
     {
-        UpdateReferences(null);
         RenumberChildren();
+        UpdateReferences(null);
         base.Save();
 
         System.IO.Directory.CreateDirectory(DocumentsFolderPath);
@@ -70,6 +103,15 @@ public class Project: BaseItem
 
         Documents = LoadItems<Document>(DocumentsFolderPath);
         UpdateReferences(null);
+    }
+    /// <summary>
+    /// Renames the project.
+    /// </summary>
+    /// <param name="NewTitle">The new title.</param>
+    public override void Rename(string NewTitle)
+    {
+        Title = NewTitle;
+        SaveInfo();
     }
     /// <summary>
     /// Prepares persisted item information before saving the project.
@@ -112,6 +154,18 @@ public class Project: BaseItem
 
         foreach (Document Document in Documents)
             Document.UpdateReferences(this);
+    }
+    /// <summary>
+    /// Returns the project child items.
+    /// </summary>
+    /// <returns>The project child items.</returns>
+    public override List<BaseItem> GetChildItems()
+    {
+        List<BaseItem> Result = new();
+        foreach (Document Document in Documents)
+            Result.Add(Document);
+
+        return Result;
     }
 
     // ● properties

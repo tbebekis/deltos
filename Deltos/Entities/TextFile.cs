@@ -32,6 +32,22 @@ public class TextFile: BaseItem
         return System.IO.File.Exists(FilePath) ? System.IO.File.ReadAllText(FilePath) : string.Empty;
     }
 
+    // ● protected
+    /// <summary>
+    /// Checks whether the text file can be renamed.
+    /// </summary>
+    /// <param name="NewTitle">The new title.</param>
+    protected override void CheckRenameTitle(string NewTitle)
+    {
+        Document DocumentItem = Parent as Document;
+        if (DocumentItem != null)
+            CheckDuplicateTitle(DocumentItem.Files, NewTitle, this);
+
+        Folder FolderItem = Parent as Folder;
+        if (FolderItem != null)
+            CheckDuplicateTitle(FolderItem.Files, NewTitle, this);
+    }
+
     // ● construction
     /// <summary>
     /// Initializes a new instance of the TextFile class.
@@ -89,6 +105,96 @@ public class TextFile: BaseItem
     public override void UpdateReferences(BaseItem ParentItem)
     {
         base.UpdateReferences(ParentItem);
+    }
+    /// <summary>
+    /// Returns true if the text file can move in the specified direction.
+    /// </summary>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <returns>True if the text file can move; otherwise false.</returns>
+    public override bool CanMove(bool Up)
+    {
+        Document DocumentItem = Parent as Document;
+        if (DocumentItem != null)
+        {
+            if (!DocumentItem.CanContainTextFiles)
+                return false;
+
+            return CanMoveItem(DocumentItem.Files, this, Up);
+        }
+
+        Folder FolderItem = Parent as Folder;
+        if (FolderItem != null)
+        {
+            if (!FolderItem.CanContainTextFiles)
+                return false;
+
+            if (CanMoveItem(FolderItem.Files, this, Up))
+                return true;
+
+            BaseItem TargetContainer = GetAdjacentTextFileMoveContainer(Document, FolderItem, Up);
+            Document TargetDocument = TargetContainer as Document;
+            if (TargetDocument != null)
+                return !ContainsTitle(TargetDocument.Files, Title);
+
+            Folder TargetFolder = TargetContainer as Folder;
+            return TargetFolder != null && !ContainsTitle(TargetFolder.Files, Title);
+        }
+
+        return false;
+    }
+    /// <summary>
+    /// Moves the text file one step in the specified direction.
+    /// </summary>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <returns>True if the text file is moved; otherwise false.</returns>
+    public override bool Move(bool Up)
+    {
+        Document DocumentItem = Parent as Document;
+        if (DocumentItem != null)
+        {
+            if (!DocumentItem.CanContainTextFiles)
+                return false;
+
+            if (!CanMove(Up))
+                return false;
+
+            bool Result = MoveItem(DocumentItem.Files, this, Up);
+            if (Result)
+                DocumentItem.UpdateReferences(DocumentItem.Parent);
+
+            return Result;
+        }
+
+        Folder FolderItem = Parent as Folder;
+        if (FolderItem != null)
+        {
+            if (!FolderItem.CanContainTextFiles)
+                return false;
+
+            bool Result = false;
+            if (CanMoveItem(FolderItem.Files, this, Up))
+            {
+                Result = MoveItem(FolderItem.Files, this, Up);
+            }
+            else
+            {
+                BaseItem TargetContainer = GetAdjacentTextFileMoveContainer(Document, FolderItem, Up);
+                Document TargetDocument = TargetContainer as Document;
+                if (TargetDocument != null)
+                    Result = MoveItem(FolderItem.Files, TargetDocument.Files, this, TargetDocument, Up);
+
+                Folder TargetFolder = TargetContainer as Folder;
+                if (TargetFolder != null)
+                    Result = MoveItem(FolderItem.Files, TargetFolder.Files, this, TargetFolder, Up);
+            }
+
+            if (Result)
+                FolderItem.UpdateReferences(FolderItem.Parent);
+
+            return Result;
+        }
+
+        return false;
     }
     
     // ● properties

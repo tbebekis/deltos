@@ -18,10 +18,6 @@ public class BaseItem
     /// </summary>
     protected string fTitle = string.Empty;
     /// <summary>
-    /// Field for the DisplayTitle property.
-    /// </summary>
-    protected string fDisplayTitle = string.Empty;
-    /// <summary>
     /// Field for the OrderIndex property.
     /// </summary>
     protected int fOrderIndex;
@@ -63,8 +59,260 @@ public class BaseItem
     /// <param name="Items">The items to renumber.</param>
     static protected void RenumberItems<T>(List<T> Items) where T: BaseItem
     {
+        List<(string OldFolderPath, string NewFolderPath)> Moves = new();
+
         for (int Index = 0; Index < Items.Count; Index++)
-            Items[Index].fOrderIndex = Index + 1;
+        {
+            T Item = Items[Index];
+            string OldFolderPath = Item.FolderPath;
+            Item.fOrderIndex = Index + 1;
+            string NewFolderPath = Item.FolderPath;
+
+            if (!IsSamePath(OldFolderPath, NewFolderPath) && System.IO.Directory.Exists(OldFolderPath))
+                Moves.Add((OldFolderPath, NewFolderPath));
+        }
+
+        MoveRenumberedStorage(Moves);
+    }
+    /// <summary>
+    /// Moves an item inside a sibling list.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="Items">The sibling items.</param>
+    /// <param name="Item">The item to move.</param>
+    /// <param name="NewOrderIndex">The new one-based order index.</param>
+    /// <returns>True if the item is moved; otherwise false.</returns>
+    static protected bool MoveItem<T>(List<T> Items, T Item, int NewOrderIndex) where T: BaseItem
+    {
+        int OldIndex = Items.IndexOf(Item);
+        if (OldIndex < 0)
+            throw new InvalidOperationException("The item does not belong to the specified sibling list.");
+
+        if (NewOrderIndex < 1 || NewOrderIndex > Items.Count)
+            throw new ArgumentOutOfRangeException(nameof(NewOrderIndex));
+
+        int NewIndex = NewOrderIndex - 1;
+        if (OldIndex == NewIndex)
+            return false;
+
+        Items.RemoveAt(OldIndex);
+        Items.Insert(NewIndex, Item);
+        RenumberItems(Items);
+        return true;
+    }
+    /// <summary>
+    /// Moves an item one step inside a sibling list.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="Items">The sibling items.</param>
+    /// <param name="Item">The item to move.</param>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <returns>True if the item is moved; otherwise false.</returns>
+    static protected bool MoveItem<T>(List<T> Items, T Item, bool Up) where T: BaseItem
+    {
+        int OldIndex = Items.IndexOf(Item);
+        if (OldIndex < 0)
+            throw new InvalidOperationException("The item does not belong to the specified sibling list.");
+
+        int NewOrderIndex = Up ? OldIndex : OldIndex + 2;
+        return MoveItem(Items, Item, NewOrderIndex);
+    }
+    /// <summary>
+    /// Returns true if an item can move inside a sibling list.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="Items">The sibling items.</param>
+    /// <param name="Item">The item to check.</param>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <returns>True if the item can move; otherwise false.</returns>
+    static protected bool CanMoveItem<T>(List<T> Items, T Item, bool Up) where T: BaseItem
+    {
+        int Index = Items.IndexOf(Item);
+        if (Index < 0)
+            return false;
+
+        return Up ? Index > 0 : Index < Items.Count - 1;
+    }
+    /// <summary>
+    /// Moves an item to another parent sibling list.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="SourceItems">The source sibling items.</param>
+    /// <param name="TargetItems">The target sibling items.</param>
+    /// <param name="Item">The item to move.</param>
+    /// <param name="TargetParent">The target parent item.</param>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <returns>True if the item is moved; otherwise false.</returns>
+    static protected bool MoveItem<T>(List<T> SourceItems, List<T> TargetItems, T Item, BaseItem TargetParent, bool Up) where T: BaseItem
+    {
+        if (!SourceItems.Contains(Item))
+            throw new InvalidOperationException("The item does not belong to the specified source list.");
+
+        if (SourceItems == TargetItems)
+            return MoveItem(SourceItems, Item, Up);
+
+        CheckDuplicateTitle(TargetItems, Item.Title);
+
+        string OldFolderPath = Item.FolderPath;
+        SourceItems.Remove(Item);
+
+        int InsertIndex = Up ? TargetItems.Count : 0;
+        TargetItems.Insert(InsertIndex, Item);
+        Item.UpdateReferences(TargetParent);
+
+        RenumberItems(SourceItems);
+        RenumberItems(TargetItems);
+        MoveStorage(OldFolderPath, Item.FolderPath);
+        return true;
+    }
+    /// <summary>
+    /// Moves an item folder from one path to another.
+    /// </summary>
+    /// <param name="OldFolderPath">The old folder path.</param>
+    /// <param name="NewFolderPath">The new folder path.</param>
+    static protected void MoveStorage(string OldFolderPath, string NewFolderPath)
+    {
+        if (IsSamePath(OldFolderPath, NewFolderPath) || !System.IO.Directory.Exists(OldFolderPath))
+            return;
+
+        if (System.IO.Directory.Exists(NewFolderPath))
+            throw new InvalidOperationException($"Folder already exists: {NewFolderPath}");
+
+        string ParentFolder = System.IO.Path.GetDirectoryName(NewFolderPath);
+        if (!string.IsNullOrWhiteSpace(ParentFolder))
+            System.IO.Directory.CreateDirectory(ParentFolder);
+
+        System.IO.Directory.Move(OldFolderPath, NewFolderPath);
+    }
+    /// <summary>
+    /// Returns an adjacent container that may contain a folder of the specified level.
+    /// </summary>
+    /// <param name="DocumentItem">The owning document.</param>
+    /// <param name="CurrentContainer">The current parent container.</param>
+    /// <param name="FolderLevel">The moving folder level.</param>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <param name="MovingFolder">The moving folder.</param>
+    /// <returns>The adjacent move container, or null.</returns>
+    static protected BaseItem GetAdjacentFolderMoveContainer(Document DocumentItem, BaseItem CurrentContainer, int FolderLevel, bool Up, Folder MovingFolder)
+    {
+        if (DocumentItem == null || CurrentContainer == null)
+            return null;
+
+        List<BaseItem> Containers = DocumentItem.GetFolderMoveContainers(FolderLevel);
+        return GetAdjacentMoveContainer(Containers, CurrentContainer, Up, MovingFolder);
+    }
+    /// <summary>
+    /// Returns an adjacent container that may contain text files.
+    /// </summary>
+    /// <param name="DocumentItem">The owning document.</param>
+    /// <param name="CurrentContainer">The current parent container.</param>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <returns>The adjacent move container, or null.</returns>
+    static protected BaseItem GetAdjacentTextFileMoveContainer(Document DocumentItem, BaseItem CurrentContainer, bool Up)
+    {
+        if (DocumentItem == null || CurrentContainer == null)
+            return null;
+
+        List<BaseItem> Containers = DocumentItem.GetTextFileMoveContainers();
+        int Index = Containers.IndexOf(CurrentContainer);
+        if (Index < 0)
+            return null;
+
+        int TargetIndex = Up ? Index - 1 : Index + 1;
+        return TargetIndex >= 0 && TargetIndex < Containers.Count ? Containers[TargetIndex] : null;
+    }
+    /// <summary>
+    /// Returns an adjacent valid move container from a specified container list.
+    /// </summary>
+    /// <param name="Containers">The available containers.</param>
+    /// <param name="CurrentContainer">The current parent container.</param>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <param name="MovingFolder">The moving folder.</param>
+    /// <returns>The adjacent move container, or null.</returns>
+    static protected BaseItem GetAdjacentMoveContainer(List<BaseItem> Containers, BaseItem CurrentContainer, bool Up, Folder MovingFolder)
+    {
+        int Index = Containers.IndexOf(CurrentContainer);
+        if (Index < 0)
+            return null;
+
+        int Step = Up ? -1 : 1;
+        for (int I = Index + Step; I >= 0 && I < Containers.Count; I += Step)
+        {
+            BaseItem Container = Containers[I];
+            if (IsValidFolderMoveContainer(Container, MovingFolder))
+                return Container;
+        }
+
+        return null;
+    }
+    /// <summary>
+    /// Returns true if a container can receive the moving folder.
+    /// </summary>
+    /// <param name="Container">The container to check.</param>
+    /// <param name="MovingFolder">The moving folder.</param>
+    /// <returns>True if the container can receive the moving folder; otherwise false.</returns>
+    static protected bool IsValidFolderMoveContainer(BaseItem Container, Folder MovingFolder)
+    {
+        if (MovingFolder == null)
+            return true;
+
+        if (ReferenceEquals(Container, MovingFolder))
+            return false;
+
+        Folder FolderContainer = Container as Folder;
+        return FolderContainer == null || !MovingFolder.ContainsFolder(FolderContainer);
+    }
+    /// <summary>
+    /// Returns true if two folder paths point to the same path.
+    /// </summary>
+    /// <param name="A">The first path.</param>
+    /// <param name="B">The second path.</param>
+    /// <returns>True if the two paths are the same; otherwise false.</returns>
+    static protected bool IsSamePath(string A, string B)
+    {
+        if (string.IsNullOrWhiteSpace(A) || string.IsNullOrWhiteSpace(B))
+            return string.IsNullOrWhiteSpace(A) && string.IsNullOrWhiteSpace(B);
+
+        string PathA = System.IO.Path.GetFullPath(A).TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+        string PathB = System.IO.Path.GetFullPath(B).TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+        return string.Equals(PathA, PathB, StringComparison.Ordinal);
+    }
+    /// <summary>
+    /// Moves existing item folders after renumbering.
+    /// </summary>
+    /// <param name="Moves">The folder moves to execute.</param>
+    static protected void MoveRenumberedStorage(List<(string OldFolderPath, string NewFolderPath)> Moves)
+    {
+        if (Moves.Count == 0)
+            return;
+
+        foreach ((string OldFolderPath, string NewFolderPath) in Moves)
+        {
+            bool TargetIsSource = Moves.Exists(Move => IsSamePath(Move.OldFolderPath, NewFolderPath));
+            if (System.IO.Directory.Exists(NewFolderPath) && !TargetIsSource)
+                throw new InvalidOperationException($"Folder already exists: {NewFolderPath}");
+        }
+
+        List<(string TempFolderPath, string NewFolderPath)> StagedMoves = new();
+        foreach ((string OldFolderPath, string NewFolderPath) in Moves)
+        {
+            string ParentFolder = System.IO.Path.GetDirectoryName(OldFolderPath);
+            if (string.IsNullOrWhiteSpace(ParentFolder))
+                throw new InvalidOperationException($"Invalid folder path: {OldFolderPath}");
+
+            string TempFolderPath = System.IO.Path.Combine(ParentFolder, $".deltos-renumber-{System.Guid.NewGuid():N}");
+            System.IO.Directory.Move(OldFolderPath, TempFolderPath);
+            StagedMoves.Add((TempFolderPath, NewFolderPath));
+        }
+
+        foreach ((string TempFolderPath, string NewFolderPath) in StagedMoves)
+        {
+            string ParentFolder = System.IO.Path.GetDirectoryName(NewFolderPath);
+            if (!string.IsNullOrWhiteSpace(ParentFolder))
+                System.IO.Directory.CreateDirectory(ParentFolder);
+
+            System.IO.Directory.Move(TempFolderPath, NewFolderPath);
+        }
     }
     /// <summary>
     /// Saves the item information file.
@@ -120,6 +368,80 @@ public class BaseItem
     {
         if (!string.IsNullOrWhiteSpace(ItemFolderPath) && System.IO.Directory.Exists(ItemFolderPath))
             System.IO.Directory.Delete(ItemFolderPath, true);
+    }
+    /// <summary>
+    /// Returns true if the item has a resolved project storage path.
+    /// </summary>
+    /// <returns>True if the item can persist storage; otherwise false.</returns>
+    protected bool CanPersistStorage()
+    {
+        Project ProjectItem = this as Project;
+        if (ProjectItem != null)
+            return !string.IsNullOrWhiteSpace(ProjectItem.ProjectPath);
+
+        return Project != null && !string.IsNullOrWhiteSpace(Project.ProjectPath);
+    }
+    /// <summary>
+    /// Saves the item if it has a resolved project storage path.
+    /// </summary>
+    /// <param name="Item">The item to save.</param>
+    protected void SaveItemIfStorageReady(BaseItem Item)
+    {
+        if (CanPersistStorage())
+            Item.Save();
+    }
+    /// <summary>
+    /// Checks whether the item can be renamed.
+    /// </summary>
+    /// <param name="NewTitle">The new title.</param>
+    protected virtual void CheckRenameTitle(string NewTitle)
+    {
+    }
+    /// <summary>
+    /// Throws an exception if the specified title already exists in a sibling list.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="Items">The sibling items.</param>
+    /// <param name="Title">The title to check.</param>
+    static protected void CheckDuplicateTitle<T>(List<T> Items, string Title) where T: BaseItem
+    {
+        foreach (T Item in Items)
+        {
+            if (Item.Title.IsSameText(Title))
+                throw new InvalidOperationException($"An item with the same title already exists: {Title}");
+        }
+    }
+    /// <summary>
+    /// Throws an exception if the specified title already exists in a sibling list.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="Items">The sibling items.</param>
+    /// <param name="Title">The title to check.</param>
+    /// <param name="IgnoredItem">The item to ignore.</param>
+    static protected void CheckDuplicateTitle<T>(List<T> Items, string Title, T IgnoredItem) where T: BaseItem
+    {
+        foreach (T Item in Items)
+        {
+            if (!ReferenceEquals(Item, IgnoredItem) && Item.Title.IsSameText(Title))
+                throw new InvalidOperationException($"An item with the same title already exists: {Title}");
+        }
+    }
+    /// <summary>
+    /// Returns true if the specified title already exists in a sibling list.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="Items">The sibling items.</param>
+    /// <param name="Title">The title to check.</param>
+    /// <returns>True if the title exists; otherwise false.</returns>
+    static protected bool ContainsTitle<T>(List<T> Items, string Title) where T: BaseItem
+    {
+        foreach (T Item in Items)
+        {
+            if (Item.Title.IsSameText(Title))
+                return true;
+        }
+
+        return false;
     }
     
     // ● static public
@@ -213,7 +535,6 @@ public class BaseItem
 
         fOrderIndex = OrderIndex;
         fTitle = Title;
-        fDisplayTitle = DisplayTitle;
     }
     /// <summary>
     /// Prepares persisted item information before saving the item.
@@ -245,6 +566,69 @@ public class BaseItem
         Project = ParentItem == null ? Project : ParentItem.Project;
     }
     /// <summary>
+    /// Clears runtime references when the item is detached from its parent.
+    /// </summary>
+    public virtual void ClearReferences()
+    {
+        Parent = null;
+        Project = null;
+        fOrderIndex = 0;
+    }
+    /// <summary>
+    /// Returns the visible child items.
+    /// </summary>
+    /// <returns>The visible child items.</returns>
+    public virtual List<BaseItem> GetChildItems()
+    {
+        return new List<BaseItem>();
+    }
+    /// <summary>
+    /// Returns true if the item can move in the specified direction.
+    /// </summary>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <returns>True if the item can move; otherwise false.</returns>
+    public virtual bool CanMove(bool Up)
+    {
+        return false;
+    }
+    /// <summary>
+    /// Moves the item one step in the specified direction.
+    /// </summary>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <returns>True if the item is moved; otherwise false.</returns>
+    public virtual bool Move(bool Up)
+    {
+        return false;
+    }
+    /// <summary>
+    /// Adds a child folder.
+    /// </summary>
+    /// <param name="Title">The folder title.</param>
+    /// <param name="LevelTitle">The folder level title.</param>
+    /// <returns>The added folder.</returns>
+    public virtual Folder AddFolder(string Title, string LevelTitle)
+    {
+        throw new InvalidOperationException("This item cannot contain child folders.");
+    }
+    /// <summary>
+    /// Adds a child text file.
+    /// </summary>
+    /// <param name="Title">The text file title.</param>
+    /// <returns>The added text file.</returns>
+    public virtual TextFile AddTextFile(string Title)
+    {
+        throw new InvalidOperationException("This item cannot contain text files.");
+    }
+    /// <summary>
+    /// Deletes a child item from memory and persistent storage.
+    /// </summary>
+    /// <param name="Item">The child item to delete.</param>
+    /// <returns>True if the child item is deleted; otherwise false.</returns>
+    public virtual bool RemoveChild(BaseItem Item)
+    {
+        return false;
+    }
+    /// <summary>
     /// Saves the item to persistent storage.
     /// </summary>
     public virtual void Save()
@@ -264,6 +648,48 @@ public class BaseItem
     public virtual void Delete()
     {
         DeleteStorage(FolderPath);
+    }
+    /// <summary>
+    /// Renames the item and its folder in persistent storage.
+    /// </summary>
+    /// <param name="NewTitle">The new title.</param>
+    public virtual void Rename(string NewTitle)
+    {
+        string OldTitle = Title;
+        string OldFolderPath = FolderPath;
+        CheckRenameTitle(NewTitle);
+
+        Title = NewTitle;
+
+        string NewFolderPath = FolderPath;
+        if (OldFolderPath != NewFolderPath)
+        {
+            if (System.IO.Directory.Exists(NewFolderPath))
+            {
+                Title = OldTitle;
+                throw new InvalidOperationException($"Folder already exists: {NewFolderPath}");
+            }
+
+            if (System.IO.Directory.Exists(OldFolderPath))
+            {
+                string ParentFolder = System.IO.Path.GetDirectoryName(NewFolderPath);
+                if (!string.IsNullOrWhiteSpace(ParentFolder))
+                    System.IO.Directory.CreateDirectory(ParentFolder);
+
+                try
+                {
+                    System.IO.Directory.Move(OldFolderPath, NewFolderPath);
+                }
+                catch
+                {
+                    Title = OldTitle;
+                    throw;
+                }
+            }
+        }
+
+        if (System.IO.Directory.Exists(NewFolderPath))
+            SaveInfo();
     }
     
     // ● properties
@@ -317,6 +743,26 @@ public class BaseItem
     [JsonIgnore]
     public bool IsTextFile => Type == ItemType.TextFile;
     /// <summary>
+    /// Gets a value indicating whether this item can contain folders.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanContainFolders => false;
+    /// <summary>
+    /// Gets a value indicating whether this item can contain text files.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanContainTextFiles => false;
+    /// <summary>
+    /// Gets a value indicating whether a folder can be added to this item.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanAddFolder => false;
+    /// <summary>
+    /// Gets a value indicating whether a text file can be added to this item.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanAddTextFile => false;
+    /// <summary>
     /// Gets or sets the unique item identifier.
     /// </summary>
     public string Id
@@ -335,12 +781,25 @@ public class BaseItem
     public virtual string Title
     {
         get => fTitle;
-        set => fTitle = value;
+        set
+        {
+            AppHost.CheckValidFileName(value);
+            fTitle = value;
+        }
     }
     /// <summary>
     /// Gets the display title of the item.
     /// </summary>
-    public virtual string DisplayTitle => fDisplayTitle;
+    public virtual string DisplayTitle
+    {
+        get
+        {
+            if (IsProject || OrderIndex <= 0)
+                return Title;
+
+            return GetDisplayTitle(OrderIndex, Title);
+        }
+    }
     /// <summary>
     /// Gets the file-system storage name of the item folder.
     /// </summary>

@@ -54,14 +54,14 @@ Each `BaseItem` folder contains an `Info.json` file. This file stores
 - `LevelTitle`: valid only for folders. Example values are `Part`, `Chapter`,
   `Section`, and similar user-defined level names.
 
-`LevelTitle` is needed because documents use the following model:
+`LevelTitle` is needed because documents use a book-structure model:
 
 ``` text
 Project
     Document
         Folder
             Folder
-            TextFile
+                TextFile
 ```
 
 When the user creates a new `Document`, the user defines the folder structure of
@@ -69,12 +69,55 @@ that document. This is represented by `Document.Structure` and the `FolderItem`
 class. The structure defines the tree of folder levels and the `LevelTitle` for
 each level.
 
-The `Document` folder also contains a `Structure.json` file. This file stores
-the folder structure selected by the user for that document. The document
-structure is loaded from this file.
+For structured documents, the `Document` folder also contains a
+`Structure.json` file. This file stores the folder structure selected by the
+user for that document. The document structure is loaded from this file. Flat
+documents do not use `Structure.json`.
 
-A folder `BaseItem` may contain one or more child folder `BaseItem` instances
-and one or more `TextFile` items.
+The document may use one of two mutually exclusive content models:
+
+- Structured document: the document has a folder structure and contains root
+  folders.
+- Flat document: the document has no folder structure and contains text files
+  directly.
+
+For structured documents, the document structure controls what each folder level
+may contain:
+
+- Non-leaf folders are containers. They may contain child folders only.
+- Leaf folders are text containers. They may contain `TextFile` items only.
+- A folder must not contain both child folders and text files.
+- `Document` contains root folders only.
+
+For flat documents:
+
+- `Document` contains `TextFile` items directly.
+- `Document` must not contain folders.
+- No folder structure is used.
+
+Use `Document.SetStructure(FolderItem)` to turn an empty flat document into a
+structured document. Use `Document.ClearStructure()` to turn an empty structured
+document into a flat document. These operations are rejected when the document
+already contains items from the other content model.
+
+For example:
+
+``` text
+Project
+    Document
+        Part
+            Chapter
+                Section
+                    TextFile
+```
+
+``` text
+Project
+    Document
+        Chapter
+            Scene
+                TextFile
+```
 
 Child items are stored in type-specific bucket folders. This keeps ordering
 separate per parent and per item type, and avoids name collisions between
@@ -87,18 +130,40 @@ Documents/
     001._My_Book/
 ```
 
-Each `Document` and each `Folder` stores child folders and text files under:
+Each `Document` stores root folders under:
 
 ``` text
 Folders/
     001._Part_One/
+```
+
+For flat documents, `Document` stores text files under:
+
+``` text
 TextFiles/
     001._Opening/
 ```
 
-The `OrderIndex` is scoped by parent and item type. For example, child folders
-under `Folders/` have their own numbering, and text files under `TextFiles/`
-have their own numbering.
+Each non-leaf `Folder` stores child folders under:
+
+``` text
+Folders/
+    001._Chapter_One/
+```
+
+Each leaf `Folder` stores text files under:
+
+``` text
+TextFiles/
+    001._Opening/
+```
+
+The `OrderIndex` is scoped by parent and item type. In practice, a valid folder
+level uses only one child bucket: either `Folders/` for non-leaf folders, or
+`TextFiles/` for leaf folders.
+
+A valid document also uses only one child bucket: either `Folders/` for
+structured documents, or `TextFiles/` for flat documents.
 
 ## Move Semantics
 
@@ -108,13 +173,14 @@ model because the in-memory tree and the file system must remain synchronized.
 A `Folder` may move:
 
 - within the same parent `Document` or `Folder`;
-- to the previous or next parent folder;
+- to the previous or next valid parent container of the same folder level;
 - only inside the same `Document`.
 
 A `TextFile` may move:
 
-- within the same parent `Document` or `Folder`;
-- to the previous or next parent folder;
+- within the same `Document` for flat documents;
+- within the same leaf parent `Folder` for structured documents;
+- to the previous or next leaf folder;
 - only inside the same `Document`.
 
 Every move must update:
