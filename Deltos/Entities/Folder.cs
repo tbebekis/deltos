@@ -65,6 +65,42 @@ public class Folder: BaseItem
             throw new InvalidOperationException("The folder does not match the document structure.");
     }
 
+    // ● internal
+    /// <summary>
+    /// Detaches a folder from memory without deleting persistent storage.
+    /// </summary>
+    /// <param name="Folder">The folder to remove.</param>
+    /// <returns>True if the folder is removed; otherwise false.</returns>
+    internal bool DetachFolder(Folder Folder)
+    {
+        bool Result = Folders.Remove(Folder);
+        if (Result)
+        {
+            Folder.ClearReferences();
+            RenumberChildren();
+            UpdateReferences(Parent);
+        }
+
+        return Result;
+    }
+    /// <summary>
+    /// Detaches a text file from memory without deleting persistent storage.
+    /// </summary>
+    /// <param name="File">The text file to remove.</param>
+    /// <returns>True if the text file is removed; otherwise false.</returns>
+    internal bool DetachTextFile(TextFile File)
+    {
+        bool Result = Files.Remove(File);
+        if (Result)
+        {
+            File.ClearReferences();
+            RenumberChildren();
+            UpdateReferences(Parent);
+        }
+
+        return Result;
+    }
+
     // ● public
     /// <summary>
     /// Adds a folder.
@@ -110,38 +146,22 @@ public class Folder: BaseItem
         return Result;
     }
     /// <summary>
-    /// Removes a folder.
+    /// Removes a folder from memory and persistent storage.
     /// </summary>
     /// <param name="Folder">The folder to remove.</param>
     /// <returns>True if the folder is removed; otherwise false.</returns>
     public bool RemoveFolder(Folder Folder)
     {
-        bool Result = Folders.Remove(Folder);
-        if (Result)
-        {
-            Folder.ClearReferences();
-            RenumberChildren();
-            UpdateReferences(Parent);
-        }
-
-        return Result;
+        return RemoveChild(Folder);
     }
     /// <summary>
-    /// Removes a text file.
+    /// Removes a text file from memory and persistent storage.
     /// </summary>
     /// <param name="File">The text file to remove.</param>
     /// <returns>True if the text file is removed; otherwise false.</returns>
     public bool RemoveTextFile(TextFile File)
     {
-        bool Result = Files.Remove(File);
-        if (Result)
-        {
-            File.ClearReferences();
-            RenumberChildren();
-            UpdateReferences(Parent);
-        }
-
-        return Result;
+        return RemoveChild(File);
     }
     /// <summary>
     /// Deletes a child item from memory and persistent storage.
@@ -284,6 +304,9 @@ public class Folder: BaseItem
     /// <returns>True if the folder is moved; otherwise false.</returns>
     public override bool Move(bool Up)
     {
+        if (!CanMove(Up))
+            return false;
+
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
         {
@@ -343,15 +366,18 @@ public class Folder: BaseItem
     /// </summary>
     public override void Delete()
     {
+        if (!CanDelete())
+            throw new InvalidOperationException("This folder cannot be deleted.");
+
         string ItemFolderPath = FolderPath;
 
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
-            DocumentItem.RemoveFolder(this);
+            DocumentItem.DetachFolder(this);
 
         Folder FolderItem = Parent as Folder;
         if (FolderItem != null)
-            FolderItem.RemoveFolder(this);
+            FolderItem.DetachFolder(this);
 
         DeleteStorage(ItemFolderPath);
     }

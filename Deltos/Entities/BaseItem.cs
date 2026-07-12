@@ -64,7 +64,7 @@ public class BaseItem
         for (int Index = 0; Index < Items.Count; Index++)
         {
             T Item = Items[Index];
-            string OldFolderPath = Item.FolderPath;
+            string OldFolderPath = Item.OrderIndex > 0 ? Item.FolderPath : string.Empty;
             Item.fOrderIndex = Index + 1;
             string NewFolderPath = Item.FolderPath;
 
@@ -327,7 +327,16 @@ public class BaseItem
     /// </summary>
     protected virtual void LoadInfo()
     {
+        if (!System.IO.File.Exists(InfoFilePath))
+            throw new InvalidOperationException($"The item information file does not exist: {InfoFilePath}");
+
         Json.LoadFromFile(Info, InfoFilePath);
+        if (string.IsNullOrWhiteSpace(Info.Id))
+            throw new InvalidOperationException($"The item information file has no item id: {InfoFilePath}");
+
+        if (Info.Type == ItemType.None)
+            throw new InvalidOperationException($"The item information file has no item type: {InfoFilePath}");
+
         ApplyInfo();
     }
     /// <summary>
@@ -346,19 +355,42 @@ public class BaseItem
             foreach (string ItemFolderPath in FolderPaths)
             {
                 string StorageName = System.IO.Path.GetFileName(ItemFolderPath);
-                if (TryParseStorageName(StorageName, out _, out _, out _))
-                {
-                    T Item = new();
-                    Item.SetStorageName(StorageName);
-                    Item.UpdateReferences(this);
-                    Item.Load();
-                    Result.Add(Item);
-                }
+                if (!TryParseStorageName(StorageName, out _, out _, out _))
+                    throw new InvalidOperationException($"Invalid item storage folder name: {ItemFolderPath}");
+
+                T Item = new();
+                Item.SetStorageName(StorageName);
+                Item.UpdateReferences(this);
+                Item.Load();
+                Result.Add(Item);
             }
         }
 
         Result.Sort((A, B) => A.OrderIndex.CompareTo(B.OrderIndex));
+        CheckLoadedItems(Result, FolderPath);
         return Result;
+    }
+    /// <summary>
+    /// Checks loaded items for ambiguous order or duplicate titles.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="Items">The loaded items.</param>
+    /// <param name="FolderPath">The source folder path.</param>
+    protected void CheckLoadedItems<T>(List<T> Items, string FolderPath) where T: BaseItem
+    {
+        for (int Index = 0; Index < Items.Count; Index++)
+        {
+            T Item = Items[Index];
+            for (int OtherIndex = Index + 1; OtherIndex < Items.Count; OtherIndex++)
+            {
+                T OtherItem = Items[OtherIndex];
+                if (Item.OrderIndex == OtherItem.OrderIndex)
+                    throw new InvalidOperationException($"Duplicate item order {Item.OrderIndex:000} in folder: {FolderPath}");
+
+                if (Item.Title.IsSameText(OtherItem.Title))
+                    throw new InvalidOperationException($"Duplicate item title {Item.Title} in folder: {FolderPath}");
+            }
+        }
     }
     /// <summary>
     /// Deletes the item folder from persistent storage.
@@ -472,7 +504,7 @@ public class BaseItem
     /// <returns>The storage name.</returns>
     static public string GetStorageName(int OrderIndex, string Title)
     {
-        if (OrderIndex < 0)
+        if (OrderIndex < 1)
             throw new ArgumentOutOfRangeException(nameof(OrderIndex));
 
         return $"{OrderIndex:000}._{EncodeTitle(Title)}";
@@ -508,6 +540,9 @@ public class BaseItem
             return false;
 
         if (!int.TryParse(StorageName.Substring(0, 3), out OrderIndex))
+            return false;
+
+        if (OrderIndex < 1)
             return false;
 
         string EncodedTitle = StorageName.Substring(4);
@@ -592,6 +627,30 @@ public class BaseItem
         return false;
     }
     /// <summary>
+    /// Returns true if the item can be renamed.
+    /// </summary>
+    /// <returns>True if the item can be renamed; otherwise false.</returns>
+    public virtual bool CanRename()
+    {
+        return true;
+    }
+    /// <summary>
+    /// Returns true if the item can be deleted from its parent.
+    /// </summary>
+    /// <returns>True if the item can be deleted; otherwise false.</returns>
+    public virtual bool CanDelete()
+    {
+        return Parent != null;
+    }
+    /// <summary>
+    /// Deletes the item from its parent and from persistent storage.
+    /// </summary>
+    /// <returns>True if the item is deleted; otherwise false.</returns>
+    public virtual bool DeleteFromParent()
+    {
+        return CanDelete() && Parent != null && Parent.RemoveChild(this);
+    }
+    /// <summary>
     /// Moves the item one step in the specified direction.
     /// </summary>
     /// <param name="Up">True for upward movement; false for downward movement.</param>
@@ -599,6 +658,25 @@ public class BaseItem
     public virtual bool Move(bool Up)
     {
         return false;
+    }
+    /// <summary>
+    /// Adds a child document.
+    /// </summary>
+    /// <param name="Title">The document title.</param>
+    /// <returns>The added document.</returns>
+    public virtual Document AddDocument(string Title)
+    {
+        throw new InvalidOperationException("This item cannot contain child documents.");
+    }
+    /// <summary>
+    /// Adds a structured child document.
+    /// </summary>
+    /// <param name="Title">The document title.</param>
+    /// <param name="Structure">The document folder structure.</param>
+    /// <returns>The added document.</returns>
+    public virtual Document AddDocument(string Title, FolderItem Structure)
+    {
+        throw new InvalidOperationException("This item cannot contain child documents.");
     }
     /// <summary>
     /// Adds a child folder.
@@ -647,6 +725,9 @@ public class BaseItem
     /// </summary>
     public virtual void Delete()
     {
+        if (!CanDelete())
+            throw new InvalidOperationException("This item cannot be deleted.");
+
         DeleteStorage(FolderPath);
     }
     /// <summary>
@@ -655,6 +736,9 @@ public class BaseItem
     /// <param name="NewTitle">The new title.</param>
     public virtual void Rename(string NewTitle)
     {
+        if (!CanRename())
+            throw new InvalidOperationException("This item cannot be renamed.");
+
         string OldTitle = Title;
         string OldFolderPath = FolderPath;
         CheckRenameTitle(NewTitle);
@@ -743,6 +827,11 @@ public class BaseItem
     [JsonIgnore]
     public bool IsTextFile => Type == ItemType.TextFile;
     /// <summary>
+    /// Gets a value indicating whether this item can contain documents.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanContainDocuments => false;
+    /// <summary>
     /// Gets a value indicating whether this item can contain folders.
     /// </summary>
     [JsonIgnore]
@@ -752,6 +841,11 @@ public class BaseItem
     /// </summary>
     [JsonIgnore]
     public virtual bool CanContainTextFiles => false;
+    /// <summary>
+    /// Gets a value indicating whether a document can be added to this item.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanAddDocument => false;
     /// <summary>
     /// Gets a value indicating whether a folder can be added to this item.
     /// </summary>

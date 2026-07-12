@@ -22,6 +22,10 @@ public class ItemInfo
     /// </summary>
     public string Id { get; set; } = string.Empty;
     /// <summary>
+    /// Gets or sets the title of the owning project item.
+    /// </summary>
+    public string Title { get; set; } = string.Empty;
+    /// <summary>
     /// Gets or sets the type of the owning item.
     /// </summary>
     public ItemType Type { get; set; }

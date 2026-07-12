@@ -67,8 +67,12 @@ public class Document: BaseItem
     protected virtual void LoadStructure()
     {
         fStructure = new FolderItem();
+        if (!System.IO.File.Exists(StructureFilePath))
+            return;
+
         Json.LoadFromFile(Structure, StructureFilePath);
         Structure?.UpdateReferences(null);
+        Structure?.CheckValid();
     }
     /// <summary>
     /// Deletes the document structure file.
@@ -98,6 +102,42 @@ public class Document: BaseItem
 
         if (!HasFolderStructure && Folders.Count > 0)
             throw new InvalidOperationException("A flat document cannot contain folders.");
+    }
+
+    // ● internal
+    /// <summary>
+    /// Detaches a folder from memory without deleting persistent storage.
+    /// </summary>
+    /// <param name="Folder">The folder to remove.</param>
+    /// <returns>True if the folder is removed; otherwise false.</returns>
+    internal bool DetachFolder(Folder Folder)
+    {
+        bool Result = Folders.Remove(Folder);
+        if (Result)
+        {
+            Folder.ClearReferences();
+            RenumberChildren();
+            UpdateReferences(Parent);
+        }
+
+        return Result;
+    }
+    /// <summary>
+    /// Detaches a text file from memory without deleting persistent storage.
+    /// </summary>
+    /// <param name="File">The text file to remove.</param>
+    /// <returns>True if the text file is removed; otherwise false.</returns>
+    internal bool DetachTextFile(TextFile File)
+    {
+        bool Result = Files.Remove(File);
+        if (Result)
+        {
+            File.ClearReferences();
+            RenumberChildren();
+            UpdateReferences(Parent);
+        }
+
+        return Result;
     }
 
     // ● public
@@ -150,13 +190,17 @@ public class Document: BaseItem
     public void SetStructure(FolderItem Value)
     {
         if (!CanSetStructure)
-            throw new InvalidOperationException("Cannot set a folder structure while the document contains text files.");
+            throw new InvalidOperationException("Cannot set a folder structure while the document contains child items.");
 
-        fStructure = Value == null ? new FolderItem() : Value;
+        if (Value == null)
+            throw new ArgumentNullException(nameof(Value));
+
+        Value.CheckValid();
+        fStructure = Value;
         Structure.UpdateReferences(null);
         CheckContentModel();
         if (CanPersistStorage())
-            SaveStructure();
+            Save();
     }
     /// <summary>
     /// Clears the document folder structure and turns the document into a flat document.
@@ -169,41 +213,25 @@ public class Document: BaseItem
         fStructure = new FolderItem();
         CheckContentModel();
         if (CanPersistStorage())
-            DeleteStructure();
+            Save();
     }
     /// <summary>
-    /// Removes a folder.
+    /// Removes a folder from memory and persistent storage.
     /// </summary>
     /// <param name="Folder">The folder to remove.</param>
     /// <returns>True if the folder is removed; otherwise false.</returns>
     public bool RemoveFolder(Folder Folder)
     {
-        bool Result = Folders.Remove(Folder);
-        if (Result)
-        {
-            Folder.ClearReferences();
-            RenumberChildren();
-            UpdateReferences(Parent);
-        }
-
-        return Result;
+        return RemoveChild(Folder);
     }
     /// <summary>
-    /// Removes a text file.
+    /// Removes a text file from memory and persistent storage.
     /// </summary>
     /// <param name="File">The text file to remove.</param>
     /// <returns>True if the text file is removed; otherwise false.</returns>
     public bool RemoveTextFile(TextFile File)
     {
-        bool Result = Files.Remove(File);
-        if (Result)
-        {
-            File.ClearReferences();
-            RenumberChildren();
-            UpdateReferences(Parent);
-        }
-
-        return Result;
+        return RemoveChild(File);
     }
     /// <summary>
     /// Deletes a child item from memory and persistent storage.
@@ -367,11 +395,14 @@ public class Document: BaseItem
     /// </summary>
     public override void Delete()
     {
+        if (!CanDelete())
+            throw new InvalidOperationException("This document cannot be deleted.");
+
         string ItemFolderPath = FolderPath;
 
         Project ProjectItem = Parent as Project;
         if (ProjectItem != null)
-            ProjectItem.RemoveDocument(this);
+            ProjectItem.DetachDocument(this);
 
         DeleteStorage(ItemFolderPath);
     }
@@ -575,7 +606,7 @@ public class Document: BaseItem
     /// Gets a value indicating whether a folder structure can be set.
     /// </summary>
     [JsonIgnore]
-    public bool CanSetStructure => Files.Count == 0;
+    public bool CanSetStructure => Files.Count == 0 && Folders.Count == 0;
     /// <summary>
     /// Gets a value indicating whether the folder structure can be cleared.
     /// </summary>

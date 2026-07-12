@@ -5,12 +5,33 @@
 A Deltos project is stored entirely in the folder pointed to by
 `Project.ProjectPath`.
 
-`ProjectPath` is ignored by JSON serialization. It is assigned when the user
-executes Open Project from the UI, and it points to the root folder that
-contains the whole project.
+`ProjectPath` is ignored by JSON serialization. It is assigned by the create
+and open entry points, and it points to the root folder that contains the whole
+project.
 
-There is no `index.json` or central file describing the project structure. The
-structure is derived from the file system. The order of the items is also
+The UI should use `Project.Create(ParentFolderPath, Title)` when creating a new
+project and `Project.Open(ProjectPath)` when opening an existing project. New
+project creation asks only for the selected parent folder and the project title.
+Document structure is selected later when creating or configuring a
+`Document`.
+
+The parent folder is selected by the user and must already exist, but it may
+already contain other projects or unrelated files. `Project.Create()` creates
+the actual project root as a subfolder of the selected parent folder, using the
+project title as the folder name with spaces encoded as underscores. The title
+must pass `AppHost.IsValidFileName`. The create entry point rejects only an
+existing non-empty project subfolder with the same title.
+
+Use `Project.GetProjectFolderPath(ParentFolderPath, Title)` when the UI needs
+to preview or validate the actual project root path before creation.
+
+`ProjectPath` points to the actual project root folder. It must be an absolute
+path and is normalized before use.
+The first project save also rejects a non-empty folder unless it already
+contains a project root `Info.json`.
+
+There is no `index.json` or central file describing the project item tree. The
+item tree is derived from the file system. The order of the items is also
 derived from the file system names.
 
 All entities are `BaseItem` instances, including `Project`. More entity types,
@@ -46,6 +67,8 @@ Each `BaseItem` folder contains an `Info.json` file. This file stores
 `Info.json` contains:
 
 - `Id`: the `Id` of the `BaseItem`.
+- `Title`: valid for the `Project` root item, because the project root does
+  not have an ordered storage folder name.
 - `Type`: the `Type` of the `BaseItem`.
 - `Category`: valid only for `Component` items.
 - `TagList`: a semicolon-separated list of textual tags, valid only for
@@ -95,10 +118,14 @@ For flat documents:
 - `Document` must not contain folders.
 - No folder structure is used.
 
+Use `Project.AddDocument(Title)` to create a flat document. Use
+`Project.AddDocument(Title, Structure)` to create a structured document in one
+command.
+
 Use `Document.SetStructure(FolderItem)` to turn an empty flat document into a
 structured document. Use `Document.ClearStructure()` to turn an empty structured
-document into a flat document. These operations are rejected when the document
-already contains items from the other content model.
+document into a flat document. Structure changes are allowed only while the
+document has no folders and no text files.
 
 For example:
 

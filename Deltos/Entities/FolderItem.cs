@@ -16,7 +16,45 @@ public class FolderItem
     {
     }
 
+    // ● private
+    /// <summary>
+    /// Checks whether this folder item and its child items are valid.
+    /// </summary>
+    /// <param name="VisitedItems">The visited folder items.</param>
+    void CheckValid(HashSet<FolderItem> VisitedItems)
+    {
+        if (VisitedItems.Contains(this))
+            throw new InvalidOperationException("The folder structure contains a cycle.");
+
+        VisitedItems.Add(this);
+        AppHost.CheckValidFileName(Title);
+        Child?.CheckValid(VisitedItems);
+    }
+
     // ● public
+    /// <summary>
+    /// Checks whether this folder item and its child items are valid.
+    /// </summary>
+    public void CheckValid()
+    {
+        CheckValid(new HashSet<FolderItem>());
+    }
+    /// <summary>
+    /// Returns true if this folder item and its child items are valid.
+    /// </summary>
+    /// <returns>True if the folder item graph is valid; otherwise false.</returns>
+    public bool IsValid()
+    {
+        try
+        {
+            CheckValid();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
     /// <summary>
     /// Updates runtime references after loading the folder item graph.
     /// </summary>

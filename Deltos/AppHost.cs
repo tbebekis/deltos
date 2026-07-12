@@ -6,8 +6,17 @@ namespace Deltos;
 
 static public partial class AppHost
 {
-    static Regex EnglishLettersRegex = new Regex("^[a-zA-Z0-9. -_?]*$");
+    /// <summary>
+    /// Matches valid title characters.
+    /// </summary>
+    static Regex EnglishLettersRegex = new Regex("^[a-zA-Z0-9 ]*$");
+    /// <summary>
+    /// The invalid title message format.
+    /// </summary>
     const string SInvalidTitle = @"Invalid title {0}.";
+    /// <summary>
+    /// The valid title rule message.
+    /// </summary>
     const string SValidTitle = @"
 A valid title
   • can contain only letters, numbers and spaces
@@ -15,6 +24,9 @@ A valid title
   • cannot start with a number
   • must be in English
 ";
+    /// <summary>
+    /// The invalid title error message format.
+    /// </summary>
     const string SInvalidTitleErrorMessage = SInvalidTitle + SValidTitle;
     
     // ● filenames and paths

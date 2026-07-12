@@ -86,15 +86,18 @@ public class TextFile: BaseItem
     /// </summary>
     public override void Delete()
     {
+        if (!CanDelete())
+            throw new InvalidOperationException("This text file cannot be deleted.");
+
         string ItemFolderPath = FolderPath;
 
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
-            DocumentItem.RemoveTextFile(this);
+            DocumentItem.DetachTextFile(this);
 
         Folder FolderItem = Parent as Folder;
         if (FolderItem != null)
-            FolderItem.RemoveTextFile(this);
+            FolderItem.DetachTextFile(this);
 
         DeleteStorage(ItemFolderPath);
     }
@@ -149,13 +152,13 @@ public class TextFile: BaseItem
     /// <returns>True if the text file is moved; otherwise false.</returns>
     public override bool Move(bool Up)
     {
+        if (!CanMove(Up))
+            return false;
+
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
         {
             if (!DocumentItem.CanContainTextFiles)
-                return false;
-
-            if (!CanMove(Up))
                 return false;
 
             bool Result = MoveItem(DocumentItem.Files, this, Up);
