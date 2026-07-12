@@ -2,8 +2,151 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d"
+        d:DesignWidth="1280"
+        d:DesignHeight="760"
         x:Class="Deltos.MainWindow"
-        Title="Deltos">
-    Welcome to Avalonia!
+        Title="Deltos"
+        Width="1280"
+        Height="760"
+        MinWidth="980"
+        MinHeight="620">
+    <Grid RowDefinitions="Auto,*,Auto"
+          Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
+        <!-- ToolBar -->
+        <Border Name="ToolBarPanel"
+                Grid.Row="0"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                BorderThickness="0,0,0,1"
+                Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                Padding="8,6">
+            <StackPanel Name="pnlToolBar"
+                        Orientation="Horizontal"
+                        Spacing="6" />
+        </Border>
+
+        <!-- Main Panel -->
+        <Grid Name="MainPanel"
+              Grid.Row="1"
+              ColumnDefinitions="320,Auto,*">
+            <!-- Left Panel -->
+            <Border Name="LeftPanel"
+                    Grid.Column="0"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                    BorderThickness="0,0,1,0"
+                    Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+                <Grid RowDefinitions="Auto,*">
+                    <Grid Grid.Row="0"
+                          ColumnDefinitions="*,Auto"
+                          Margin="12,10,12,8">
+                        <TextBlock Grid.Column="0"
+                                   VerticalAlignment="Center"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Text="Project" />
+                        <Button Grid.Column="1"
+                                Width="32"
+                                Height="32"
+                                Padding="0"
+                                Content="..." />
+                    </Grid>
+                    <TabControl Grid.Row="1"
+                                Margin="8,0,8,8">
+                        <TabItem Header="Documents">
+                            <TreeView Margin="0,8,0,0">
+                                <TreeViewItem Header="No project" />
+                            </TreeView>
+                        </TabItem>
+                        <TabItem Header="Search">
+                            <Grid RowDefinitions="Auto,*"
+                                  Margin="0,8,0,0">
+                                <TextBox Grid.Row="0"
+                                         PlaceholderText="Search" />
+                                <ListBox Grid.Row="1"
+                                         Margin="0,8,0,0" />
+                            </Grid>
+                        </TabItem>
+                        <TabItem Header="Quick">
+                            <ListBox Margin="0,8,0,0" />
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </Border>
+
+            <!-- Splitter -->
+            <GridSplitter Name="MainSplitter"
+                          Grid.Column="1"
+                          Width="5"
+                          Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                          ResizeDirection="Columns" />
+
+            <!-- Right Panel -->
+            <Grid Name="RightPanel"
+                  Grid.Column="2"
+                  RowDefinitions="*,Auto">
+                <TabControl Grid.Row="0"
+                            Margin="10">
+                    <TabItem Header="Text">
+                        <Grid RowDefinitions="Auto,*">
+                            <Border Grid.Row="0"
+                                    BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="0,0,0,8">
+                                <TextBlock FontSize="15"
+                                           FontWeight="SemiBold"
+                                           Text="No text selected" />
+                            </Border>
+                            <Grid Grid.Row="1"
+                                  ColumnDefinitions="*,Auto,*"
+                                  Margin="0,10,0,0">
+                                <TextBox Grid.Column="0"
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         VerticalContentAlignment="Top" />
+                                <GridSplitter Grid.Column="1"
+                                              Width="5"
+                                              Margin="8,0"
+                                              Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" />
+                                <TextBox Grid.Column="2"
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         VerticalContentAlignment="Top" />
+                            </Grid>
+                        </Grid>
+                    </TabItem>
+                    <TabItem Header="Abstraction">
+                        <TextBox Margin="0,8,0,0"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 VerticalContentAlignment="Top" />
+                    </TabItem>
+                    <TabItem Header="Draft">
+                        <TextBox Margin="0,8,0,0"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 VerticalContentAlignment="Top" />
+                    </TabItem>
+                </TabControl>
+            </Grid>
+        </Grid>
+
+        <!-- StatusBar -->
+        <Border Name="StatusBar"
+                Grid.Row="2"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                BorderThickness="0,1,0,0"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                Padding="10,5">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Name="lblStatus"
+                           Grid.Column="0"
+                           VerticalAlignment="Center"
+                           Text="Ready" />
+                <TextBlock Name="lblProjectStatus"
+                           Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Text="No project open" />
+            </Grid>
+        </Border>
+    </Grid>
 </Window>

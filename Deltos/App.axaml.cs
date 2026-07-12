@@ -1,10 +1,6 @@
 // Copyright (c) 2026 Theodoros Bebekis
 // Licensed under the MIT License.
 
-using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Markup.Xaml;
-
 namespace Deltos;
 
 public partial class App : Application
@@ -18,7 +14,11 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow();
+            desktop.MainWindow = AppHost.CreateStartupWindow();
+            desktop.MainWindow.Opened += async (Sender, Args) =>
+            {
+                await AppHost.Start(desktop);
+            };
         }
 
         base.OnFrameworkInitializationCompleted();
