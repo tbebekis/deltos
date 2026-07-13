@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:forms="clr-namespace:Deltos.Forms"
+             x:Class="Deltos.Forms.GlobalSearchForm">
+    <DockPanel Margin="2">
+        <Border DockPanel.Dock="Top"
+                Classes="ToolbarContainer">
+            <StackPanel Name="pnlToolBar"
+                        Classes="ToolBar"
+                        MinHeight="32" />
+        </Border>
+
+        <Grid RowDefinitions="Auto,2*,Auto,*"
+              RowSpacing="2">
+            <Grid Grid.Row="0"
+                  ColumnDefinitions="Auto,*"
+                  ColumnSpacing="6"
+                  Margin="4,4,4,2">
+                <TextBlock Text="Term"
+                           VerticalAlignment="Center" />
+                <TextBox Name="edtTerm"
+                         Grid.Column="1"
+                         KeyDown="TermKeyDown"
+                         PlaceholderText="Type a word and press Enter. Use &quot;word&quot; for whole-word search." />
+            </Grid>
+
+            <TreeView Name="tvResults"
+                      Grid.Row="1"
+                      MinHeight="180"
+                      SelectionChanged="ResultsSelectionChanged"
+                      DoubleTapped="ResultsDoubleTapped" />
+
+            <GridSplitter Grid.Row="2"
+                          Height="4"
+                          ResizeDirection="Rows" />
+
+            <Grid Grid.Row="3"
+                  RowDefinitions="Auto,*">
+                <Border Grid.Row="0"
+                        BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                        BorderThickness="0,1,0,1"
+                        Padding="6,4"
+                        Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+                    <TextBlock Name="lblTitle"
+                               FontSize="14"
+                               FontWeight="Bold"
+                               Text="No selection" />
+                </Border>
+
+                <forms:TextEditorForm Name="Editor"
+                                      Grid.Row="1"
+                                      ToolBarVisible="False"
+                                      ReadOnly="True" />
+            </Grid>
+        </Grid>
+    </DockPanel>
+</UserControl>

@@ -4,9 +4,9 @@
                       x:Class="Deltos.AboutDialog"
                       Title="About Deltos"
                       Width="520"
-                      Height="360"
+                      Height="410"
                       MinWidth="520"
-                      MinHeight="360"
+                      MinHeight="410"
                       CanResize="False"
                       WindowStartupLocation="CenterOwner">
     <Grid RowDefinitions="*,Auto"
@@ -29,6 +29,19 @@
                            TextWrapping="Wrap" />
                 <TextBlock Text="Deltos stores projects directly in the file system, preserving the document structure, ordering, and text assets as ordinary folders and files."
                            TextWrapping="Wrap" />
+                <TextBlock TextWrapping="Wrap"
+                           Margin="0,8,0,0">
+                    <Run Text="Theodoros Bebekis is the author of the sci-fi series " />
+                    <Run Text="The Corp of the World"
+                         FontWeight="Bold" />
+                    <Run Text=", published on Amazon." />
+                </TextBlock>
+                <TextBlock Text="https://www.amazon.com/dp/B0DJH77BDJ"
+                           TextWrapping="Wrap"
+                           Foreground="#1E6BD6"
+                           TextDecorations="Underline"
+                           Cursor="Hand"
+                           PointerPressed="AmazonLink_PointerPressed" />
                 <TextBlock Text="Copyright (c) 2026 Theodoros Bebekis"
                            Margin="0,12,0,0" />
                 <TextBlock Text="Licensed under the MIT License." />

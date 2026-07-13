@@ -34,6 +34,14 @@ public partial class TextEditorForm: UserControl
     /// </summary>
     private AvaloniaEdit.Search.SearchPanel fSearchPanel;
     /// <summary>
+    /// The find and replace options.
+    /// </summary>
+    FindReplaceOptions fFindReplaceOptions = new();
+    /// <summary>
+    /// The find and replace handler.
+    /// </summary>
+    TextFindReplaceHandler fFindReplaceHandler;
+    /// <summary>
     /// The nested ignore-modified counter.
     /// </summary>
     private int fIgnoreModifiedCount;
@@ -86,6 +94,7 @@ public partial class TextEditorForm: UserControl
     {
         PrepareToolBar();
         fSearchPanel = AvaloniaEdit.Search.SearchPanel.Install(edtText);
+        fFindReplaceHandler = new TextFindReplaceHandler(this, edtText);
 
         edtText.Options.ShowSpaces = false;
         edtText.Options.ShowTabs = false;
@@ -109,7 +118,7 @@ public partial class TextEditorForm: UserControl
         fToolBar = new();
         fToolBar.Panel = pnlToolBar;
 
-        fBtnFind = fToolBar.AddButton("page_find.png", "Find and Replace (Ctrl + F)", Find);
+        fBtnFind = fToolBar.AddButton("page_find.png", "Find and Replace (Ctrl + F)", async () => await Find());
         fBtnSearchForTerm = fToolBar.AddButton("table_tab_search.png", "Search for Term (Ctrl + T)", SearchForTerm);
         fBtnSave = fToolBar.AddButton("disk.png", "Save (Ctrl + S)", SaveText);
         fBtnShowFolder = fToolBar.AddButton("folder_go.png", "Show in folder", ShowFolder);
@@ -144,6 +153,20 @@ public partial class TextEditorForm: UserControl
     /// <param name="Args">The key event arguments.</param>
     private void Editor_KeyDown(object Sender, KeyEventArgs Args)
     {
+        if (Args.Key == Key.F3)
+        {
+            Args.Handled = true;
+            FindNext(Args.KeyModifiers.HasFlag(KeyModifiers.Shift));
+            return;
+        }
+
+        if (Args.Key == Key.Escape)
+        {
+            Args.Handled = true;
+            ClearSearchHighlights();
+            return;
+        }
+
         bool Ctrl = Args.KeyModifiers.HasFlag(KeyModifiers.Control);
         if (!Ctrl)
             return;
@@ -156,7 +179,7 @@ public partial class TextEditorForm: UserControl
         else if (Args.Key == Key.F)
         {
             Args.Handled = true;
-            Find();
+            _ = Find();
         }
         else if (Args.Key == Key.T)
         {
@@ -215,6 +238,39 @@ public partial class TextEditorForm: UserControl
     {
         return char.IsLetterOrDigit(Value) || Value == '_';
     }
+    /// <summary>
+    /// Normalizes text before displaying it in the editor.
+    /// </summary>
+    /// <param name="Text">The source text.</param>
+    /// <returns>The normalized text.</returns>
+    string NormalizeEditorText(string Text)
+    {
+        if (string.IsNullOrEmpty(Text))
+            return string.Empty;
+
+        Text = Regex.Replace(Text, @"[ \t]+(\r?\n|$)", "$1");
+        StringBuilder Builder = null;
+        for (int Index = 0; Index < Text.Length; Index++)
+        {
+            char Ch = Text[Index];
+            bool Remove = char.IsControl(Ch) && Ch != '\r' && Ch != '\n' && Ch != '\t';
+            Remove = Remove || Ch == '\u200B' || Ch == '\u200C' || Ch == '\u200D' || Ch == '\uFEFF' || Ch == '\uFFFC' || Ch == '\uFFFD';
+            char Replacement = Ch == '\u00A0' ? ' ' : Ch;
+            if (Remove || Replacement != Ch || Builder != null)
+            {
+                if (Builder == null)
+                {
+                    Builder = new StringBuilder(Text.Length);
+                    Builder.Append(Text, 0, Index);
+                }
+
+                if (!Remove)
+                    Builder.Append(Replacement);
+            }
+        }
+
+        return Builder == null ? Text : Builder.ToString();
+    }
     /// Updates toolbar button visibility from the public visibility properties.
     /// </summary>
     private void UpdateButtonVisibility()
@@ -243,9 +299,88 @@ public partial class TextEditorForm: UserControl
     /// <summary>
     /// Opens the editor find panel.
     /// </summary>
-    public void Find()
+    public async Task Find()
     {
-        fSearchPanel?.Open();
+        string Term = GetWordAtCaret();
+        if (!string.IsNullOrWhiteSpace(Term))
+            fFindReplaceOptions.TextToFind = Term;
+
+        Deltos.FindReplaceOptions Options = new Deltos.FindReplaceOptions();
+        Options.TextToFind = fFindReplaceOptions.TextToFind;
+        Options.ReplaceWith = fFindReplaceOptions.ReplaceWith;
+        Options.MatchCase = fFindReplaceOptions.MatchCase;
+        Options.WholeWord = fFindReplaceOptions.WholeWord;
+        Options.Replace = fFindReplaceOptions.Replace;
+        Options.ReplaceAll = fFindReplaceOptions.ReplaceAll;
+
+        DialogInfo Info = await DialogWindow.ShowModal<Deltos.FindReplaceDialog>(Options, this);
+        if (!Info.Result || Info.ResultData is not Deltos.FindReplaceOptions EditedOptions)
+            return;
+
+        fFindReplaceOptions = EditedOptions;
+        if (EditedOptions.ReplaceAll)
+        {
+            int Count = fFindReplaceHandler.ReplaceAll(EditedOptions);
+            LogBox.AppendLine($"Replace all completed. Replacements: {Count}");
+        }
+        else if (EditedOptions.Replace)
+        {
+            bool Replaced = fFindReplaceHandler.ReplaceCurrent(EditedOptions);
+            LogBox.AppendLine(Replaced ? "Replace completed." : "No match found.");
+        }
+        else
+        {
+            int Count = fFindReplaceHandler.Find(EditedOptions);
+            LogBox.AppendLine($"Find completed. Matches: {Count}");
+        }
+    }
+    /// <summary>
+    /// Highlights all matches for a search term.
+    /// </summary>
+    /// <param name="Term">The search term.</param>
+    /// <param name="WholeWord">True for whole-word search.</param>
+    /// <param name="MatchCase">True for case-sensitive search.</param>
+    /// <returns>The match count.</returns>
+    public int HighlightSearchTerm(string Term, bool WholeWord, bool MatchCase)
+    {
+        fFindReplaceOptions.TextToFind = Term ?? string.Empty;
+        fFindReplaceOptions.WholeWord = WholeWord;
+        fFindReplaceOptions.MatchCase = MatchCase;
+        fFindReplaceOptions.Replace = false;
+        fFindReplaceOptions.ReplaceAll = false;
+        return fFindReplaceHandler.HighlightAll(fFindReplaceOptions);
+    }
+    /// <summary>
+    /// Highlights all matches and moves the caret to a position.
+    /// </summary>
+    /// <param name="Term">The search term.</param>
+    /// <param name="WholeWord">True for whole-word search.</param>
+    /// <param name="MatchCase">True for case-sensitive search.</param>
+    /// <param name="Line">The zero-based line.</param>
+    /// <param name="Column">The zero-based column.</param>
+    public void HighlightSearchTerm(string Term, bool WholeWord, bool MatchCase, int Line, int Column)
+    {
+        HighlightSearchTerm(Term, WholeWord, MatchCase);
+        int DocumentLine = Math.Clamp(Line + 1, 1, TextEditor.Document.LineCount);
+        AvaloniaEdit.Document.DocumentLine LineInfo = TextEditor.Document.GetLineByNumber(DocumentLine);
+        int Offset = Math.Clamp(LineInfo.Offset + Math.Max(0, Column), LineInfo.Offset, LineInfo.EndOffset);
+        TextEditor.CaretOffset = Offset;
+        fFindReplaceHandler.FindNext(false);
+    }
+    /// <summary>
+    /// Moves to the next or previous highlighted match.
+    /// </summary>
+    /// <param name="Previous">True to move to the previous match.</param>
+    public void FindNext(bool Previous)
+    {
+        fFindReplaceHandler.FindNext(Previous);
+    }
+    /// <summary>
+    /// Clears search highlights.
+    /// </summary>
+    public void ClearSearchHighlights()
+    {
+        fFindReplaceHandler.ClearHighlights();
     }
     /// <summary>
     /// Requests a global search for the word at the caret.
@@ -342,7 +477,7 @@ public partial class TextEditorForm: UserControl
         IgnoreModified = true;
         try
         {
-            TextEditor.Text = Text ?? string.Empty;
+            TextEditor.Text = NormalizeEditorText(Text);
             Modified = false;
         }
         finally

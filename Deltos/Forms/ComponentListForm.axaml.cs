@@ -33,7 +33,7 @@ public partial class ComponentListForm: AppForm
         fToolBar.AddSeparator();
         fToolBar.AddButton("page_edit.png", "Edit Text", EditComponentText);
         fToolBar.AddButton("html.png", "HTML Preview", PreviewComponentText);
-        fToolBar.AddButton("wishlist_add.png", "Quick View", QuickViewComponent);
+        fToolBar.AddButton("wishlist_add.png", "Add to Quick View", QuickViewComponent);
     }
 
     // ● loading
@@ -415,11 +415,15 @@ public partial class ComponentListForm: AppForm
         AppHost.ShowMarkdownPreview($"{Component.Id}.HtmlPreview", $"HTML Preview: {Component.Title}", Component.Text);
     }
     /// <summary>
-    /// Placeholder for Quick View command.
+    /// Adds the selected component to QuickView.
     /// </summary>
     void QuickViewComponent()
     {
-        LogBox.AppendLine("Quick View command not implemented yet.");
+        Component Component = SelectedComponent;
+        if (Component == null)
+            return;
+
+        AppHost.AddToQuickView(new LinkItem(Component.Type, LinkPlace.Text, Component.Title, Component));
     }
     /// <summary>
     /// Refreshes an open component editor form.
@@ -504,6 +508,17 @@ public partial class ComponentListForm: AppForm
     public void RefreshComponents()
     {
         LoadComponents();
+    }
+    /// <summary>
+    /// Selects and shows a component in the list.
+    /// </summary>
+    /// <param name="Component">The component.</param>
+    public void ShowComponentInList(Component Component)
+    {
+        if (Component == null)
+            return;
+
+        LoadComponents(Component.Category ?? string.Empty, Component.Id);
     }
 
     // ● properties

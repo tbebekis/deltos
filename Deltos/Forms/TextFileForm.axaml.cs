@@ -314,8 +314,56 @@ public partial class TextFileForm: AppForm
     {
         RefreshItemInfo();
     }
+    /// <summary>
+    /// Highlights a search term in the editor represented by a link item.
+    /// </summary>
+    /// <param name="LinkItem">The link item.</param>
+    /// <param name="Term">The search term.</param>
+    /// <param name="WholeWord">True for whole-word search.</param>
+    /// <param name="MatchCase">True for case-sensitive search.</param>
+    public void HighlightAll(LinkItem LinkItem, string Term, bool WholeWord, bool MatchCase)
+    {
+        if (LinkItem == null)
+            return;
+
+        SelectTabFor(LinkItem);
+        TextEditorForm Editor = EditorFor(LinkItem);
+        if (Editor == null)
+            return;
+
+        Editor.HighlightSearchTerm(Term, WholeWord, MatchCase, LinkItem.Line, LinkItem.Column);
+    }
 
     // ● properties
+    /// <summary>
+    /// Returns the editor represented by a link item.
+    /// </summary>
+    /// <param name="LinkItem">The link item.</param>
+    /// <returns>The editor, if any; otherwise null.</returns>
+    TextEditorForm EditorFor(LinkItem LinkItem)
+    {
+        if (LinkItem.Place == LinkPlace.Text2)
+            return EditorText2.IsVisible ? EditorText2 : null;
+        if (LinkItem.Place == LinkPlace.Synopsis)
+            return EditorSynopsis;
+        if (LinkItem.Place == LinkPlace.Draft)
+            return EditorDraft;
+
+        return EditorText;
+    }
+    /// <summary>
+    /// Selects the tab represented by a link item.
+    /// </summary>
+    /// <param name="LinkItem">The link item.</param>
+    void SelectTabFor(LinkItem LinkItem)
+    {
+        if (LinkItem.Place == LinkPlace.Synopsis)
+            pager.SelectedItem = tabSynopsis;
+        else if (LinkItem.Place == LinkPlace.Draft)
+            pager.SelectedItem = tabDraft;
+        else
+            pager.SelectedItem = tabText;
+    }
     /// <summary>
     /// Gets the text editors.
     /// </summary>

@@ -1,279 +1,347 @@
 # Deltos
 
-## Project Storage
+Deltos is a desktop writing environment for structured long-form projects.
 
-A Deltos project is stored entirely in the folder pointed to by
-`Project.ProjectPath`.
+It is designed for authors who need more than a plain text editor: novelists,
+worldbuilders, essayists, technical writers, documentation authors, and anyone
+working with large bodies of connected text.
 
-`ProjectPath` is ignored by JSON serialization. It is assigned by the create
-and open entry points, and it points to the root folder that contains the whole
-project.
+Deltos can be used to write a novella, a novel, a multi-book series, a
+technical manual, an essay collection, a knowledge base, or a documentation
+project. Its core idea is simple: writing belongs in a calm editor, structure
+belongs in a visible tree, and the project itself should remain readable as
+ordinary files and folders.
 
-The UI should use `Project.Create(ParentFolderPath, Title)` when creating a new
-project and `Project.Open(ProjectPath)` when opening an existing project. New
-project creation asks only for the selected parent folder and the project title.
-Document structure is selected later when creating or configuring a
-`Document`.
+## Features
 
-The parent folder is selected by the user and must already exist, but it may
-already contain other projects or unrelated files. `Project.Create()` creates
-the actual project root as a subfolder of the selected parent folder, using the
-project title as the folder name with spaces encoded as underscores. The title
-must pass `AppHost.IsValidFileName`. The create entry point rejects only an
-existing non-empty project subfolder with the same title. An existing empty
-project subfolder may be used.
+- Project-based writing workspace.
+- File-system-first storage with ordinary folders, markdown files, and JSON
+  metadata.
+- Multiple documents inside a single project.
+- Configurable document structures, such as Part, Chapter, Section, Scene.
+- Flat documents for simpler projects.
+- Folder and text-file organization with clear ordering.
+- Markdown editing with primary and secondary language text.
+- Synopsis and draft text areas for documents, folders, and text files.
+- Temp text scratchpad.
+- Notes list for project-level notes.
+- Components for worldbuilding, reference material, characters, places,
+  organizations, concepts, and technical entities.
+- Component categories, tags, and aliases.
+- Tag browser and component browser.
+- HTML preview for markdown content.
+- Project-wide search across documents, text files, components, notes, and temp
+  text.
+- Whole-word project search using quoted terms, such as `"empire"`.
+- Find and replace inside every text editor, with highlighted matches and
+  next/previous navigation.
+- Quick View list for collecting important items and search hits while working.
+- Text metrics for every editor.
+- Auto-save support.
+- Export per document to TXT, HTML, and ODT.
+- Plain-text export mode for prose that should not be treated as markdown.
+- Git commit and push integration for project folders.
+- Static wiki generation from components.
+- Light, direct desktop UI built around sidebars, trees, tabs, and editors.
 
-Use `Project.GetProjectFolderPath(ParentFolderPath, Title)` when the UI needs
-to preview or validate the actual project root path before creation.
+## What Is Deltos?
 
-`ProjectPath` points to the actual project root folder. It must be an absolute
-path and is normalized before use.
-The first project save also rejects a non-empty folder unless it already
-contains a project root `Info.json`.
+Deltos is a writing workspace, not a single-document editor.
 
-There is no `index.json` or central file describing the project item tree. The
-item tree is derived from the file system. The order of the items is also
-derived from the file system names.
+A Deltos project can hold the manuscript, its supporting notes, the world or
+domain reference material, temporary text, images, exports, and a generated
+static wiki. The user can move between the structure of the work and the actual
+text without leaving the application.
 
-All entities are `BaseItem` instances, including `Project`. More entity types,
-such as `Component` and `Note`, will be added later.
+For fiction, Deltos can manage books, chapters, scenes, characters, places,
+timelines, and worldbuilding notes.
 
-Each `BaseItem` owns its own folder in the file system. The folder name is based
-on the `Title` of the item, prefixed with a three digit order number, a dot, and
-a space:
+For non-fiction, it can manage manuals, sections, essays, articles, reference
+entries, terms, categories, tags, and documentation pages.
 
-``` text
-001. The Corp of the World
-```
+The same model works because Deltos does not force a specific literary shape.
+The document structure is chosen by the user.
 
-The title must pass `AppHost.IsValidFileName`. In practice, folder and file
-names do not contain spaces. Spaces are replaced with underscores when written
-to disk:
+## Core Concepts
 
-``` text
-001._The_Corp_of_the_World
-```
+### Project
 
-When reading an item from disk:
+A project is the root workspace.
 
-- The `XXX` prefix is parsed as `OrderIndex`.
-- The remaining name segment is used as `Title`, with underscores converted
-  back to spaces.
-- The whole folder or file name is used as `DisplayTitle`, with underscores
-  converted back to spaces.
+It contains documents, components, notes, images, temp text, project settings,
+and export/wiki configuration. A project is stored directly in a folder chosen
+by the user.
 
-Each `BaseItem` folder contains an `Info.json` file. This file stores
-`BaseItem.Info`.
+### Document
 
-`Info.json` contains:
+A document is a major written work inside the project.
 
-- `Id`: the `Id` of the `BaseItem`.
-- `Title`: valid for the `Project` root item, because the project root does
-  not have an ordered storage folder name.
-- `Type`: the `Type` of the `BaseItem`.
-- `Category`: valid only for `Component` items.
-- `TagList`: a semicolon-separated list of textual tags, valid only for
-  `Component` items.
-- `IsFolder`: `true` or `false`.
-- `LevelTitle`: valid only for folders. Example values are `Part`, `Chapter`,
-  `Section`, and similar user-defined level names.
+Examples:
 
-`LevelTitle` is needed because documents use a book-structure model:
+- A novel.
+- A novella.
+- A short-story collection.
+- A technical manual.
+- A documentation volume.
+- A long essay.
 
-``` text
-Project
-    Document
-        Folder
-            Folder
-                TextFile
-```
+Each document may be flat or structured.
 
-When the user creates a new `Document`, the user defines the folder structure of
-that document. This is represented by `Document.Structure` and the `FolderItem`
-class. The structure defines the tree of folder levels and the `LevelTitle` for
-each level.
+A flat document contains text files directly.
 
-For structured documents, the `Document` folder also contains a
-`Structure.json` file. This file stores the folder structure selected by the
-user for that document. The document structure is loaded from this file. Flat
-documents do not use `Structure.json`.
+A structured document uses a user-defined hierarchy. For example:
 
-The document may use one of two mutually exclusive content models:
-
-- Structured document: the document has a folder structure and contains root
-  folders.
-- Flat document: the document has no folder structure and contains text files
-  directly.
-
-For structured documents, the document structure controls what each folder level
-may contain:
-
-- Non-leaf folders are containers. They may contain child folders only.
-- Leaf folders are text containers. They may contain `TextFile` items only.
-- A folder must not contain both child folders and text files.
-- `Document` contains root folders only.
-
-For flat documents:
-
-- `Document` contains `TextFile` items directly.
-- `Document` must not contain folders.
-- No folder structure is used.
-
-Use `Project.AddDocument(Title)` to create a flat document. Use
-`Project.AddDocument(Title, Structure)` to create a structured document in one
-command.
-
-Use `Document.SetStructure(FolderItem)` to turn an empty flat document into a
-structured document. Use `Document.ClearStructure()` to turn an empty structured
-document into a flat document. Structure changes are allowed only while the
-document has no folders and no text files.
-
-For example:
-
-``` text
-Project
-    Document
-        Part
-            Chapter
-                Section
-                    TextFile
-```
-
-``` text
-Project
-    Document
+```text
+Document
+    Part
         Chapter
             Scene
-                TextFile
 ```
 
-Child items are stored in type-specific bucket folders. This keeps ordering
-separate per parent and per item type, and avoids name collisions between
-folders and text files.
+or:
 
-The project root stores documents under:
-
-``` text
-Documents/
-    001._My_Book/
+```text
+Document
+    Chapter
+        Section
 ```
 
-Each `Document` stores root folders under:
+The structure determines what kind of child item can be created at each level.
 
-``` text
-Folders/
-    001._Part_One/
+### Folder
+
+A folder is a structural unit inside a document.
+
+Its display title may be `Part`, `Chapter`, `Section`, or any other level name
+defined by the document structure. Folders may also have synopsis text.
+
+### TextFile
+
+A text file is the actual writing unit.
+
+It stores:
+
+- Primary text.
+- Secondary language text.
+- Synopsis.
+- Draft.
+
+Text files are markdown files on disk, but Deltos can also treat prose as plain
+text during export when markdown interpretation is not desired.
+
+### Component
+
+A component is a project-level reference item.
+
+Components are useful for:
+
+- Characters.
+- Places.
+- Countries.
+- Organizations.
+- Machines.
+- Religions.
+- Events.
+- Concepts.
+- Glossary terms.
+- Technical subjects.
+
+Each component has a title, category, tags, aliases, primary text, and secondary
+language text. Categories and tags are derived from the components themselves,
+so there is no separate taxonomy database to maintain.
+
+Components can be exported as a static wiki.
+
+### Notes
+
+Notes are project-level text items for supporting material that does not belong
+inside the document tree or the component library.
+
+### Temp Text
+
+Temp Text is a scratchpad for transient writing, fragments, reminders, and
+material that has not yet found its place.
+
+### Search
+
+Search is a project navigation tool, not only a text lookup command.
+
+Global Search scans the whole project and returns structured results grouped by
+the item where each match was found. A result can point to a title, synopsis,
+draft, primary text, secondary language text, note, component, or temp text.
+
+Typing a plain term performs a contains search. Typing the term inside double
+quotes performs a whole-word search:
+
+```text
+empire
+"empire"
 ```
 
-For flat documents, `Document` stores text files under:
+Opening a search result takes the user back to the real editor and highlights
+the matching term in context. This keeps search connected to writing instead of
+turning it into a separate report.
 
-``` text
-TextFiles/
-    001._Opening/
+Each editor also has local find and replace. Local search highlights every
+match, can move to the next or previous match, and can replace the current
+match or all matches.
+
+### Quick View
+
+Quick View is a temporary working list.
+
+It is useful when several items matter at the same time: a group of scenes, a
+set of components, a few notes, or specific search results. Items can be added
+from lists, tags, components, notes, and global search.
+
+Quick View is saved with the project, so it can be used as a small research
+desk or task tray for the current writing session.
+
+## Typical Workflow
+
+1. Create or open a project.
+2. Create a document.
+3. Choose the document structure.
+4. Add folders and text files.
+5. Write in the editor.
+6. Add synopsis and draft material where useful.
+7. Create components for reference material.
+8. Categorize and tag components.
+9. Preview markdown as HTML.
+10. Use Global Search to move through the project.
+11. Collect active items in Quick View.
+12. Review text metrics.
+13. Export a document to TXT, HTML, or ODT.
+14. Generate a static wiki from components.
+15. Commit and push the project with Git.
+
+## Project Storage
+
+Deltos stores a project as ordinary folders and files.
+
+There is no opaque database file. The project folder contains readable
+markdown, JSON metadata, images, resources, and generated output.
+
+The item tree is derived from the file system. Ordering is encoded in folder
+and file names using numeric prefixes.
+
+Example:
+
+```text
+001._The_Corp_of_the_World
+002._The_Corp_of_the_Fallen_Worlds
+003._Blog_Stories
 ```
 
-Each non-leaf `Folder` stores child folders under:
+When Deltos reads an item from disk:
 
-``` text
-Folders/
-    001._Chapter_One/
-```
+- The numeric prefix becomes the order index.
+- The remaining name becomes the title.
+- Underscores are converted back to spaces for display.
 
-Each leaf `Folder` stores text files under:
+Each item has an `Info.json` file for metadata. Text content is stored in
+markdown files such as `Text.md`, `Text2.md`, `Synopsis.md`, and `Draft.md`.
 
-``` text
-TextFiles/
-    001._Opening/
-```
+## Document Structure
 
-The `OrderIndex` is scoped by parent and item type. In practice, a valid folder
-level uses only one child bucket: either `Folders/` for non-leaf folders, or
-`TextFiles/` for leaf folders.
+Document structure is one of the central ideas of Deltos.
 
-A valid document also uses only one child bucket: either `Folders/` for
-structured documents, or `TextFiles/` for flat documents.
+The user decides the shape of a document when creating or configuring it. A
+novel might use parts, chapters, and scenes. A manual might use chapters,
+sections, and topics. An essay collection might use only one level.
 
-Each `Document` and each `Folder` also stores its own synopsis text in a
-`Synopsis.md` file inside its item folder.
+Deltos uses that structure to keep the tree consistent. A folder level may
+contain the next folder level, or text files when it is the final writing level.
 
-## Move Semantics
+This keeps large works navigable and avoids accidental structural drift.
 
-Moving folders and text files is one of the most sensitive parts of the storage
-model because the in-memory tree and the file system must remain synchronized.
+## Editing
 
-A `Folder` may move:
+The main workspace is tab-based.
 
-- within the same parent `Document` or `Folder`;
-- to the previous or next valid parent container of the same folder level;
-- only inside the same `Document`.
+Opening a text file, component, note, preview, or metrics page creates a tab in
+the main content area. Tabs can be reordered. Text editors include status
+information and text metrics.
 
-A `TextFile` may move:
+The editor supports project-wide font settings and optional secondary language
+visibility.
 
-- within the same `Document` for flat documents;
-- within the same leaf parent `Folder` for structured documents;
-- to the previous or next leaf folder;
-- only inside the same `Document`.
+Text editing includes local find and replace. Matches are highlighted directly
+inside the editor, and the user can move between them without leaving the text.
 
-Every move must update:
+Global Search complements local editor search. It finds text across the whole
+project, then opens the matching item in the main content area and highlights
+the term in the correct editor.
 
-- the source parent collection;
-- the target parent collection;
-- runtime references such as `Parent`, `Project`, and `Document`;
-- `OrderIndex` values for the source sibling bucket;
-- `OrderIndex` values for the target sibling bucket;
-- the corresponding file-system folder paths.
+## Export
 
-The file-system operation must move or rename the affected item folders. A move
-must be designed carefully to avoid collisions, partial updates, and broken
-references. The previous StoryWriter implementation used a path snapshot before
-the move, then changed the in-memory list or parent, and finally moved the
-folder from the old path to the new computed path. Deltos should follow the same
-principle, but with extra care for the `Documents`, `Folders`, and `TextFiles`
-bucket folders.
+Deltos exports documents, not the whole project.
 
-The old StoryWriter codebase at
-`/home/teo/Dev/CSharp/tb.StoryWriter/StoryWriter.App` is a loose reference for
-this behavior, especially the `Entities/Scene.cs` implementation.
+Supported formats:
 
-Move implementation follows this workflow and is covered by filesystem-backed
-tests for same-parent moves, cross-parent moves, duplicate-title rejection, and
-sibling renumbering after removals.
+- TXT.
+- HTML.
+- ODT.
 
-Although these items are called `TextFile`, each one is stored in its own folder
-in the file system. A `TextFile` folder contains:
+The export process can include document headings, folder headings, text-file
+titles, primary language text, secondary language text, and plain-text handling
+for prose that should not be parsed as markdown.
 
-- `Info.json`.
-- `Text.md`.
-- `Text2.md`.
-- `Synopsis.md`.
-- `Draft.md`.
+## Static Wiki
 
-`Project.Load()` loads the entire project into memory. Immediately after
-loading, it calls `UpdateReferences(null)`. This causes
-`UpdateReferences(BaseItem ParentItem)` to be called for all child items as
-well.
+Deltos can generate a static wiki from project components.
 
-## User Interface Forms
+The wiki includes:
 
-All Deltos application forms hosted inside the main window pagers inherit from
-`Tripous.Desktop.AppForm`.
+- Component pages.
+- Category navigation.
+- Tag navigation.
+- Search index.
+- Theme support.
+- Copied images and assets.
+- Optional About page.
 
-Project tree item icons:
+This is useful for worldbuilding, public reference material, documentation, or
+project knowledge bases.
 
-- `Document`: `book.png`.
-- `Folder`: `folder.png`.
-- `TextFile`: `table.png`.
+## Git Integration
 
-## About Dialog
+Deltos can run Git commit and push commands for the project folder.
 
-The application includes an `AboutDialog` based on
-`Tripous.Desktop.DialogWindow`. It displays the application title, the Deltos
-image, a short product description, copyright and license information, and a
-small attribution note for the icon set used by the user interface.
+Credentials are not handled by Deltos. The user configures Git normally on the
+machine and in the repository. Deltos only provides convenient toolbar actions
+and logs the command result.
 
-## Silk Icons
+## Screenshots
 
-The Hermes user interface includes icons from the Silk icon set 1.3.
+Screenshots will be added here.
+
+Suggested sections:
+
+- Main workspace.
+- Document list.
+- Text editor.
+- Component list.
+- Tags.
+- Export dialog.
+- Static wiki.
+
+## Author
+
+Deltos is created by Theodoros Bebekis.
+
+Theodoros Bebekis is the author of the sci-fi series **The Corp of the World**,
+published on Amazon.
+
+https://www.amazon.com/dp/B0DJH77BDJ
+
+## License
+
+Deltos is licensed under the MIT License.
+
+## Icons
+
+Deltos uses icons from the Silk icon set 1.3.
 
 Author: Mark James
 

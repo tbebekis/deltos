@@ -1341,4 +1341,18 @@ public partial class DocumentListForm: AppForm
     {
         InitializeComponent();
     }
+
+    // ● public
+    /// <summary>
+    /// Selects and shows an item in the document tree.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    public void ShowItemInList(BaseItem Item)
+    {
+        if (Item == null)
+            return;
+
+        SelectTreeItem(Item);
+        ShowSelectedItem(Item);
+    }
 }

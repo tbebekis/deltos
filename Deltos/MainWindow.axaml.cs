@@ -496,6 +496,8 @@ public partial class MainWindow : Window
         try
         {
             AppHost.ShowPleaseWait(UseSecondaryText ? "Building wiki 2..." : "Building wiki...", this);
+            await Task.Yield();
+
             LogBox.AppendLine(UseSecondaryText ? "Build Wiki 2 started." : "Build Wiki started.");
 
             WikiBuildInfo Info = new WikiBuildInfo(UseSecondaryText);

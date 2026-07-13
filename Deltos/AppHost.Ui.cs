@@ -118,9 +118,118 @@ static public partial class AppHost
 
         ShowSideBarForm<Forms.TagListForm>(nameof(Forms.TagListForm), "Tags");
         ShowSideBarForm<Forms.ComponentListForm>(nameof(Forms.ComponentListForm), "Components");
+        ShowSideBarForm<Forms.GlobalSearchForm>(nameof(Forms.GlobalSearchForm), "Search");
+        ShowSideBarForm<Forms.QuickViewForm>(nameof(Forms.QuickViewForm), "Quick View");
         ShowSideBarForm<Forms.NoteListForm>(nameof(Forms.NoteListForm), "Notes");
         ShowSideBarForm<Forms.TempFileForm>(nameof(Forms.TempFileForm), "Temp Text");
         ShowSideBarForm<Forms.DocumentListForm>(nameof(Forms.DocumentListForm), "Documents");
+    }
+    /// <summary>
+    /// Shows the page represented by a link item.
+    /// </summary>
+    /// <param name="LinkItem">The link item.</param>
+    /// <returns>The shown form, if any; otherwise null.</returns>
+    static public AppForm ShowLinkItemPage(LinkItem LinkItem)
+    {
+        if (LinkItem == null || LinkItem.Item == null)
+            return null;
+
+        if (LinkItem.Item is Component Component)
+            return ShowContentForm<Forms.ComponentForm>(Component.Id, Component.Title, Component);
+        if (LinkItem.Item is Note Note)
+            return ShowContentForm<Forms.NoteForm>(Note.Id, Note.Title, Note);
+        if (LinkItem.Item is Document || LinkItem.Item is Folder || LinkItem.Item is TextFile)
+            return ShowContentForm<Forms.TextFileForm>(LinkItem.Item.Id, LinkItem.Item.DisplayTitle, LinkItem.Item);
+        if (LinkItem.Place == LinkPlace.TempFile)
+            return ShowSideBarForm<Forms.TempFileForm>(nameof(Forms.TempFileForm), "Temp Text");
+
+        return null;
+    }
+    /// <summary>
+    /// Shows the list page represented by a link item.
+    /// </summary>
+    /// <param name="LinkItem">The link item.</param>
+    static public void ShowItemInListPage(LinkItem LinkItem)
+    {
+        if (LinkItem == null || LinkItem.Item == null)
+            return;
+
+        if (LinkItem.Item is Component Component)
+        {
+            Forms.ComponentListForm Form = ShowSideBarForm<Forms.ComponentListForm>(nameof(Forms.ComponentListForm), "Components");
+            Form.ShowComponentInList(Component);
+        }
+        else if (LinkItem.Item is Note Note)
+        {
+            Forms.NoteListForm Form = ShowSideBarForm<Forms.NoteListForm>(nameof(Forms.NoteListForm), "Notes");
+            Form.ShowNoteInList(Note);
+        }
+        else if (LinkItem.Item is Document || LinkItem.Item is Folder || LinkItem.Item is TextFile)
+        {
+            Forms.DocumentListForm Form = ShowSideBarForm<Forms.DocumentListForm>(nameof(Forms.DocumentListForm), "Documents");
+            Form.ShowItemInList(LinkItem.Item);
+        }
+        else if (LinkItem.Place == LinkPlace.TempFile)
+        {
+            ShowSideBarForm<Forms.TempFileForm>(nameof(Forms.TempFileForm), "Temp Text");
+        }
+    }
+    /// <summary>
+    /// Adds a link item to QuickView.
+    /// </summary>
+    /// <param name="LinkItem">The link item.</param>
+    static public void AddToQuickView(LinkItem LinkItem)
+    {
+        Project Project = CurrentProject;
+        if (Project == null || LinkItem == null || LinkItem.Item == null)
+            return;
+
+        Forms.QuickViewForm Form = ShowSideBarForm<Forms.QuickViewForm>(nameof(Forms.QuickViewForm), "Quick View");
+        Form.AddToQuickView(LinkItem);
+    }
+    /// <summary>
+    /// Returns the text represented by a link item.
+    /// </summary>
+    /// <param name="LinkItem">The link item.</param>
+    /// <returns>The link text.</returns>
+    static public string GetLinkItemText(LinkItem LinkItem)
+    {
+        if (LinkItem == null || LinkItem.Item == null)
+            return string.Empty;
+
+        if (LinkItem.Place == LinkPlace.Title)
+            return LinkItem.Item.Title;
+        if (LinkItem.Place == LinkPlace.TempFile && LinkItem.Item is Project Project)
+            return Project.TempFileText;
+        if (LinkItem.Item is Document Document)
+            return Document.Synopsis;
+        if (LinkItem.Item is Folder Folder)
+            return Folder.Synopsis;
+        if (LinkItem.Item is TextFile TextFile)
+            return GetTextFileLinkText(TextFile, LinkItem.Place);
+        if (LinkItem.Item is Component Component)
+            return LinkItem.Place == LinkPlace.Text2 ? Component.Text2 : Component.Text;
+        if (LinkItem.Item is Note Note)
+            return Note.Text;
+
+        return string.Empty;
+    }
+    /// <summary>
+    /// Returns text from a text file by link place.
+    /// </summary>
+    /// <param name="TextFile">The text file.</param>
+    /// <param name="Place">The link place.</param>
+    /// <returns>The requested text.</returns>
+    static string GetTextFileLinkText(TextFile TextFile, LinkPlace Place)
+    {
+        if (Place == LinkPlace.Text2)
+            return TextFile.Text2;
+        if (Place == LinkPlace.Synopsis)
+            return TextFile.Synopsis;
+        if (Place == LinkPlace.Draft)
+            return TextFile.Draft;
+
+        return TextFile.Text;
     }
     /// <summary>
     /// Shows a markdown preview in the content pager.

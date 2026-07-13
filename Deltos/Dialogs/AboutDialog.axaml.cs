@@ -18,6 +18,15 @@ public partial class AboutDialog: DialogWindow
     {
         ModalResult = ModalResult.Ok;
     }
+    /// <summary>
+    /// Opens the Amazon author/book page.
+    /// </summary>
+    /// <param name="Sender">The event sender.</param>
+    /// <param name="Args">The event arguments.</param>
+    void AmazonLink_PointerPressed(object Sender, PointerPressedEventArgs Args)
+    {
+        Process.Start(new ProcessStartInfo("https://www.amazon.com/dp/B0DJH77BDJ") { UseShellExecute = true });
+    }
 
     // ● protected
     /// <summary>

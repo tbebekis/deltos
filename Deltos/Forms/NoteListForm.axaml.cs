@@ -29,7 +29,7 @@ public partial class NoteListForm: AppForm
         fToolBar.AddSeparator();
         fToolBar.AddButton("page_edit.png", "Edit Text", EditNoteText);
         fToolBar.AddButton("html.png", "HTML Preview", PreviewNoteText);
-        fToolBar.AddButton("wishlist_add.png", "Quick View", QuickViewNote);
+        fToolBar.AddButton("wishlist_add.png", "Add to Quick View", QuickViewNote);
         fToolBar.AddSeparator();
         fToolBar.AddButton("arrow_up.png", "Up", async () => await MoveNote(true));
         fToolBar.AddButton("arrow_down.png", "Down", async () => await MoveNote(false));
@@ -241,11 +241,15 @@ public partial class NoteListForm: AppForm
         AppHost.ShowMarkdownPreview($"{Note.Id}.HtmlPreview", $"HTML Preview: {Note.DisplayTitle}", Note.Text);
     }
     /// <summary>
-    /// Placeholder for Quick View command.
+    /// Adds the selected note to QuickView.
     /// </summary>
     void QuickViewNote()
     {
-        LogBox.AppendLine("Quick View command not implemented yet.");
+        Note Note = SelectedNote;
+        if (Note == null)
+            return;
+
+        AppHost.AddToQuickView(new LinkItem(Note.Type, LinkPlace.Text, Note.Title, Note));
     }
     /// <summary>
     /// Moves the selected note.
@@ -329,6 +333,21 @@ public partial class NoteListForm: AppForm
     public NoteListForm()
     {
         InitializeComponent();
+    }
+
+    // ● public
+    /// <summary>
+    /// Selects and shows a note in the list.
+    /// </summary>
+    /// <param name="Note">The note.</param>
+    public void ShowNoteInList(Note Note)
+    {
+        if (Note == null)
+            return;
+
+        LoadNotes();
+        SelectNote(Note.Id);
+        ShowNote(Note);
     }
 
     // ● properties

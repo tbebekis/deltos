@@ -29,6 +29,10 @@ public class Project: BaseItem
     /// Field for the TempFileText property.
     /// </summary>
     protected string fTempFileText = string.Empty;
+    /// <summary>
+    /// Field for the QuickView property.
+    /// </summary>
+    protected QuickView fQuickView = new();
 
     // ● construction
     /// <summary>
@@ -600,6 +604,15 @@ public class Project: BaseItem
             .ToList();
     }
     /// <summary>
+    /// Executes a project-wide search.
+    /// </summary>
+    /// <param name="Term">The search term.</param>
+    /// <returns>The search results.</returns>
+    public LinkItemList GlobalSearch(string Term)
+    {
+        return ProjectGlobalSearch.Execute(this, Term);
+    }
+    /// <summary>
     /// Saves the temporary project markdown file.
     /// </summary>
     public void SaveTempFile()
@@ -654,6 +667,7 @@ public class Project: BaseItem
         Components = LoadComponents();
         UpdateReferences(null);
         CheckDuplicateItemIds();
+        QuickView = QuickView.Load(this);
     }
     /// <summary>
     /// Renames the project.
@@ -891,12 +905,26 @@ public class Project: BaseItem
     [JsonIgnore]
     public string TempFilePath => System.IO.Path.Combine(FolderPath, TempFileName);
     /// <summary>
+    /// Gets the quick-view json file path.
+    /// </summary>
+    [JsonIgnore]
+    public string QuickViewFilePath => System.IO.Path.Combine(FolderPath, QuickView.FileName);
+    /// <summary>
     /// Gets or sets the temporary markdown text.
     /// </summary>
     public string TempFileText
     {
         get => fTempFileText;
         set => fTempFileText = value ?? string.Empty;
+    }
+    /// <summary>
+    /// Gets or sets the project quick-view list.
+    /// </summary>
+    [JsonIgnore]
+    public QuickView QuickView
+    {
+        get => fQuickView;
+        set => fQuickView = value ?? new QuickView();
     }
     /// <summary>
     /// Gets or sets the project notes.

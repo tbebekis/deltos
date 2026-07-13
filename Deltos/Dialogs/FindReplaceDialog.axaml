@@ -1,0 +1,66 @@
+<desktop:DialogWindow xmlns="https://github.com/avaloniaui"
+                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                      xmlns:desktop="clr-namespace:Tripous.Desktop;assembly=Tripous.Desktop"
+                      x:Class="Deltos.FindReplaceDialog"
+                      Title="Find and Replace"
+                      Width="480"
+                      Height="230"
+                      CanResize="False"
+                      WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="*,Auto"
+          Margin="18"
+          RowSpacing="14">
+        <Grid RowDefinitions="Auto,Auto,Auto"
+              RowSpacing="8">
+            <Grid ColumnDefinitions="105,*"
+                  ColumnSpacing="8">
+                <TextBlock Text="Find what"
+                           VerticalAlignment="Center" />
+                <TextBox Name="edtFind"
+                         Grid.Column="1" />
+            </Grid>
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="105,*"
+                  ColumnSpacing="8">
+                <TextBlock Text="Replace with"
+                           VerticalAlignment="Center" />
+                <TextBox Name="edtReplace"
+                         Grid.Column="1" />
+            </Grid>
+            <Grid Grid.Row="2"
+                  ColumnDefinitions="*,*"
+                  Margin="105,4,0,0">
+                <StackPanel Grid.Column="0"
+                            Spacing="6">
+                    <CheckBox Name="chMatchCase"
+                              Content="Match case" />
+                    <CheckBox Name="chWholeWord"
+                              Content="Whole word" />
+                </StackPanel>
+                <StackPanel Grid.Column="1"
+                            Spacing="6">
+                    <CheckBox Name="chReplace"
+                              Content="Replace" />
+                    <CheckBox Name="chReplaceAll"
+                              Content="Replace all" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Name="btnOK"
+                    Content="OK"
+                    Width="90"
+                    IsDefault="True"
+                    Click="OK_Click" />
+            <Button Name="btnCancel"
+                    Content="Cancel"
+                    Width="90"
+                    IsCancel="True"
+                    Click="Cancel_Click" />
+        </StackPanel>
+    </Grid>
+</desktop:DialogWindow>

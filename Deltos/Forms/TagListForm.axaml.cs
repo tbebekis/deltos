@@ -30,7 +30,7 @@ public partial class TagListForm: AppForm
         fToolBar.AddButton("table_delete.png", "Delete", async () => await DeleteTag());
         fToolBar.AddSeparator();
         fToolBar.AddButton("page_edit.png", "Edit Component Text", EditComponentText);
-        fToolBar.AddButton("wishlist_add.png", "Quick View", QuickViewComponent);
+        fToolBar.AddButton("wishlist_add.png", "Add to Quick View", QuickViewComponent);
     }
 
     // ● loading
@@ -270,11 +270,15 @@ public partial class TagListForm: AppForm
         AppHost.ShowContentForm<ComponentForm>(Component.Id, Component.Title, Component);
     }
     /// <summary>
-    /// Placeholder for Quick View command.
+    /// Adds the selected component to QuickView.
     /// </summary>
     void QuickViewComponent()
     {
-        LogBox.AppendLine("Quick View command not implemented yet.");
+        Component Component = SelectedComponent;
+        if (Component == null)
+            return;
+
+        AppHost.AddToQuickView(new LinkItem(Component.Type, LinkPlace.Text, Component.Title, Component));
     }
     /// <summary>
     /// Refreshes the component list form when it is open.

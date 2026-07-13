@@ -214,6 +214,24 @@ public partial class ComponentForm: AppForm
         EditorText2.FilePath = Component.Text2FilePath;
         AdjustTitle();
     }
+    /// <summary>
+    /// Highlights a search term in the editor represented by a link item.
+    /// </summary>
+    /// <param name="LinkItem">The link item.</param>
+    /// <param name="Term">The search term.</param>
+    /// <param name="WholeWord">True for whole-word search.</param>
+    /// <param name="MatchCase">True for case-sensitive search.</param>
+    public void HighlightAll(LinkItem LinkItem, string Term, bool WholeWord, bool MatchCase)
+    {
+        if (LinkItem == null)
+            return;
+
+        TextEditorForm Editor = LinkItem.Place == LinkPlace.Text2 ? EditorText2 : EditorText;
+        if (Editor == EditorText2 && !EditorText2.IsVisible)
+            return;
+
+        Editor.HighlightSearchTerm(Term, WholeWord, MatchCase, LinkItem.Line, LinkItem.Column);
+    }
 
     // ● properties
     /// <summary>
