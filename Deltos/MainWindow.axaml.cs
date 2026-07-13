@@ -227,6 +227,224 @@ public partial class MainWindow : Window
         }
     }
     /// <summary>
+    /// Creates a git CLI for the current project.
+    /// </summary>
+    /// <returns>The git CLI.</returns>
+    GitCli CreateProjectGitCli()
+    {
+        Project Project = AppHost.CurrentProject;
+        if (Project == null)
+            throw new InvalidOperationException("No project is open.");
+
+        ProjectSettings Settings = ProjectSettings.Load(Project);
+        GitCli Result = new GitCli();
+        Result.RepoDir = Project.ProjectPath;
+        Result.RemoteName = Settings.Git.RemoteName;
+        Result.Branch = Settings.Git.Branch;
+        return Result;
+    }
+    /// <summary>
+    /// Writes the project git ignore file if it does not exist.
+    /// </summary>
+    /// <param name="Project">The project.</param>
+    void EnsureProjectGitIgnore(Project Project)
+    {
+        string FilePath = System.IO.Path.Combine(Project.ProjectPath, ".gitignore");
+        if (System.IO.File.Exists(FilePath))
+            return;
+
+        string Text =
+            "**/bin" + Environment.NewLine +
+            "**/obj" + Environment.NewLine +
+            "**/.vs" + Environment.NewLine +
+            "**/Wiki" + Environment.NewLine +
+            "**/Export";
+
+        System.IO.File.WriteAllText(FilePath, Text, Encoding.UTF8);
+    }
+    /// <summary>
+    /// Edits project settings.
+    /// </summary>
+    /// <returns>True if the settings were saved; otherwise false.</returns>
+    async Task<bool> EditProjectSettings()
+    {
+        Project Project = AppHost.CurrentProject;
+        if (Project == null)
+        {
+            await Tripous.Desktop.MessageBox.Info("No project is open.", this);
+            return false;
+        }
+
+        ProjectSettings Settings = ProjectSettings.Load(Project);
+        DialogInfo Info = await DialogWindow.ShowModal<ProjectSettingsDialog>(Settings, this);
+        if (!Info.Result)
+            return false;
+
+        Settings = Info.ResultData as ProjectSettings ?? Settings;
+        Settings.Save(Project);
+        LogBox.AppendLine("Project settings saved.");
+        return true;
+    }
+    /// <summary>
+    /// Commits project changes to git.
+    /// </summary>
+    async Task CommitToGit()
+    {
+        Project Project = AppHost.CurrentProject;
+        if (Project == null)
+        {
+            await Tripous.Desktop.MessageBox.Info("No project is open.", this);
+            return;
+        }
+
+        try
+        {
+            AppHost.ShowPleaseWait("Checking git repository...", this);
+
+            GitCli Git = CreateProjectGitCli();
+            Git.CheckGitInstalled();
+
+            if (!Git.IsGitRepo())
+            {
+                LogBox.AppendLine("Initializing git repository...");
+                Git.InitRepo();
+                EnsureProjectGitIgnore(Project);
+                LogBox.AppendLine("Git repository initialized.");
+            }
+
+            if (!Git.HasUncommittedChanges())
+            {
+                LogBox.AppendLine("There are no uncommitted changes.");
+                AppHost.HidePleaseWait();
+                await Tripous.Desktop.MessageBox.Info("There are no uncommitted changes.", this);
+                return;
+            }
+        }
+        catch (Exception e)
+        {
+            LogBox.AppendLine(e);
+            AppHost.HidePleaseWait();
+            await Tripous.Desktop.MessageBox.Error(e, this);
+            return;
+        }
+        finally
+        {
+            AppHost.HidePleaseWait();
+        }
+
+        string DefaultMessage = $"Auto-commit {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+        InputBoxData Data = await InputBox.ShowModal("Commit message", DefaultMessage, this);
+        if (Data == null || !Data.Result)
+            return;
+
+        string CommitMessage = string.IsNullOrWhiteSpace(Data.Value) ? DefaultMessage : Data.Value.Trim();
+
+        try
+        {
+            AppHost.ShowPleaseWait("Committing to git...", this);
+
+            GitCli Git = CreateProjectGitCli();
+            if (Git.CommitIfNeeded(CommitMessage))
+            {
+                LogBox.AppendLine($"Committed to git: {CommitMessage}");
+                UpdateProjectStatus("Committed to git");
+            }
+            else
+            {
+                LogBox.AppendLine("Nothing to commit.");
+            }
+        }
+        catch (Exception e)
+        {
+            LogBox.AppendLine(e);
+            await Tripous.Desktop.MessageBox.Error(e, this);
+        }
+        finally
+        {
+            AppHost.HidePleaseWait();
+        }
+    }
+    /// <summary>
+    /// Pushes project changes to the remote git repository.
+    /// </summary>
+    async Task PushToRemoteGitRepository()
+    {
+        Project Project = AppHost.CurrentProject;
+        if (Project == null)
+        {
+            await Tripous.Desktop.MessageBox.Info("No project is open.", this);
+            return;
+        }
+
+        ProjectSettings Settings = ProjectSettings.Load(Project);
+        GitCli Git = CreateProjectGitCli();
+
+        try
+        {
+            AppHost.ShowPleaseWait("Checking git repository...", this);
+
+            Git.CheckGitInstalled();
+            if (!Git.IsGitRepo())
+                throw new InvalidOperationException($"There is no git repository in folder: {Project.ProjectPath}");
+
+            if (Git.HasUncommittedChanges())
+                throw new InvalidOperationException("There are uncommitted changes. Please commit them first.");
+
+            if (!Git.HasRemote(Settings.Git.RemoteName))
+            {
+                AppHost.HidePleaseWait();
+                if (string.IsNullOrWhiteSpace(Settings.Git.RemoteUrl))
+                {
+                    bool Saved = await EditProjectSettings();
+                    if (!Saved)
+                        return;
+
+                    Settings = ProjectSettings.Load(Project);
+                    Git = CreateProjectGitCli();
+                }
+
+                if (string.IsNullOrWhiteSpace(Settings.Git.RemoteUrl))
+                {
+                    await Tripous.Desktop.MessageBox.Info("Remote URL is required.", this);
+                    return;
+                }
+
+                AppHost.ShowPleaseWait("Adding git remote...", this);
+                Git.AddRemote(Settings.Git.RemoteName, Settings.Git.RemoteUrl);
+                LogBox.AppendLine($"Git remote added: {Settings.Git.RemoteName}");
+            }
+
+            AppHost.HidePleaseWait();
+        }
+        catch (Exception e)
+        {
+            LogBox.AppendLine(e);
+            AppHost.HidePleaseWait();
+            await Tripous.Desktop.MessageBox.Error(e, this);
+            return;
+        }
+
+        try
+        {
+            AppHost.ShowPleaseWait("Pushing to remote git repository...", this);
+
+            CliResult Result = Git.Push();
+            LogBox.AppendLine("Pushing to remote git repository succeeded.");
+            LogBox.AppendLine("Git output follows:");
+            LogBox.AppendLine(Result.ToString());
+            UpdateProjectStatus("Pushed to remote git repository");
+        }
+        catch (Exception e)
+        {
+            LogBox.AppendLine(e);
+            await Tripous.Desktop.MessageBox.Error(e, this);
+        }
+        finally
+        {
+            AppHost.HidePleaseWait();
+        }
+    }
+    /// <summary>
     /// Edits application settings.
     /// </summary>
     async Task EditSettings()
@@ -287,7 +505,13 @@ public partial class MainWindow : Window
 
         AddToolBarSeparator();
 
+        AddToolBarButton("book.png", "Commit to git", "CommitToGit");
+        AddToolBarButton("book_go.png", "Push to remote git repository", "PushToRemoteGitRepository");
+
+        AddToolBarSeparator();
+
         AddToolBarButton("setting_tools.png", "Settings", "Settings");
+        AddToolBarButton("setting_tools.png", "Project Settings", "ProjectSettings");
 
         AddToolBarSeparator();
 
@@ -362,8 +586,17 @@ public partial class MainWindow : Window
             case "AddImage":
                 await AddProjectImage();
                 break;
+            case "CommitToGit":
+                await CommitToGit();
+                break;
+            case "PushToRemoteGitRepository":
+                await PushToRemoteGitRepository();
+                break;
             case "Settings":
                 await EditSettings();
+                break;
+            case "ProjectSettings":
+                await EditProjectSettings();
                 break;
             case "ToggleSideBar":
                 ToggleSideBar();

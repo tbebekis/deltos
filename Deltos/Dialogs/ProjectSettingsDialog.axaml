@@ -1,0 +1,76 @@
+<desktop:DialogWindow xmlns="https://github.com/avaloniaui"
+                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                      xmlns:desktop="clr-namespace:Tripous.Desktop;assembly=Tripous.Desktop"
+                      x:Class="Deltos.ProjectSettingsDialog"
+                      Title="Project Settings"
+                      Width="560"
+                      Height="360"
+                      MinWidth="520"
+                      MinHeight="330"
+                      CanResize="False"
+                      WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="*,Auto"
+          Margin="16"
+          RowSpacing="14">
+        <TabControl Name="pager">
+            <TabItem Name="tabGit"
+                     Header="Git">
+                <Grid ColumnDefinitions="Auto,*"
+                      RowDefinitions="Auto,Auto,Auto,Auto"
+                      Margin="12"
+                      ColumnSpacing="12"
+                      RowSpacing="10">
+                    <TextBlock Text="Remote name"
+                               VerticalAlignment="Center" />
+                    <TextBox Name="edtRemoteName"
+                             Grid.Column="1" />
+
+                    <TextBlock Grid.Row="1"
+                               Text="Branch"
+                               VerticalAlignment="Center" />
+                    <TextBox Name="edtBranch"
+                             Grid.Row="1"
+                             Grid.Column="1"
+                             PlaceholderText="Leave empty to push HEAD" />
+
+                    <TextBlock Grid.Row="2"
+                               Text="Remote URL"
+                               VerticalAlignment="Center" />
+                    <TextBox Name="edtRemoteUrl"
+                             Grid.Row="2"
+                             Grid.Column="1" />
+
+                    <TextBlock Grid.Row="3"
+                               Grid.ColumnSpan="2"
+                               Text="The local git repository is always the project folder."
+                               TextWrapping="Wrap"
+                               FontWeight="SemiBold"
+                               Foreground="#8A4B16" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Name="tabWiki"
+                     Header="Wiki">
+                <TextBlock Margin="12"
+                           Text="Wiki settings will be added later."
+                           TextWrapping="Wrap" />
+            </TabItem>
+        </TabControl>
+
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Name="btnOK"
+                    Width="90"
+                    Content="OK"
+                    IsDefault="True"
+                    Click="OK_Click" />
+            <Button Name="btnCancel"
+                    Width="90"
+                    Content="Cancel"
+                    IsCancel="True"
+                    Click="Cancel_Click" />
+        </StackPanel>
+    </Grid>
+</desktop:DialogWindow>
