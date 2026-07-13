@@ -67,6 +67,7 @@ public partial class NoteForm: AppForm
         Note.Text = Editor.EditorText;
         Note.Save();
         Editor.Modified = false;
+        AppHost.RemoveDirtyEditor(Editor);
         AdjustTitle();
         LogBox.AppendLine($"Note saved: {Note.Title}");
     }
@@ -108,6 +109,9 @@ public partial class NoteForm: AppForm
         if (fLoading)
             return;
 
+        if (Editor.Modified)
+            AppHost.AddDirtyEditor(Editor);
+
         AdjustTitle();
     }
 
@@ -128,6 +132,18 @@ public partial class NoteForm: AppForm
         Editor.ShowFolderRequested += Editor_ShowFolderRequested;
         Editor.ModifiedChanged += Editor_ModifiedChanged;
         LoadNote();
+    }
+    /// <summary>
+    /// Called just before the form is closed.
+    /// </summary>
+    protected override void Closing()
+    {
+        Editor.SaveRequested -= Editor_SaveRequested;
+        Editor.ShowFolderRequested -= Editor_ShowFolderRequested;
+        Editor.ModifiedChanged -= Editor_ModifiedChanged;
+        AppHost.RemoveDirtyEditor(Editor);
+
+        base.Closing();
     }
 
     // ● construction

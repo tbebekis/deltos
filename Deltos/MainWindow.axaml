@@ -22,6 +22,7 @@
                 Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                 Padding="6,4">
             <StackPanel Name="pnlToolBar"
+                        Classes="ToolBar"
                         Orientation="Horizontal"
                         Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                         Spacing="2" />

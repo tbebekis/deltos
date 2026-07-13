@@ -114,6 +114,7 @@ static public partial class AppHost
         SysConfig.ApplicationMode = ApplicationMode.Desktop;
         SysConfig.MainAssembly = typeof(AppHost).Assembly;
         LoadSettings();
+        InitializeAutoSave();
     }
     /// <summary>
     /// Shows the please-wait window.

@@ -95,6 +95,8 @@ public partial class ComponentForm: AppForm
 
         foreach (TextEditorForm Editor in Editors)
             Editor.Modified = false;
+        foreach (TextEditorForm Editor in Editors)
+            AppHost.RemoveDirtyEditor(Editor);
 
         AdjustTitle();
         LogBox.AppendLine($"Component saved: {Component.Title}");
@@ -149,6 +151,9 @@ public partial class ComponentForm: AppForm
         if (fLoading)
             return;
 
+        if (Sender is TextEditorForm Editor && Editor.Modified)
+            AppHost.AddDirtyEditor(Editor);
+
         AdjustTitle();
     }
 
@@ -167,6 +172,21 @@ public partial class ComponentForm: AppForm
     {
         WireEditors();
         LoadComponent();
+    }
+    /// <summary>
+    /// Called just before the form is closed.
+    /// </summary>
+    protected override void Closing()
+    {
+        foreach (TextEditorForm Editor in Editors)
+        {
+            Editor.SaveRequested -= Editor_SaveRequested;
+            Editor.ShowFolderRequested -= Editor_ShowFolderRequested;
+            Editor.ModifiedChanged -= Editor_ModifiedChanged;
+            AppHost.RemoveDirtyEditor(Editor);
+        }
+
+        base.Closing();
     }
 
     // ● construction

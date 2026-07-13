@@ -74,6 +74,7 @@ public partial class TempFileForm: AppForm
         Project.TempFileText = Editor.EditorText;
         Project.SaveTempFile();
         Editor.Modified = false;
+        AppHost.RemoveDirtyEditor(Editor);
         AdjustTitle();
         LogBox.AppendLine("Temp text saved.");
     }
@@ -115,6 +116,9 @@ public partial class TempFileForm: AppForm
         if (fLoading)
             return;
 
+        if (Editor.Modified)
+            AppHost.AddDirtyEditor(Editor);
+
         AdjustTitle();
     }
     /// <summary>
@@ -138,6 +142,18 @@ public partial class TempFileForm: AppForm
         Editor.ShowFolderRequested += Editor_ShowFolderRequested;
         Editor.ModifiedChanged += Editor_ModifiedChanged;
         LoadTempFile();
+    }
+    /// <summary>
+    /// Called just before the form is closed.
+    /// </summary>
+    protected override void Closing()
+    {
+        Editor.SaveRequested -= Editor_SaveRequested;
+        Editor.ShowFolderRequested -= Editor_ShowFolderRequested;
+        Editor.ModifiedChanged -= Editor_ModifiedChanged;
+        AppHost.RemoveDirtyEditor(Editor);
+
+        base.Closing();
     }
 
     // ● construction

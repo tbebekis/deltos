@@ -173,6 +173,8 @@ public partial class TextFileForm: AppForm
 
         foreach (TextEditorForm Editor in Editors)
             Editor.Modified = false;
+        foreach (TextEditorForm Editor in Editors)
+            AppHost.RemoveDirtyEditor(Editor);
 
         AdjustTitles();
         LogBox.AppendLine($"Item saved: {Item.Title}");
@@ -257,6 +259,9 @@ public partial class TextFileForm: AppForm
         if (fLoading)
             return;
 
+        if (Sender is TextEditorForm Editor && Editor.Modified)
+            AppHost.AddDirtyEditor(Editor);
+
         AdjustTitles();
     }
 
@@ -275,6 +280,21 @@ public partial class TextFileForm: AppForm
     {
         WireEditors();
         LoadItem();
+    }
+    /// <summary>
+    /// Called just before the form is closed.
+    /// </summary>
+    protected override void Closing()
+    {
+        foreach (TextEditorForm Editor in Editors)
+        {
+            Editor.SaveRequested -= Editor_SaveRequested;
+            Editor.ShowFolderRequested -= Editor_ShowFolderRequested;
+            Editor.ModifiedChanged -= Editor_ModifiedChanged;
+            AppHost.RemoveDirtyEditor(Editor);
+        }
+
+        base.Closing();
     }
 
     // ● construction

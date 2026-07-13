@@ -244,6 +244,7 @@ public partial class MainWindow : Window
         {
             AppHost.Settings.CopyEditableSettingsFrom(EditedSettings);
             AppHost.Settings.Save();
+            AppHost.ApplyAutoSaveSettings();
             LogBox.AppendLine("Settings saved.");
         }
 

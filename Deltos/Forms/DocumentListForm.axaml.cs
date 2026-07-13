@@ -30,7 +30,7 @@ public partial class DocumentListForm: AppForm
         fToolBar.AddSeparator();
         fToolBar.AddButton("page_edit.png", "Edit Text", EditSelectedItem);
         fToolBar.AddButton("html.png", "HTML Preview", PreviewSelectedItem);
-        fToolBar.AddButton("table_export.png", "Export Document", () => ExecutePlaceholderCommand("ExportDocument"));
+        fToolBar.AddButton("table_export.png", "Export Document", async () => await ExportDocument());
         fToolBar.AddButton("scroll_pane_tree.png", "Change Parent", async () => await ChangeSelectedItemParent());
         fToolBar.AddSeparator();
         fToolBar.AddButton("arrow_out.png", "Expand All", () => tvProject.ExpandAll(Flag: true));
@@ -338,15 +338,6 @@ public partial class DocumentListForm: AppForm
             AppHost.HidePleaseWait();
         }
     }
-    /// <summary>
-    /// Executes a placeholder command.
-    /// </summary>
-    /// <param name="CommandName">The command name.</param>
-    void ExecutePlaceholderCommand(string CommandName)
-    {
-        LogBox.AppendLine($"DocumentListForm command not implemented yet: {CommandName}");
-    }
-
     // ● context menu
     /// <summary>
     /// Creates a menu item.
@@ -423,10 +414,60 @@ public partial class DocumentListForm: AppForm
         if (Item is Document)
         {
             Result.Items.Add(new Separator());
-            Result.Items.Add(CreateMenuItem("Export", true, (Sender, Args) => ExecutePlaceholderCommand("ExportDocument")));
+            Result.Items.Add(CreateMenuItem("Export", true, async (Sender, Args) => await ExportDocument()));
         }
 
         return Result;
+    }
+
+    // ● export
+    /// <summary>
+    /// Returns the selected document context.
+    /// </summary>
+    /// <returns>The selected document, if any; otherwise null.</returns>
+    Document GetSelectedDocument()
+    {
+        BaseItem Item = GetSelectedBaseItem();
+        if (Item is Document Document)
+            return Document;
+
+        return Item?.Document;
+    }
+    /// <summary>
+    /// Exports the selected document.
+    /// </summary>
+    async Task ExportDocument()
+    {
+        Document Document = GetSelectedDocument();
+        if (Document == null)
+        {
+            await Tripous.Desktop.MessageBox.Info("Select a document item first.", this);
+            return;
+        }
+
+        ExportOptions Options = new ExportOptions();
+        DialogInfo Info = await DialogWindow.ShowModal<ExportDialog>(Options, this);
+        if (!Info.Result)
+            return;
+
+        Options = Info.ResultData as ExportOptions ?? Options;
+
+        try
+        {
+            AppHost.ShowPleaseWait("Exporting document...", this.GetOwnerWindow());
+
+            string ExportFolderPath = new DocumentExporter(Document, Options).Execute();
+            LogBox.AppendLine($"Document exported: {ExportFolderPath}");
+            Sys.OpenFileExplorer(ExportFolderPath);
+        }
+        catch (Exception e)
+        {
+            await Tripous.Desktop.MessageBox.Error(e, this);
+        }
+        finally
+        {
+            AppHost.HidePleaseWait();
+        }
     }
 
     // ● change parent
@@ -996,6 +1037,7 @@ public partial class DocumentListForm: AppForm
             FontSize = FontSize,
             FontWeight = FontWeight,
             Foreground = Foreground,
+            Margin = new Thickness(0, 2, 0, 0),
             TextWrapping = TextWrapping.Wrap
         });
     }
@@ -1018,14 +1060,14 @@ public partial class DocumentListForm: AppForm
         Border Border = new Border();
         Border.BorderBrush = new SolidColorBrush(Color.Parse("#D8C5B4"));
         Border.BorderThickness = new Thickness(0, 1, 0, 0);
-        Border.Padding = new Thickness(0, 5, 0, 0);
+        Border.Padding = new Thickness(0, 4, 0, 0);
 
         Grid Grid = new Grid();
         Grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
-        Grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        Grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(74)));
         Grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        Grid.RowSpacing = 2;
-        Grid.ColumnSpacing = 10;
+        Grid.RowSpacing = 1;
+        Grid.ColumnSpacing = 6;
 
         TextBlock Header = new TextBlock
         {
@@ -1057,7 +1099,8 @@ public partial class DocumentListForm: AppForm
             Text = Label,
             FontSize = 12,
             Foreground = Brushes.Black,
-            Opacity = 0.82
+            Opacity = 0.82,
+            TextTrimming = TextTrimming.CharacterEllipsis
         };
         TextBlock ValueBlock = new TextBlock
         {
@@ -1065,7 +1108,9 @@ public partial class DocumentListForm: AppForm
             FontSize = 12,
             FontWeight = FontWeight.SemiBold,
             FontFamily = new FontFamily("Cascadia Code, Consolas, Monospace"),
-            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+            TextAlignment = TextAlignment.Right,
+            TextWrapping = TextWrapping.NoWrap
         };
 
         Grid.SetRow(LabelBlock, RowIndex);
@@ -1087,9 +1132,9 @@ public partial class DocumentListForm: AppForm
             AddMetricRow(Panel, "Words", Stats.WordCount.ToString());
             AddMetricRow(Panel, "Pages", $"{Stats.EstimatedPages:0.00}");
             AddMetricRow(Panel, "Chars", Stats.CharCount.ToString());
-            AddMetricRow(Panel, "Chars no spaces", Stats.CharCountNoSpaces.ToString());
+            AddMetricRow(Panel, "Chars - spaces", Stats.CharCountNoSpaces.ToString());
             AddMetricRow(Panel, "Lines", Stats.LineCount.ToString());
-            AddMetricRow(Panel, "Paragraphs", Stats.ParagraphCount.ToString());
+            AddMetricRow(Panel, "Pars", Stats.ParagraphCount.ToString());
         });
     }
     /// <summary>

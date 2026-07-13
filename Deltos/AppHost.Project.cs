@@ -79,6 +79,7 @@ static public partial class AppHost
         string Title = CurrentProject.Title;
 
         ProjectClosed?.Invoke(null, EventArgs.Empty);
+        ClearDirtyEditors();
         CloseAllUi();
         CurrentProject = null;
 

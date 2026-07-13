@@ -1,0 +1,120 @@
+<desktop:DialogWindow xmlns="https://github.com/avaloniaui"
+                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                      xmlns:desktop="clr-namespace:Tripous.Desktop;assembly=Tripous.Desktop"
+                      x:Class="Deltos.ExportDialog"
+                      Title="Export Options"
+                      Width="620"
+                      Height="550"
+                      MinWidth="580"
+                      MinHeight="470"
+                      CanResize="False"
+                      WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="*,Auto,Auto"
+          Margin="12"
+          RowSpacing="12">
+        <Grid RowDefinitions="Auto,*,Auto"
+              RowSpacing="14">
+            <Grid ColumnDefinitions="*,*,*"
+                  ColumnSpacing="14">
+                <GroupBox Header="Language">
+                    <StackPanel Margin="8"
+                                Spacing="6">
+                        <CheckBox Name="chPrimary"
+                                  Content="Primary" />
+                        <CheckBox Name="chSecondary"
+                                  Content="Secondary" />
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Grid.Column="1"
+                          Header="Content">
+                    <StackPanel Margin="8"
+                                Spacing="6">
+                        <CheckBox Name="chText"
+                                  Content="Text" />
+                        <CheckBox Name="chSynopsis"
+                                  Content="Synopsis" />
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Grid.Column="2"
+                          Header="Format">
+                    <StackPanel Margin="8"
+                                Spacing="6">
+                        <CheckBox Name="chTxt"
+                                  Content="TXT" />
+                        <CheckBox Name="chHtml"
+                                  Content="HTML" />
+                        <CheckBox Name="chOdt"
+                                  Content="ODT" />
+                    </StackPanel>
+                </GroupBox>
+            </Grid>
+
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="*,*"
+                  ColumnSpacing="14">
+                <GroupBox Header="Folder Titles">
+                    <StackPanel Margin="8"
+                                Spacing="6">
+                        <CheckBox Name="chFolderBullet"
+                                  Content="Bullet" />
+                        <CheckBox Name="chFolderNumber"
+                                  Content="Number" />
+                        <CheckBox Name="chFolderWord"
+                                  Content="Word" />
+                        <CheckBox Name="chFolderTitle"
+                                  Content="Title" />
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Grid.Column="1"
+                          Header="TextFile Titles">
+                    <StackPanel Margin="8"
+                                Spacing="6">
+                        <CheckBox Name="chTextFileBullet"
+                                  Content="Bullet" />
+                        <CheckBox Name="chTextFileNumber"
+                                  Content="Number" />
+                        <CheckBox Name="chTextFileWord"
+                                  Content="Word" />
+                        <CheckBox Name="chTextFileTitle"
+                                  Content="Title" />
+                    </StackPanel>
+                </GroupBox>
+            </Grid>
+
+            <GroupBox Grid.Row="2"
+                      Header="Options">
+                <StackPanel Margin="8"
+                            Spacing="6">
+                    <CheckBox Name="chTreatTextFilesAsPlainText"
+                              Content="Treat TextFiles as Plain Text (not Markdown)" />
+                </StackPanel>
+            </GroupBox>
+        </Grid>
+
+        <TextBlock Grid.Row="1"
+                   Text="ODT export uses LibreOffice. LibreOffice must be installed and available in PATH."
+                   TextWrapping="Wrap"
+                   FontWeight="SemiBold"
+                   Foreground="#8A4B16"
+                   Opacity="0.95" />
+
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Name="btnOK"
+                    Width="90"
+                    Content="OK"
+                    IsDefault="True"
+                    Click="OK_Click" />
+            <Button Name="btnCancel"
+                    Width="90"
+                    Content="Cancel"
+                    IsCancel="True"
+                    Click="Cancel_Click" />
+        </StackPanel>
+    </Grid>
+</desktop:DialogWindow>
