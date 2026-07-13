@@ -14,6 +14,8 @@ ordinary files and folders.
 
 ![MainView](ScreenShots/MainView.png)
 
+> Your writing remains yours, stored as ordinary Markdown files and folders.
+
 ## Features
 
 - Project-based writing workspace.
@@ -316,10 +318,6 @@ and logs the command result.
 
 ## Screenshots
 
-Screenshots will be added here.
-
- 
-
 ### Components
 
 ![Components](ScreenShots/Components.png)
@@ -344,16 +342,6 @@ Screenshots will be added here.
 
 ![About](ScreenShots/About.png)
 
-
-Suggested sections:
-
-- Main workspace.
-- Document list.
-- Text editor.
-- Component list.
-- Tags.
-- Export dialog.
-- Static wiki.
 
 ## Author
 
