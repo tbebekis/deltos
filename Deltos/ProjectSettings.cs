@@ -55,6 +55,9 @@ public class ProjectSettings
 
         if (string.IsNullOrWhiteSpace(Git.RemoteName))
             Git.RemoteName = "origin";
+
+        Wiki.SiteBaseUrl ??= string.Empty;
+        Wiki.DefaultSocialImageUrl ??= string.Empty;
     }
 
     // ● properties

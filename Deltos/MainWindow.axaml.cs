@@ -300,6 +300,7 @@ public partial class MainWindow : Window
         try
         {
             AppHost.ShowPleaseWait("Checking git repository...", this);
+            LogBox.AppendLine("Commit to git started.");
 
             GitCli Git = CreateProjectGitCli();
             Git.CheckGitInstalled();
@@ -315,6 +316,7 @@ public partial class MainWindow : Window
             if (!Git.HasUncommittedChanges())
             {
                 LogBox.AppendLine("There are no uncommitted changes.");
+                LogBox.AppendLine("Commit to git completed: nothing to commit.");
                 AppHost.HidePleaseWait();
                 await Tripous.Desktop.MessageBox.Info("There are no uncommitted changes.", this);
                 return;
@@ -322,6 +324,7 @@ public partial class MainWindow : Window
         }
         catch (Exception e)
         {
+            LogBox.AppendLine("Commit to git FAILED.");
             LogBox.AppendLine(e);
             AppHost.HidePleaseWait();
             await Tripous.Desktop.MessageBox.Error(e, this);
@@ -335,7 +338,10 @@ public partial class MainWindow : Window
         string DefaultMessage = $"Auto-commit {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
         InputBoxData Data = await InputBox.ShowModal("Commit message", DefaultMessage, this);
         if (Data == null || !Data.Result)
+        {
+            LogBox.AppendLine("Commit to git canceled.");
             return;
+        }
 
         string CommitMessage = string.IsNullOrWhiteSpace(Data.Value) ? DefaultMessage : Data.Value.Trim();
 
@@ -347,15 +353,18 @@ public partial class MainWindow : Window
             if (Git.CommitIfNeeded(CommitMessage))
             {
                 LogBox.AppendLine($"Committed to git: {CommitMessage}");
+                LogBox.AppendLine("Commit to git completed.");
                 UpdateProjectStatus("Committed to git");
             }
             else
             {
                 LogBox.AppendLine("Nothing to commit.");
+                LogBox.AppendLine("Commit to git completed: nothing to commit.");
             }
         }
         catch (Exception e)
         {
+            LogBox.AppendLine("Commit to git FAILED.");
             LogBox.AppendLine(e);
             await Tripous.Desktop.MessageBox.Error(e, this);
         }
@@ -382,6 +391,7 @@ public partial class MainWindow : Window
         try
         {
             AppHost.ShowPleaseWait("Checking git repository...", this);
+            LogBox.AppendLine("Push to remote git repository started.");
 
             Git.CheckGitInstalled();
             if (!Git.IsGitRepo())
@@ -397,7 +407,10 @@ public partial class MainWindow : Window
                 {
                     bool Saved = await EditProjectSettings();
                     if (!Saved)
+                    {
+                        LogBox.AppendLine("Push to remote git repository canceled.");
                         return;
+                    }
 
                     Settings = ProjectSettings.Load(Project);
                     Git = CreateProjectGitCli();
@@ -405,6 +418,7 @@ public partial class MainWindow : Window
 
                 if (string.IsNullOrWhiteSpace(Settings.Git.RemoteUrl))
                 {
+                    LogBox.AppendLine("Push to remote git repository FAILED: remote URL is required.");
                     await Tripous.Desktop.MessageBox.Info("Remote URL is required.", this);
                     return;
                 }
@@ -418,6 +432,7 @@ public partial class MainWindow : Window
         }
         catch (Exception e)
         {
+            LogBox.AppendLine("Push to remote git repository FAILED.");
             LogBox.AppendLine(e);
             AppHost.HidePleaseWait();
             await Tripous.Desktop.MessageBox.Error(e, this);
@@ -436,6 +451,75 @@ public partial class MainWindow : Window
         }
         catch (Exception e)
         {
+            LogBox.AppendLine("Push to remote git repository FAILED.");
+            LogBox.AppendLine(e);
+            await Tripous.Desktop.MessageBox.Error(e, this);
+        }
+        finally
+        {
+            AppHost.HidePleaseWait();
+        }
+    }
+    /// <summary>
+    /// Builds the project wiki.
+    /// </summary>
+    /// <param name="UseSecondaryText">True to build the secondary wiki.</param>
+    async Task BuildWiki(bool UseSecondaryText)
+    {
+        Project Project = AppHost.CurrentProject;
+        if (Project == null)
+        {
+            await Tripous.Desktop.MessageBox.Info("No project is open.", this);
+            return;
+        }
+
+        ProjectSettings Settings = ProjectSettings.Load(Project);
+        Settings.EnsureDefaults();
+
+        string OutputFolderPath = UseSecondaryText ? Settings.Wiki.WikiFolderPath2 : Settings.Wiki.WikiFolderPath;
+        if (string.IsNullOrWhiteSpace(OutputFolderPath))
+        {
+            bool Saved = await EditProjectSettings();
+            if (!Saved)
+                return;
+
+            Settings = ProjectSettings.Load(Project);
+            OutputFolderPath = UseSecondaryText ? Settings.Wiki.WikiFolderPath2 : Settings.Wiki.WikiFolderPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(OutputFolderPath))
+        {
+            await Tripous.Desktop.MessageBox.Info("Wiki output folder is required.", this);
+            return;
+        }
+
+        try
+        {
+            AppHost.ShowPleaseWait(UseSecondaryText ? "Building wiki 2..." : "Building wiki...", this);
+            LogBox.AppendLine(UseSecondaryText ? "Build Wiki 2 started." : "Build Wiki started.");
+
+            WikiBuildInfo Info = new WikiBuildInfo(UseSecondaryText);
+            Info.Project = Project;
+            Info.OutputFolderPath = OutputFolderPath;
+            Info.HomeComponentTitle = Settings.Wiki.HomeComponentTitle;
+            Info.AboutComponentTitle = Settings.Wiki.AboutComponentTitle;
+            Info.GenerateTagPages = Settings.Wiki.GenerateTagPages;
+            Info.SiteBaseUrl = Settings.Wiki.SiteBaseUrl;
+            Info.DefaultSocialImageUrl = Settings.Wiki.DefaultSocialImageUrl;
+
+            WikiBuildResult Result = WikiBuilder.Build(Info);
+            LogBox.AppendLine("Wiki build result follows:");
+            foreach (string Line in Result.Log)
+                LogBox.AppendLine(Line);
+
+            LogBox.AppendLine($"Emitted files: {Result.EmittedFiles.Count}");
+            LogBox.AppendLine(UseSecondaryText ? "Build Wiki 2 completed." : "Build Wiki completed.");
+            Sys.OpenFileExplorer(OutputFolderPath);
+            UpdateProjectStatus(UseSecondaryText ? "Wiki 2 built" : "Wiki built");
+        }
+        catch (Exception e)
+        {
+            LogBox.AppendLine(UseSecondaryText ? "Build Wiki 2 FAILED." : "Build Wiki FAILED.");
             LogBox.AppendLine(e);
             await Tripous.Desktop.MessageBox.Error(e, this);
         }
@@ -505,11 +589,6 @@ public partial class MainWindow : Window
 
         AddToolBarSeparator();
 
-        AddToolBarButton("book.png", "Commit to git", "CommitToGit");
-        AddToolBarButton("book_go.png", "Push to remote git repository", "PushToRemoteGitRepository");
-
-        AddToolBarSeparator();
-
         AddToolBarButton("setting_tools.png", "Settings", "Settings");
         AddToolBarButton("setting_tools.png", "Project Settings", "ProjectSettings");
 
@@ -518,6 +597,14 @@ public partial class MainWindow : Window
         AddToolBarButton("layout_sidebar.png", "Show/Hide SideBar", "ToggleSideBar");
         AddToolBarButton("error_log.png", "Show/Hide Log", "ToggleLog");
         AddToolBarButton("textfield_clear.png", "Clear Log", "ClearLog");
+
+        AddToolBarSeparator();
+
+        AddToolBarButton("compile.png", "Build Wiki", "BuildWiki");
+        AddToolBarButton("compile.png", "Build Wiki 2", "BuildWiki2");
+
+        AddToolBarButton("book.png", "Commit to git", "CommitToGit");
+        AddToolBarButton("book_go.png", "Push to remote git repository", "PushToRemoteGitRepository");
 
         AddToolBarSeparator();
 
@@ -606,6 +693,12 @@ public partial class MainWindow : Window
                 break;
             case "ClearLog":
                 ClearLog();
+                break;
+            case "BuildWiki":
+                await BuildWiki(false);
+                break;
+            case "BuildWiki2":
+                await BuildWiki(true);
                 break;
             case "About":
                 await DialogWindow.ShowModal<AboutDialog>(null, this);

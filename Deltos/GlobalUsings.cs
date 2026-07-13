@@ -33,3 +33,4 @@ global using Tripous;
 global using Tripous.Desktop;
 
 global using Deltos.Export;
+global using Deltos.Wiki;

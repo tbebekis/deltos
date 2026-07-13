@@ -1,30 +1,36 @@
 // Copyright (c) 2026 Theodoros Bebekis
 // Licensed under the MIT License.
 
-namespace Deltos;
+namespace Deltos.Wiki;
 
 /// <summary>
-/// Project wiki settings.
+/// Provides wiki build input information.
 /// </summary>
-public class ProjectWikiSettings
+public class WikiBuildInfo
 {
     // ● construction
     /// <summary>
-    /// Initializes a new instance of the ProjectWikiSettings class.
+    /// Initializes a new instance of the WikiBuildInfo class.
     /// </summary>
-    public ProjectWikiSettings()
+    /// <param name="UseSecondaryText">True to use secondary component text.</param>
+    public WikiBuildInfo(bool UseSecondaryText)
     {
+        this.UseSecondaryText = UseSecondaryText;
     }
 
     // ● properties
     /// <summary>
-    /// Gets or sets the primary wiki output folder path.
+    /// Gets or sets a value indicating whether secondary component text is used.
     /// </summary>
-    public string WikiFolderPath { get; set; } = string.Empty;
+    public bool UseSecondaryText { get; set; }
     /// <summary>
-    /// Gets or sets the secondary wiki output folder path.
+    /// Gets or sets the source project.
     /// </summary>
-    public string WikiFolderPath2 { get; set; } = string.Empty;
+    public Project Project { get; set; }
+    /// <summary>
+    /// Gets or sets the output folder path.
+    /// </summary>
+    public string OutputFolderPath { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the home component title.
     /// </summary>
@@ -38,7 +44,7 @@ public class ProjectWikiSettings
     /// </summary>
     public bool GenerateTagPages { get; set; } = true;
     /// <summary>
-    /// Gets or sets the published site base URL.
+    /// Gets or sets the site base URL.
     /// </summary>
     public string SiteBaseUrl { get; set; } = string.Empty;
     /// <summary>

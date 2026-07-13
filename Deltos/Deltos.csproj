@@ -29,4 +29,8 @@
     <ItemGroup>
       <AvaloniaResource Include="Resources\Images\**" />
     </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="Resources\Wiki\**" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
 </Project>

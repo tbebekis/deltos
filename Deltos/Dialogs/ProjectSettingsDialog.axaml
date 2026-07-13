@@ -3,10 +3,10 @@
                       xmlns:desktop="clr-namespace:Tripous.Desktop;assembly=Tripous.Desktop"
                       x:Class="Deltos.ProjectSettingsDialog"
                       Title="Project Settings"
-                      Width="560"
-                      Height="360"
-                      MinWidth="520"
-                      MinHeight="330"
+                      Width="680"
+                      Height="520"
+                      MinWidth="640"
+                      MinHeight="480"
                       CanResize="False"
                       WindowStartupLocation="CenterOwner">
     <Grid RowDefinitions="*,Auto"
@@ -51,9 +51,70 @@
 
             <TabItem Name="tabWiki"
                      Header="Wiki">
-                <TextBlock Margin="12"
-                           Text="Wiki settings will be added later."
-                           TextWrapping="Wrap" />
+                <Grid ColumnDefinitions="Auto,*"
+                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                      Margin="12"
+                      ColumnSpacing="12"
+                      RowSpacing="10">
+                    <TextBlock Text="Wiki folder"
+                               VerticalAlignment="Center"
+                               ToolTip.Tip="The output folder for the primary wiki. Deltos writes the generated static site here. If empty when the dialog opens, Deltos suggests the project folder path plus _Wiki." />
+                    <TextBox Name="edtWikiFolderPath"
+                             Grid.Column="1"
+                             ToolTip.Tip="The output folder for the primary wiki. This folder is cleaned before build, but .git, .github, .gitignore and .gitattributes are preserved." />
+
+                    <TextBlock Grid.Row="1"
+                               Text="Wiki folder 2"
+                               VerticalAlignment="Center"
+                               ToolTip.Tip="The output folder for the secondary language wiki. Deltos writes components using Text2 here. If empty when the dialog opens, Deltos suggests the project folder path plus _Wiki2." />
+                    <TextBox Name="edtWikiFolderPath2"
+                             Grid.Row="1"
+                             Grid.Column="1"
+                             ToolTip.Tip="The output folder for the secondary language wiki. This can be a separate local git repository, but Deltos does not commit or push it." />
+
+                    <TextBlock Grid.Row="2"
+                               Text="Home component"
+                               VerticalAlignment="Center"
+                               ToolTip.Tip="The component used as the wiki home page. Its generated page is index.html. If this is empty or the component is not found, Deltos will not create index.html." />
+                    <TextBox Name="edtHomeComponentTitle"
+                             Grid.Row="2"
+                             Grid.Column="1"
+                             ToolTip.Tip="Enter the exact title of the component that should become index.html, for example World or The Corp of the World." />
+
+                    <TextBlock Grid.Row="3"
+                               Text="About component"
+                               VerticalAlignment="Center"
+                               ToolTip.Tip="Optional component used to generate about.html. Leave empty if the static site should not have an About page." />
+                    <TextBox Name="edtAboutComponentTitle"
+                             Grid.Row="3"
+                             Grid.Column="1"
+                             PlaceholderText="Leave empty to skip about.html"
+                             ToolTip.Tip="Enter the exact title of the component that should become about.html. If empty, no About page is generated." />
+
+                    <CheckBox Name="chkGenerateTagPages"
+                              Grid.Row="4"
+                              Grid.ColumnSpan="2"
+                              Content="Generate tag pages"
+                              ToolTip.Tip="When checked, Deltos creates one page under /tags for every tag, listing all components that use that tag. Keep this checked if tag links appear in the sidebar or taxonomy footer." />
+
+                    <TextBlock Grid.Row="5"
+                               Text="Site base URL"
+                               VerticalAlignment="Center"
+                               ToolTip.Tip="Optional public base URL of the published wiki, for example https://wiki.example.com. It is used to generate canonical URLs, sitemap.xml, robots.txt and social sharing metadata. Leave empty for a local-only wiki." />
+                    <TextBox Name="edtSiteBaseUrl"
+                             Grid.Row="5"
+                             Grid.Column="1"
+                             ToolTip.Tip="Optional public base URL of the deployed wiki. Do not include a trailing slash. Example: https://wiki.thecorpofworld.com" />
+
+                    <TextBlock Grid.Row="6"
+                               Text="Social image URL"
+                               VerticalAlignment="Center"
+                               ToolTip.Tip="Optional image used by social networks when a wiki page is shared. Deltos writes it into OpenGraph and Twitter meta tags. For a relative /assets/images/... URL, the source image must be in the project Images folder so Deltos can copy it into the site assets." />
+                    <TextBox Name="edtDefaultSocialImageUrl"
+                             Grid.Row="6"
+                             Grid.Column="1"
+                             ToolTip.Tip="Optional default social preview image. Example relative value: /assets/images/world-cover.jpg. In that case world-cover.jpg must exist in the project Images folder. Example absolute value: https://wiki.example.com/assets/images/world-cover.jpg. Leave empty if you do not need social preview metadata." />
+                </Grid>
             </TabItem>
         </TabControl>
 
