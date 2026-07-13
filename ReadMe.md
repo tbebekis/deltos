@@ -12,6 +12,9 @@ project. Its core idea is simple: writing belongs in a calm editor, structure
 belongs in a visible tree, and the project itself should remain readable as
 ordinary files and folders.
 
+>  Native desktop application for Windows, Linux, and macOS. <br>
+>  Built with [Avalonia](https://avaloniaui.net/).
+
 ![MainView](ScreenShots/MainView.png)
 
 > Your writing remains yours, stored as ordinary Markdown files and folders.
