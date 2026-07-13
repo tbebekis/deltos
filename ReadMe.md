@@ -12,6 +12,8 @@ project. Its core idea is simple: writing belongs in a calm editor, structure
 belongs in a visible tree, and the project itself should remain readable as
 ordinary files and folders.
 
+![MainView](ScreenShots/MainView.png)
+
 ## Features
 
 - Project-based writing workspace.
@@ -315,6 +317,33 @@ and logs the command result.
 ## Screenshots
 
 Screenshots will be added here.
+
+ 
+
+### Components
+
+![Components](ScreenShots/Components.png)
+
+### Global Search
+
+![GlobalSearch](ScreenShots/GlobalSearch.png)
+
+### Local Search
+
+![LocalSearch](ScreenShots/LocalSearch.png)
+
+### Html Preview
+
+![HtmlPreview](ScreenShots/HtmlPreview.png)
+
+### Static Wiki
+
+![Wiki](ScreenShots/Wiki.png)
+
+### About
+
+![About](ScreenShots/About.png)
+
 
 Suggested sections:
 
