@@ -116,7 +116,26 @@ static public partial class AppHost
         if (CurrentProject == null || SideBarHandler == null)
             return;
 
+        ShowSideBarForm<Forms.TagListForm>(nameof(Forms.TagListForm), "Tags");
+        ShowSideBarForm<Forms.ComponentListForm>(nameof(Forms.ComponentListForm), "Components");
+        ShowSideBarForm<Forms.NoteListForm>(nameof(Forms.NoteListForm), "Notes");
+        ShowSideBarForm<Forms.TempFileForm>(nameof(Forms.TempFileForm), "Temp Text");
         ShowSideBarForm<Forms.DocumentListForm>(nameof(Forms.DocumentListForm), "Documents");
+    }
+    /// <summary>
+    /// Shows a markdown preview in the content pager.
+    /// </summary>
+    /// <param name="FormId">The preview form identifier.</param>
+    /// <param name="Title">The preview title.</param>
+    /// <param name="MarkdownText">The markdown text.</param>
+    static public void ShowMarkdownPreview(string FormId, string Title, string MarkdownText)
+    {
+        Forms.MarkdownPreviewFormData Data = new Forms.MarkdownPreviewFormData();
+        Data.Title = Title;
+        Data.MarkdownText = MarkdownText;
+        Forms.MarkdownPreviewForm Form = ShowContentForm<Forms.MarkdownPreviewForm>(FormId, Title, Data);
+        Form.PreviewData = Data;
+        Form.RefreshPreview();
     }
 
     // ● properties

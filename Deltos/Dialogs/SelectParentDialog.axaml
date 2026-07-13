@@ -1,0 +1,55 @@
+<desktop:DialogWindow xmlns="https://github.com/avaloniaui"
+                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                      xmlns:desktop="clr-namespace:Tripous.Desktop;assembly=Tripous.Desktop"
+                      x:Class="Deltos.SelectParentDialog"
+                      Title="Select Parent"
+                      Width="560"
+                      Height="460"
+                      MinWidth="520"
+                      MinHeight="380"
+                      CanResize="True"
+                      WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="Auto,Auto,*,Auto"
+          Margin="16"
+          RowSpacing="10">
+        <TextBlock Text="Select the new parent for the selected item."
+                   TextWrapping="Wrap" />
+
+        <Grid Grid.Row="1"
+              RowDefinitions="Auto,Auto"
+              RowSpacing="4">
+            <TextBlock Text="Item" />
+            <TextBox Name="txtItem"
+                     Grid.Row="1"
+                     IsReadOnly="True" />
+        </Grid>
+
+        <Grid Grid.Row="2"
+              RowDefinitions="Auto,*"
+              RowSpacing="4">
+            <TextBlock Text="Available parents" />
+            <Border Grid.Row="1"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                    BorderThickness="1">
+                <ListBox Name="lboParents"
+                         SelectionChanged="ParentSelectionChanged" />
+            </Border>
+        </Grid>
+
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Name="btnOK"
+                    Width="90"
+                    Content="OK"
+                    IsDefault="True"
+                    Click="OK_Click" />
+            <Button Name="btnCancel"
+                    Width="90"
+                    Content="Cancel"
+                    IsCancel="True"
+                    Click="Cancel_Click" />
+        </StackPanel>
+    </Grid>
+</desktop:DialogWindow>

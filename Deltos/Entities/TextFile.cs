@@ -72,6 +72,22 @@ public class TextFile: BaseItem
         if (FolderItem != null)
             CheckDuplicateTitle(FolderItem.Files, NewTitle, this);
     }
+    /// <summary>
+    /// Returns the source text files list.
+    /// </summary>
+    /// <returns>The source text files list.</returns>
+    protected virtual List<TextFile> GetSourceTextFiles()
+    {
+        Document DocumentItem = Parent as Document;
+        if (DocumentItem != null)
+            return DocumentItem.Files;
+
+        Folder FolderItem = Parent as Folder;
+        if (FolderItem != null)
+            return FolderItem.Files;
+
+        return null;
+    }
 
     // ● construction
     /// <summary>
@@ -224,6 +240,47 @@ public class TextFile: BaseItem
         }
 
         return false;
+    }
+    /// <summary>
+    /// Returns true if the text file can change parent.
+    /// </summary>
+    /// <param name="TargetParent">The target parent item.</param>
+    /// <returns>True if the text file can change parent; otherwise false.</returns>
+    public override bool CanChangeParent(BaseItem TargetParent)
+    {
+        Folder TargetFolder = TargetParent as Folder;
+        if (TargetFolder == null || ReferenceEquals(Parent, TargetFolder))
+            return false;
+
+        if (Project == null || !ReferenceEquals(Project, TargetFolder.Project))
+            return false;
+
+        if (!TargetFolder.CanAddTextFile)
+            return false;
+
+        return !ContainsTitle(TargetFolder.Files, Title);
+    }
+    /// <summary>
+    /// Changes the text file parent.
+    /// </summary>
+    /// <param name="TargetParent">The target parent item.</param>
+    /// <returns>True if the text file parent is changed; otherwise false.</returns>
+    public override bool ChangeParent(BaseItem TargetParent)
+    {
+        if (!CanChangeParent(TargetParent))
+            return false;
+
+        Folder TargetFolder = TargetParent as Folder;
+        BaseItem SourceParent = Parent;
+        List<TextFile> SourceItems = GetSourceTextFiles();
+        bool Result = MoveItem(SourceItems, TargetFolder.Files, this, TargetFolder);
+        if (Result)
+        {
+            SourceParent.UpdateReferences(SourceParent.Parent);
+            TargetFolder.UpdateReferences(TargetFolder.Parent);
+        }
+
+        return Result;
     }
     
     // ● properties

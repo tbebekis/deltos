@@ -7,22 +7,23 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0"/>
-        <PackageReference Include="Avalonia" Version="12.0.4"/>
-        <PackageReference Include="Avalonia.Desktop" Version="12.0.4"/>
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4"/>
-        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4"/>
+        <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
+        <PackageReference Include="Avalonia" Version="12.0.4" />
+        <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4" />
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
         <PackageReference Include="Avalonia.Diagnostics" Version="11.3.18">
             <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
+        <PackageReference Include="Markdig" Version="1.3.2" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\Tripous.Avalon\Tripous\Tripous.csproj"/>
-        <ProjectReference Include="..\..\Tripous.Avalon\Tripous.Desktop\Tripous.Desktop.csproj"/>
-        <ProjectReference Include="..\..\Tripous.Avalon\Tripous.Logging\Tripous.Logging.csproj"/>
+        <ProjectReference Include="..\..\Tripous.Avalon\Tripous\Tripous.csproj" />
+        <ProjectReference Include="..\..\Tripous.Avalon\Tripous.Desktop\Tripous.Desktop.csproj" />
+        <ProjectReference Include="..\..\Tripous.Avalon\Tripous.Logging\Tripous.Logging.csproj" />
     </ItemGroup>
 
     <ItemGroup>

@@ -46,6 +46,9 @@
             <Setter Property="Height" Value="24" />
             <Setter Property="Stretch" Value="Uniform" />
         </Style>
+        <Style Selector="GridSplitter">
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumBrush}" />
+        </Style>
         <Style Selector="AvaloniaEdit|TextEditor">
             <Setter Property="Background" Value="White" />
             <Setter Property="Foreground" Value="Black" />

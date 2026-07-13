@@ -180,7 +180,7 @@ public partial class DocumentStructureDialog: DialogWindow
             return;
 
         string Title = BoxData.Value?.Trim();
-        if (!AppHost.IsValidFileName(Title, false))
+        if (!AppHost.IsValidFolderLevelTitle(Title, false))
         {
             await Tripous.Desktop.MessageBox.Error($"Invalid folder level title: {Title}", this);
             return;

@@ -26,6 +26,10 @@ public class ItemInfo
     /// </summary>
     protected string fTagList = string.Empty;
     /// <summary>
+    /// Field for the AliasList property.
+    /// </summary>
+    protected string fAliasList = string.Empty;
+    /// <summary>
     /// Field for the LevelTitle property.
     /// </summary>
     protected string fLevelTitle = string.Empty;
@@ -74,6 +78,14 @@ public class ItemInfo
     {
         get => fTagList;
         set => fTagList = value ?? string.Empty;
+    }
+    /// <summary>
+    /// Gets or sets the semicolon-separated alias list of a component item.
+    /// </summary>
+    public string AliasList
+    {
+        get => fAliasList;
+        set => fAliasList = value ?? string.Empty;
     }
     /// <summary>
     /// Gets or sets a value indicating whether the item represents a folder.

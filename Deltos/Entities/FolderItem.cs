@@ -37,7 +37,7 @@ public class FolderItem
             throw new InvalidOperationException("The folder structure contains a cycle.");
 
         VisitedItems.Add(this);
-        AppHost.CheckValidFileName(Title);
+        AppHost.CheckValidFolderLevelTitle(Title);
         Child?.CheckValid(VisitedItems);
     }
     /// <summary>
@@ -150,7 +150,7 @@ public class FolderItem
                 return;
             }
 
-            AppHost.CheckValidFileName(value);
+            AppHost.CheckValidFolderLevelTitle(value);
             fTitle = value.Trim();
         }
     }

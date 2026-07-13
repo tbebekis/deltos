@@ -9,17 +9,17 @@ namespace Deltos.Forms;
 public partial class DocumentListForm: AppForm
 {
     // ● private fields
-    private Tripous.Desktop.ToolBar fToolBar;
+    Tripous.Desktop.ToolBar fToolBar;
     /// <summary>
     /// Field for the New command menu.
     /// </summary>
-    private ContextMenu fNewMenu;
+    ContextMenu fNewMenu;
 
-    // ● private
+    // ● toolbar
     /// <summary>
     /// Creates the form toolbar.
     /// </summary>
-    private void CreateToolBar()
+    void CreateToolBar()
     {
         fToolBar = new();
         fToolBar.Panel = pnlToolBar;
@@ -29,20 +29,22 @@ public partial class DocumentListForm: AppForm
         fToolBar.AddButton("table_delete.png", "Delete", async () => await DeleteSelectedItem());
         fToolBar.AddSeparator();
         fToolBar.AddButton("page_edit.png", "Edit Text", EditSelectedItem);
+        fToolBar.AddButton("html.png", "HTML Preview", PreviewSelectedItem);
         fToolBar.AddButton("table_export.png", "Export Document", () => ExecutePlaceholderCommand("ExportDocument"));
-        fToolBar.AddButton("scroll_pane_tree.png", "Change Parent", () => ExecutePlaceholderCommand("ChangeParent"));
+        fToolBar.AddButton("scroll_pane_tree.png", "Change Parent", async () => await ChangeSelectedItemParent());
         fToolBar.AddSeparator();
-        fToolBar.AddButton("arrow_out.png", "Expand All", ExpandAll);
-        fToolBar.AddButton("arrow_in.png", "Collapse All", CollapseAll);
-        fToolBar.AddButton("arrow_up.png", "Up", () => ExecutePlaceholderCommand("Up"));
-        fToolBar.AddButton("arrow_down.png", "Down", () => ExecutePlaceholderCommand("Down"));
+        fToolBar.AddButton("arrow_out.png", "Expand All", () => tvProject.ExpandAll(Flag: true));
+        fToolBar.AddButton("arrow_in.png", "Collapse All", () => tvProject.ExpandAll(Flag: false));
+        fToolBar.AddButton("arrow_up.png", "Up", async () => await MoveSelectedItem(true));
+        fToolBar.AddButton("arrow_down.png", "Down", async () => await MoveSelectedItem(false));
     }
 
+    // ● new menu
     /// <summary>
     /// Creates the New command menu.
     /// </summary>
     /// <returns>The created context menu.</returns>
-    private ContextMenu CreateNewMenu()
+    ContextMenu CreateNewMenu()
     {
         fNewMenu = new ContextMenu();
         BuildNewMenu();
@@ -53,14 +55,14 @@ public partial class DocumentListForm: AppForm
     /// </summary>
     /// <param name="Sender">The event sender.</param>
     /// <param name="Args">The event arguments.</param>
-    private void NewMenuOpening(object Sender, System.ComponentModel.CancelEventArgs Args)
+    void NewMenuOpening(object Sender, System.ComponentModel.CancelEventArgs Args)
     {
         BuildNewMenu();
     }
     /// <summary>
     /// Builds the New command menu.
     /// </summary>
-    private void BuildNewMenu()
+    void BuildNewMenu()
     {
         if (fNewMenu == null)
             return;
@@ -73,11 +75,11 @@ public partial class DocumentListForm: AppForm
         DocumentItem.Click += async (Sender, Args) => await NewDocument();
         fNewMenu.Items.Add(DocumentItem);
 
-        MenuItem FolderItem = new MenuItem { Header = "Folder", IsEnabled = SelectedItem is Document || SelectedItem is Folder };
-        AddFolderLevelMenuItems(FolderItem, SelectedItem);
+        MenuItem FolderItem = new MenuItem { Header = "Folder" };
+        FolderItem.IsEnabled = AddFolderLevelMenuItems(FolderItem, SelectedItem);
         fNewMenu.Items.Add(FolderItem);
 
-        MenuItem TextItem = new MenuItem { Header = "Text", IsEnabled = SelectedItem?.CanAddTextFile == true };
+        MenuItem TextItem = new MenuItem { Header = "Text", IsEnabled = GetTextCreationParent(SelectedItem) != null };
         TextItem.Click += async (Sender, Args) => await NewText();
         fNewMenu.Items.Add(TextItem);
     }
@@ -86,17 +88,20 @@ public partial class DocumentListForm: AppForm
     /// </summary>
     /// <param name="FolderItem">The folder menu item.</param>
     /// <param name="SelectedItem">The selected base item.</param>
-    private void AddFolderLevelMenuItems(MenuItem FolderItem, BaseItem SelectedItem)
+    /// <returns>True if at least one folder level can be added; otherwise false.</returns>
+    bool AddFolderLevelMenuItems(MenuItem FolderItem, BaseItem SelectedItem)
     {
         Document Document = GetDocumentContext(SelectedItem);
         List<string> LevelTitles = GetStructureLevelTitles(Document);
+        bool Result = false;
 
         foreach (string LevelTitle in LevelTitles)
         {
+            bool CanAddLevel = GetFolderCreationParent(SelectedItem, LevelTitle) != null;
             MenuItem LevelItem = new MenuItem
             {
                 Header = LevelTitle,
-                IsEnabled = CanAddFolderLevel(SelectedItem, LevelTitle),
+                IsEnabled = CanAddLevel,
                 Tag = LevelTitle
             };
             LevelItem.Click += async (Sender, Args) =>
@@ -106,17 +111,17 @@ public partial class DocumentListForm: AppForm
             };
 
             FolderItem.Items.Add(LevelItem);
+            Result = Result || CanAddLevel;
         }
 
-        if (LevelTitles.Count == 0)
-            FolderItem.IsEnabled = false;
+        return Result;
     }
     /// <summary>
     /// Returns the document context of an item.
     /// </summary>
     /// <param name="Item">The item.</param>
     /// <returns>The document context, if any; otherwise null.</returns>
-    private Document GetDocumentContext(BaseItem Item)
+    Document GetDocumentContext(BaseItem Item)
     {
         if (Item is Document Document)
             return Document;
@@ -128,7 +133,7 @@ public partial class DocumentListForm: AppForm
     /// </summary>
     /// <param name="Document">The document.</param>
     /// <returns>The structure level titles.</returns>
-    private List<string> GetStructureLevelTitles(Document Document)
+    List<string> GetStructureLevelTitles(Document Document)
     {
         List<string> Result = new();
         FolderItem Item = Document?.Structure;
@@ -146,7 +151,7 @@ public partial class DocumentListForm: AppForm
     /// </summary>
     /// <param name="Item">The item.</param>
     /// <returns>The expected child folder level title, if any; otherwise an empty string.</returns>
-    private string GetExpectedChildFolderLevelTitle(BaseItem Item)
+    string GetExpectedChildFolderLevelTitle(BaseItem Item)
     {
         if (Item is Document Document && Document.CanAddFolder)
             return Document.Structure?.Title ?? string.Empty;
@@ -162,7 +167,7 @@ public partial class DocumentListForm: AppForm
     /// <param name="Item">The item.</param>
     /// <param name="LevelTitle">The folder level title.</param>
     /// <returns>True if the folder level can be added; otherwise false.</returns>
-    private bool CanAddFolderLevel(BaseItem Item, string LevelTitle)
+    bool CanAddFolderLevel(BaseItem Item, string LevelTitle)
     {
         if (!(Item is Document || Item is Folder) || Item.CanAddFolder == false)
             return false;
@@ -171,9 +176,42 @@ public partial class DocumentListForm: AppForm
         return string.Equals(ExpectedLevelTitle, LevelTitle, StringComparison.OrdinalIgnoreCase);
     }
     /// <summary>
+    /// Returns the parent item that should receive a new folder.
+    /// </summary>
+    /// <param name="Item">The selected item.</param>
+    /// <param name="LevelTitle">The folder level title.</param>
+    /// <returns>The folder creation parent, if any; otherwise null.</returns>
+    BaseItem GetFolderCreationParent(BaseItem Item, string LevelTitle)
+    {
+        if (CanAddFolderLevel(Item, LevelTitle))
+            return Item;
+
+        if (Item is Folder Folder && CanAddFolderLevel(Folder.Parent, LevelTitle))
+            return Folder.Parent;
+
+        return null;
+    }
+    /// <summary>
+    /// Returns the parent item that should receive a new text file.
+    /// </summary>
+    /// <param name="Item">The selected item.</param>
+    /// <returns>The text creation parent, if any; otherwise null.</returns>
+    BaseItem GetTextCreationParent(BaseItem Item)
+    {
+        if (Item?.CanAddTextFile == true)
+            return Item;
+
+        if (Item is TextFile TextFile && TextFile.Parent?.CanAddTextFile == true)
+            return TextFile.Parent;
+
+        return null;
+    }
+
+    // ● create commands
+    /// <summary>
     /// Creates a new document.
     /// </summary>
-    private async Task NewDocument()
+    async Task NewDocument()
     {
         if (AppHost.CurrentProject == null)
         {
@@ -223,10 +261,11 @@ public partial class DocumentListForm: AppForm
     /// Creates a new folder under the selected item.
     /// </summary>
     /// <param name="LevelTitle">The folder level title.</param>
-    private async Task NewFolder(string LevelTitle)
+    async Task NewFolder(string LevelTitle)
     {
         BaseItem SelectedItem = GetSelectedBaseItem();
-        if (!CanAddFolderLevel(SelectedItem, LevelTitle))
+        BaseItem ParentItem = GetFolderCreationParent(SelectedItem, LevelTitle);
+        if (ParentItem == null)
             return;
 
         InputBoxData BoxData = await InputBox.ShowModal($"{LevelTitle} title", string.Empty, this);
@@ -244,7 +283,7 @@ public partial class DocumentListForm: AppForm
         {
             AppHost.ShowPleaseWait($"Creating {LevelTitle}...", this.GetOwnerWindow());
 
-            Folder Folder = SelectedItem.AddFolder(Title, LevelTitle);
+            Folder Folder = ParentItem.AddFolder(Title, LevelTitle);
             CreateProjectTree();
             SelectTreeItem(Folder);
             ShowSelectedItem(Folder);
@@ -262,10 +301,11 @@ public partial class DocumentListForm: AppForm
     /// <summary>
     /// Creates a new text file under the selected item.
     /// </summary>
-    private async Task NewText()
+    async Task NewText()
     {
         BaseItem SelectedItem = GetSelectedBaseItem();
-        if (SelectedItem?.CanAddTextFile != true)
+        BaseItem ParentItem = GetTextCreationParent(SelectedItem);
+        if (ParentItem == null)
             return;
 
         InputBoxData BoxData = await InputBox.ShowModal("Text title", string.Empty, this);
@@ -283,7 +323,7 @@ public partial class DocumentListForm: AppForm
         {
             AppHost.ShowPleaseWait("Creating text...", this.GetOwnerWindow());
 
-            TextFile File = SelectedItem.AddTextFile(Title);
+            TextFile File = ParentItem.AddTextFile(Title);
             CreateProjectTree();
             SelectTreeItem(File);
             ShowSelectedItem(File);
@@ -302,14 +342,307 @@ public partial class DocumentListForm: AppForm
     /// Executes a placeholder command.
     /// </summary>
     /// <param name="CommandName">The command name.</param>
-    private void ExecutePlaceholderCommand(string CommandName)
+    void ExecutePlaceholderCommand(string CommandName)
     {
         LogBox.AppendLine($"DocumentListForm command not implemented yet: {CommandName}");
     }
+
+    // ● context menu
+    /// <summary>
+    /// Creates a menu item.
+    /// </summary>
+    /// <param name="Header">The menu item header.</param>
+    /// <param name="IsEnabled">True if the menu item is enabled.</param>
+    /// <param name="Click">The click handler.</param>
+    /// <returns>The created menu item.</returns>
+    MenuItem CreateMenuItem(string Header, bool IsEnabled, EventHandler<RoutedEventArgs> Click)
+    {
+        MenuItem Result = new MenuItem
+        {
+            Header = Header,
+            IsEnabled = IsEnabled
+        };
+        Result.Click += Click;
+        return Result;
+    }
+    /// <summary>
+    /// Adds new-folder menu items to a context menu.
+    /// </summary>
+    /// <param name="Menu">The context menu.</param>
+    /// <param name="Item">The selected item.</param>
+    void AddContextNewFolderMenuItems(ContextMenu Menu, BaseItem Item)
+    {
+        Document Document = GetDocumentContext(Item);
+        foreach (string LevelTitle in GetStructureLevelTitles(Document))
+        {
+            if (GetFolderCreationParent(Item, LevelTitle) == null)
+                continue;
+
+            Menu.Items.Add(CreateMenuItem($"New {LevelTitle}", true, async (Sender, Args) => await NewFolder(LevelTitle)));
+        }
+    }
+    /// <summary>
+    /// Creates the tree context menu for an item.
+    /// </summary>
+    /// <param name="Item">The selected item.</param>
+    /// <returns>The created context menu.</returns>
+    ContextMenu CreateTreeContextMenu(BaseItem Item)
+    {
+        ContextMenu Result = new ContextMenu();
+
+        if (Item is TextFile)
+        {
+            Result.Items.Add(CreateMenuItem("New TextFile", GetTextCreationParent(Item) != null, async (Sender, Args) => await NewText()));
+        }
+        else if (Item is Folder)
+        {
+            AddContextNewFolderMenuItems(Result, Item);
+            if (GetTextCreationParent(Item) != null)
+                Result.Items.Add(CreateMenuItem("New TextFile", true, async (Sender, Args) => await NewText()));
+        }
+        else if (Item is Document)
+        {
+            Result.Items.Add(CreateMenuItem("New Document", AppHost.CurrentProject?.CanAddDocument == true, async (Sender, Args) => await NewDocument()));
+            AddContextNewFolderMenuItems(Result, Item);
+            if (GetTextCreationParent(Item) != null)
+                Result.Items.Add(CreateMenuItem("New TextFile", true, async (Sender, Args) => await NewText()));
+        }
+
+        Result.Items.Add(new Separator());
+        Result.Items.Add(CreateMenuItem("Edit", Item.CanRename(), async (Sender, Args) => await EditSelectedItemInfo()));
+        Result.Items.Add(CreateMenuItem("Delete", Item.CanDelete(), async (Sender, Args) => await DeleteSelectedItem()));
+        Result.Items.Add(CreateMenuItem("Edit Text", true, (Sender, Args) => EditSelectedItem()));
+
+        if (!(Item is Document))
+            Result.Items.Add(CreateMenuItem("Change Parent", GetParentCandidates(Item).Count > 0, async (Sender, Args) => await ChangeSelectedItemParent()));
+
+        Result.Items.Add(new Separator());
+        Result.Items.Add(CreateMenuItem("Up", CanMoveSelectedItem(Item, true), async (Sender, Args) => await MoveSelectedItem(true)));
+        Result.Items.Add(CreateMenuItem("Down", CanMoveSelectedItem(Item, false), async (Sender, Args) => await MoveSelectedItem(false)));
+
+        if (Item is Document)
+        {
+            Result.Items.Add(new Separator());
+            Result.Items.Add(CreateMenuItem("Export", true, (Sender, Args) => ExecutePlaceholderCommand("ExportDocument")));
+        }
+
+        return Result;
+    }
+
+    // ● change parent
+    /// <summary>
+    /// Adds folder parent candidates recursively.
+    /// </summary>
+    /// <param name="Result">The candidate list.</param>
+    /// <param name="Item">The item that changes parent.</param>
+    /// <param name="Folders">The folders to check.</param>
+    void AddFolderParentCandidates(List<BaseItem> Result, BaseItem Item, List<Folder> Folders)
+    {
+        foreach (Folder Folder in Folders)
+        {
+            if (Item.CanChangeParent(Folder))
+                Result.Add(Folder);
+
+            AddFolderParentCandidates(Result, Item, Folder.Folders);
+        }
+    }
+    /// <summary>
+    /// Returns the available change-parent candidates for an item.
+    /// </summary>
+    /// <param name="Item">The item that changes parent.</param>
+    /// <returns>The available parent candidates.</returns>
+    List<BaseItem> GetParentCandidates(BaseItem Item)
+    {
+        List<BaseItem> Result = new();
+        Project Project = AppHost.CurrentProject;
+        if (Project == null || Item == null)
+            return Result;
+
+        foreach (Document Document in Project.Documents)
+        {
+            if (Item.CanChangeParent(Document))
+                Result.Add(Document);
+
+            AddFolderParentCandidates(Result, Item, Document.Folders);
+        }
+
+        return Result;
+    }
+    /// <summary>
+    /// Changes the selected item parent.
+    /// </summary>
+    async Task ChangeSelectedItemParent()
+    {
+        BaseItem Item = GetSelectedBaseItem();
+        if (!(Item is Folder || Item is TextFile))
+        {
+            await Tripous.Desktop.MessageBox.Info("Select a folder or text file first.", this);
+            return;
+        }
+
+        List<BaseItem> ParentList = GetParentCandidates(Item);
+        if (ParentList.Count == 0)
+        {
+            await Tripous.Desktop.MessageBox.Info("No valid parent is available for the selected item.", this);
+            return;
+        }
+
+        SelectParentDialogData Data = new SelectParentDialogData
+        {
+            Item = Item,
+            ParentList = ParentList
+        };
+
+        DialogInfo Info = await DialogWindow.ShowModal<SelectParentDialog>(Data, this);
+        if (!Info.Result)
+            return;
+
+        BaseItem TargetParent = Info.ResultData as BaseItem;
+        if (TargetParent == null)
+            return;
+
+        try
+        {
+            AppHost.ShowPleaseWait("Changing parent...", this.GetOwnerWindow());
+
+            if (!Item.ChangeParent(TargetParent))
+                return;
+
+            AppHost.NotifyItemTitleChanged(Item);
+            CreateProjectTree();
+            SelectTreeItem(Item);
+            ShowSelectedItem(Item);
+            LogBox.AppendLine($"Item parent changed: {Item.DisplayTitle}");
+        }
+        catch (Exception e)
+        {
+            await Tripous.Desktop.MessageBox.Error(e, this);
+        }
+        finally
+        {
+            AppHost.HidePleaseWait();
+        }
+    }
+
+    // ● move commands
+    /// <summary>
+    /// Moves the selected item one step.
+    /// </summary>
+    /// <param name="Up">True to move up; false to move down.</param>
+    async Task MoveSelectedItem(bool Up)
+    {
+        BaseItem Item = GetSelectedBaseItem();
+        if (!CanMoveSelectedItem(Item, Up))
+            return;
+
+        try
+        {
+            AppHost.ShowPleaseWait("Moving item...", this.GetOwnerWindow());
+
+            if (!MoveItemInParent(Item, Up))
+                return;
+
+            AppHost.NotifyItemTitleChanged(Item);
+            CreateProjectTree();
+            SelectTreeItem(Item);
+            ShowSelectedItem(Item);
+            LogBox.AppendLine($"Item moved: {Item.DisplayTitle}");
+        }
+        catch (Exception e)
+        {
+            await Tripous.Desktop.MessageBox.Error(e, this);
+        }
+        finally
+        {
+            AppHost.HidePleaseWait();
+        }
+    }
+    /// <summary>
+    /// Returns true if an item can move inside its immediate parent.
+    /// </summary>
+    /// <param name="Item">The item to check.</param>
+    /// <param name="Up">True to move up; false to move down.</param>
+    /// <returns>True if the item can move; otherwise false.</returns>
+    bool CanMoveSelectedItem(BaseItem Item, bool Up)
+    {
+        if (Item == null)
+            return false;
+
+        int Count = GetSameParentSiblingCount(Item);
+        if (Count <= 1)
+            return false;
+
+        return Up ? Item.OrderIndex > 1 : Item.OrderIndex < Count;
+    }
+    /// <summary>
+    /// Returns the same-parent sibling count for an item.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <returns>The sibling count.</returns>
+    int GetSameParentSiblingCount(BaseItem Item)
+    {
+        if (Item is Document Document && Document.Parent is Project ProjectItem)
+            return ProjectItem.Documents.Count;
+
+        if (Item is Folder Folder)
+        {
+            if (Folder.Parent is Document ParentDocument)
+                return ParentDocument.Folders.Count;
+
+            if (Folder.Parent is Folder ParentFolder)
+                return ParentFolder.Folders.Count;
+        }
+
+        if (Item is TextFile TextFile)
+        {
+            if (TextFile.Parent is Document ParentDocument)
+                return ParentDocument.Files.Count;
+
+            if (TextFile.Parent is Folder ParentFolder)
+                return ParentFolder.Files.Count;
+        }
+
+        return 0;
+    }
+    /// <summary>
+    /// Moves an item inside its immediate parent.
+    /// </summary>
+    /// <param name="Item">The item to move.</param>
+    /// <param name="Up">True to move up; false to move down.</param>
+    /// <returns>True if the item is moved; otherwise false.</returns>
+    bool MoveItemInParent(BaseItem Item, bool Up)
+    {
+        int NewOrderIndex = Up ? Item.OrderIndex - 1 : Item.OrderIndex + 1;
+
+        if (Item is Document Document && Document.Parent is Project ProjectItem)
+            return ProjectItem.MoveDocument(Document, NewOrderIndex);
+
+        if (Item is Folder Folder)
+        {
+            if (Folder.Parent is Document ParentDocument)
+                return ParentDocument.MoveFolder(Folder, NewOrderIndex);
+
+            if (Folder.Parent is Folder ParentFolder)
+                return ParentFolder.MoveFolder(Folder, NewOrderIndex);
+        }
+
+        if (Item is TextFile TextFile)
+        {
+            if (TextFile.Parent is Document ParentDocument)
+                return ParentDocument.MoveTextFile(TextFile, NewOrderIndex);
+
+            if (TextFile.Parent is Folder ParentFolder)
+                return ParentFolder.MoveTextFile(TextFile, NewOrderIndex);
+        }
+
+        return false;
+    }
+
+    // ● edit commands
     /// <summary>
     /// Edits the selected item information.
     /// </summary>
-    private async Task EditSelectedItemInfo()
+    async Task EditSelectedItemInfo()
     {
         BaseItem Item = GetSelectedBaseItem();
         if (Item == null)
@@ -358,7 +691,7 @@ public partial class DocumentListForm: AppForm
     /// <summary>
     /// Deletes the selected item.
     /// </summary>
-    private async Task DeleteSelectedItem()
+    async Task DeleteSelectedItem()
     {
         BaseItem Item = GetSelectedBaseItem();
         if (Item == null)
@@ -397,11 +730,13 @@ public partial class DocumentListForm: AppForm
             AppHost.HidePleaseWait();
         }
     }
+
+    // ● selection
     /// <summary>
     /// Returns the currently selected base item.
     /// </summary>
     /// <returns>The selected base item, if any; otherwise null.</returns>
-    private BaseItem GetSelectedBaseItem()
+    BaseItem GetSelectedBaseItem()
     {
         if (tvProject.SelectedItem is TreeViewItem Node)
             return Node.Tag as BaseItem;
@@ -412,7 +747,7 @@ public partial class DocumentListForm: AppForm
     /// Selects a base item in the project tree.
     /// </summary>
     /// <param name="Item">The base item.</param>
-    private void SelectTreeItem(BaseItem Item)
+    void SelectTreeItem(BaseItem Item)
     {
         SelectTreeItem(tvProject, Item);
     }
@@ -422,7 +757,7 @@ public partial class DocumentListForm: AppForm
     /// <param name="ParentNode">The parent tree node.</param>
     /// <param name="Item">The base item.</param>
     /// <returns>True if the item is selected; otherwise false.</returns>
-    private bool SelectTreeItem(ItemsControl ParentNode, BaseItem Item)
+    bool SelectTreeItem(ItemsControl ParentNode, BaseItem Item)
     {
         if (ParentNode == null || Item == null)
             return false;
@@ -447,10 +782,12 @@ public partial class DocumentListForm: AppForm
 
         return false;
     }
+
+    // ● open item
     /// <summary>
     /// Edits the selected item text in the content area.
     /// </summary>
-    private void EditSelectedItem()
+    void EditSelectedItem()
     {
         BaseItem Item = GetSelectedBaseItem();
         EditItem(Item);
@@ -459,18 +796,40 @@ public partial class DocumentListForm: AppForm
     /// Edits an item text in the content area.
     /// </summary>
     /// <param name="Item">The item to edit.</param>
-    private void EditItem(BaseItem Item)
+    void EditItem(BaseItem Item)
     {
         if (Item == null)
             return;
 
         AppHost.ShowContentForm<TextFileForm>(Item.Id, Item.DisplayTitle, Item);
     }
+    /// <summary>
+    /// Previews the selected item markdown text in the content area.
+    /// </summary>
+    void PreviewSelectedItem()
+    {
+        BaseItem Item = GetSelectedBaseItem();
+        if (Item == null)
+            return;
 
+        string Title = $"HTML Preview: {Item.DisplayTitle}";
+        string Text = string.Empty;
+
+        if (Item is Document Document)
+            Text = Document.Synopsis;
+        else if (Item is Folder Folder)
+            Text = Folder.Synopsis;
+        else if (Item is TextFile File)
+            Text = File.Text;
+
+        AppHost.ShowMarkdownPreview($"{Item.Id}.HtmlPreview", Title, Text);
+    }
+
+    // ● tree
     /// <summary>
     /// Creates the project tree nodes.
     /// </summary>
-    private void CreateProjectTree()
+    void CreateProjectTree()
     {
         tvProject.Items.Clear();
 
@@ -492,13 +851,12 @@ public partial class DocumentListForm: AppForm
 
         txtMetrics.Text = BuildMetricsText(Project);
     }
-
     /// <summary>
     /// Adds a document node.
     /// </summary>
     /// <param name="ParentNode">The parent tree node.</param>
     /// <param name="Document">The document.</param>
-    private void AddDocumentNode(ItemsControl ParentNode, Document Document)
+    void AddDocumentNode(ItemsControl ParentNode, Document Document)
     {
         TreeViewItem DocumentNode = CreateNode(Document.DisplayTitle, Document);
         ParentNode.Items.Add(DocumentNode);
@@ -509,13 +867,12 @@ public partial class DocumentListForm: AppForm
         foreach (TextFile File in Document.Files)
             AddTextFileNode(DocumentNode, File);
     }
-
     /// <summary>
     /// Adds a folder node.
     /// </summary>
     /// <param name="ParentNode">The parent tree node.</param>
     /// <param name="Folder">The folder.</param>
-    private void AddFolderNode(TreeViewItem ParentNode, Folder Folder)
+    void AddFolderNode(TreeViewItem ParentNode, Folder Folder)
     {
         TreeViewItem FolderNode = CreateNode(Folder.DisplayTitle, Folder);
         ParentNode.Items.Add(FolderNode);
@@ -526,24 +883,22 @@ public partial class DocumentListForm: AppForm
         foreach (TextFile File in Folder.Files)
             AddTextFileNode(FolderNode, File);
     }
-
     /// <summary>
     /// Adds a text file node.
     /// </summary>
     /// <param name="ParentNode">The parent tree node.</param>
     /// <param name="File">The text file.</param>
-    private void AddTextFileNode(TreeViewItem ParentNode, TextFile File)
+    void AddTextFileNode(TreeViewItem ParentNode, TextFile File)
     {
         ParentNode.Items.Add(CreateNode(File.DisplayTitle, File));
     }
-
     /// <summary>
     /// Creates a tree node.
     /// </summary>
     /// <param name="Text">The node text.</param>
     /// <param name="Tag">The node tag.</param>
     /// <returns>The created tree node.</returns>
-    private TreeViewItem CreateNode(string Text, object Tag)
+    TreeViewItem CreateNode(string Text, object Tag)
     {
         return Tag switch
         {
@@ -555,12 +910,13 @@ public partial class DocumentListForm: AppForm
         };
     }
 
+    // ● metrics
     /// <summary>
     /// Builds the text metrics display.
     /// </summary>
     /// <param name="Project">The project.</param>
     /// <returns>The text metrics display.</returns>
-    private string BuildMetricsText(Project Project)
+    string BuildMetricsText(Project Project)
     {
         int DocumentCount = Project.Documents.Count;
         int FolderCount = Project.Documents.Sum(CountFolders);
@@ -574,53 +930,50 @@ public partial class DocumentListForm: AppForm
                Text files: {TextFileCount}
                """;
     }
-
     /// <summary>
     /// Counts all folders in a document.
     /// </summary>
     /// <param name="Document">The document.</param>
     /// <returns>The folder count.</returns>
-    private int CountFolders(Document Document)
+    int CountFolders(Document Document)
     {
         return Document.Folders.Sum(CountFolders);
     }
-
     /// <summary>
     /// Counts all folders in a folder.
     /// </summary>
     /// <param name="Folder">The folder.</param>
     /// <returns>The folder count.</returns>
-    private int CountFolders(Folder Folder)
+    int CountFolders(Folder Folder)
     {
         return 1 + Folder.Folders.Sum(CountFolders);
     }
-
     /// <summary>
     /// Counts all text files in a document.
     /// </summary>
     /// <param name="Document">The document.</param>
     /// <returns>The text file count.</returns>
-    private int CountTextFiles(Document Document)
+    int CountTextFiles(Document Document)
     {
         return Document.Files.Count + Document.Folders.Sum(CountTextFiles);
     }
-
     /// <summary>
     /// Counts all text files in a folder.
     /// </summary>
     /// <param name="Folder">The folder.</param>
     /// <returns>The text file count.</returns>
-    private int CountTextFiles(Folder Folder)
+    int CountTextFiles(Folder Folder)
     {
         return Folder.Files.Count + Folder.Folders.Sum(CountTextFiles);
     }
 
+    // ● tree events
     /// <summary>
     /// Handles selected tree item changes.
     /// </summary>
     /// <param name="Sender">The event sender.</param>
     /// <param name="Args">The event arguments.</param>
-    private void TreeSelectionChanged(object Sender, SelectionChangedEventArgs Args)
+    void TreeSelectionChanged(object Sender, SelectionChangedEventArgs Args)
     {
         if (tvProject.SelectedItem is TreeViewItem Node)
             ShowSelectedItem(Node.Tag as BaseItem);
@@ -630,7 +983,7 @@ public partial class DocumentListForm: AppForm
     /// </summary>
     /// <param name="Sender">The event sender.</param>
     /// <param name="Args">The event arguments.</param>
-    private void TreePointerPressed(object Sender, PointerPressedEventArgs Args)
+    void TreePointerPressed(object Sender, PointerPressedEventArgs Args)
     {
         if (!Args.GetCurrentPoint(tvProject).Properties.IsRightButtonPressed)
             return;
@@ -641,7 +994,24 @@ public partial class DocumentListForm: AppForm
             return;
 
         Node.IsSelected = true;
-        EditItem(Item);
+        Node.ContextMenu = CreateTreeContextMenu(Item);
+        Node.ContextMenu.Open(Node);
+        Args.Handled = true;
+    }
+    /// <summary>
+    /// Handles tree double-tap events.
+    /// </summary>
+    /// <param name="Sender">The event sender.</param>
+    /// <param name="Args">The event arguments.</param>
+    void TreeDoubleTapped(object Sender, TappedEventArgs Args)
+    {
+        TreeViewItem Node = GetTreeNode(Args.Source);
+        TextFile File = Node?.Tag as TextFile;
+        if (File == null)
+            return;
+
+        Node.IsSelected = true;
+        EditItem(File);
         Args.Handled = true;
     }
     /// <summary>
@@ -649,7 +1019,7 @@ public partial class DocumentListForm: AppForm
     /// </summary>
     /// <param name="Source">The input event source.</param>
     /// <returns>The source tree node, if any; otherwise null.</returns>
-    private TreeViewItem GetTreeNode(object Source)
+    TreeViewItem GetTreeNode(object Source)
     {
         if (Source is TreeViewItem Node)
             return Node;
@@ -660,11 +1030,12 @@ public partial class DocumentListForm: AppForm
         return null;
     }
 
+    // ● preview
     /// <summary>
     /// Shows selected item information.
     /// </summary>
     /// <param name="Item">The selected item.</param>
-    private void ShowSelectedItem(BaseItem Item)
+    void ShowSelectedItem(BaseItem Item)
     {
         if (Item == null)
             return;
@@ -697,27 +1068,11 @@ public partial class DocumentListForm: AppForm
     /// <summary>
     /// Clears selected item information.
     /// </summary>
-    private void ShowNoSelectedItem()
+    void ShowNoSelectedItem()
     {
         lblTextTitle.Text = "Text";
         Editor.EditorText = string.Empty;
         Editor.FilePath = string.Empty;
-    }
-
-    /// <summary>
-    /// Expands all tree nodes.
-    /// </summary>
-    private void ExpandAll()
-    {
-        tvProject.ExpandAll(true);
-    }
-
-    /// <summary>
-    /// Collapses all tree nodes.
-    /// </summary>
-    private void CollapseAll()
-    {
-        tvProject.ExpandAll(false);
     }
 
     // ● overrides
@@ -728,9 +1083,10 @@ public partial class DocumentListForm: AppForm
     {
         TitleText = "Documents";
         ClosableByUser = false;
-        CreateToolBar();
         CreateProjectTree();
+        CreateToolBar();
         tvProject.SelectionChanged += TreeSelectionChanged;
+        tvProject.DoubleTapped += TreeDoubleTapped;
         tvProject.AddHandler(InputElement.PointerPressedEvent, TreePointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 

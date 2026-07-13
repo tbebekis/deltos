@@ -42,7 +42,7 @@ public partial class TextEditorForm: UserControl
     /// </summary>
     private bool fModified;
     /// <summary>
-    /// The file path displayed in the status bar.
+    /// The edited file path.
     /// </summary>
     private string fFilePath = string.Empty;
     /// <summary>
@@ -328,7 +328,6 @@ public partial class TextEditorForm: UserControl
         lblMetrics.Text = $"Pages: {Pages:0.00}, Words: {WordCount}";
         lblReadOnly.Text = $"ReadOnly: {TextEditor.IsReadOnly}";
         lblModified.Text = Modified ? "Modified" : "Saved";
-        lblFilePath.Text = FilePath;
     }
     /// <summary>
     /// Sets the editor text without marking the editor as modified.
@@ -449,7 +448,7 @@ public partial class TextEditorForm: UserControl
         }
     }
     /// <summary>
-    /// Gets or sets the edited file path displayed in the status bar.
+    /// Gets or sets the edited file path.
     /// </summary>
     public string FilePath
     {

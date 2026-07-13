@@ -40,7 +40,6 @@
             <GridSplitter Name="MainSplitter"
                           Grid.Column="1"
                           Width="5"
-                          Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
                           ResizeDirection="Columns" />
 
             <!-- Right Panel -->
@@ -55,7 +54,6 @@
                 <GridSplitter Name="LogSplitter"
                               Grid.Row="1"
                               Height="4"
-                              Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
                               ResizeDirection="Rows" />
 
                 <!-- Log -->

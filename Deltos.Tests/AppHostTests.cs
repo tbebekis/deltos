@@ -10,13 +10,14 @@ public class AppHostTests
 {
     // ● public
     /// <summary>
-    /// Tests that valid file names allow English letters, numbers, and spaces.
+    /// Tests that valid file names allow letters, numbers, spaces, and hyphens.
     /// </summary>
     [Fact]
-    public void IsValidFileNameAcceptsEnglishLettersNumbersAndSpaces()
+    public void IsValidFileNameAcceptsLettersNumbersSpacesAndHyphens()
     {
         Assert.True(AppHost.IsValidFileName("Project One", false));
         Assert.True(AppHost.IsValidFileName("Project 1", false));
+        Assert.True(AppHost.IsValidFileName("Scene 2 -1", false));
     }
     /// <summary>
     /// Tests that valid file names reject empty, numbered, and special-character titles.
@@ -27,7 +28,6 @@ public class AppHostTests
         Assert.False(AppHost.IsValidFileName(string.Empty, false));
         Assert.False(AppHost.IsValidFileName("123 Project", false));
         Assert.False(AppHost.IsValidFileName(" 123 Project ", false));
-        Assert.False(AppHost.IsValidFileName("Project-Name", false));
         Assert.False(AppHost.IsValidFileName("Project_Name", false));
         Assert.False(AppHost.IsValidFileName("Project.Name", false));
         Assert.False(AppHost.IsValidFileName("Project@Name", false));

@@ -101,6 +101,61 @@ public class ItemCommandTests
         }
     }
     /// <summary>
+    /// Tests that renaming a note moves its persistent folder.
+    /// </summary>
+    [Fact]
+    public void RenameNoteMovesPersistentFolder()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Note Note = Project.AddNote("Research");
+            string OldFolderPath = Note.FolderPath;
+
+            Note.Rename("New Research");
+            string NewFolderPath = Note.FolderPath;
+
+            Assert.False(Directory.Exists(OldFolderPath));
+            Assert.True(Directory.Exists(NewFolderPath));
+            Assert.Equal("001._New_Research", Path.GetFileName(NewFolderPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that renaming a component moves its persistent folder.
+    /// </summary>
+    [Fact]
+    public void RenameComponentMovesPersistentFolder()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Component Component = new Component();
+            Component.Title = "Aldrion";
+            Component.Category = "Character";
+            Project.AddComponent(Component);
+            string OldFolderPath = Component.FolderPath;
+
+            Component.Rename("New Aldrion");
+            string NewFolderPath = Component.FolderPath;
+
+            Assert.False(Directory.Exists(OldFolderPath));
+            Assert.True(Directory.Exists(NewFolderPath));
+            Assert.Equal("New_Aldrion", Path.GetFileName(NewFolderPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
     /// Tests that renaming to the same trimmed title leaves persistent storage in place.
     /// </summary>
     [Fact]
@@ -398,6 +453,33 @@ public class ItemCommandTests
         }
     }
     /// <summary>
+    /// Tests that Project.MoveNote renumbers persistent folders.
+    /// </summary>
+    [Fact]
+    public void ProjectMoveNoteRenumbersPersistentFolders()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Note First = Project.AddNote("First Note");
+            Note Second = Project.AddNote("Second Note");
+
+            bool Moved = Project.MoveNote(Second, 1);
+
+            Assert.True(Moved);
+            Assert.Equal(1, Second.OrderIndex);
+            Assert.Equal(2, First.OrderIndex);
+            Assert.True(Directory.Exists(Path.Combine(Project.NotesFolderPath, "001._Second_Note")));
+            Assert.True(Directory.Exists(Path.Combine(Project.NotesFolderPath, "002._First_Note")));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
     /// Tests that Folder.MoveTextFile renumbers persistent folders.
     /// </summary>
     [Fact]
@@ -551,6 +633,78 @@ public class ItemCommandTests
             Assert.Equal(2, MovingScene.OrderIndex);
             Assert.True(Directory.Exists(Path.Combine(FirstChapter.FoldersFolderPath, "001._Existing_Scene")));
             Assert.True(Directory.Exists(Path.Combine(FirstChapter.FoldersFolderPath, "002._Moving_Scene")));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that changing a text file parent across documents updates memory and persistent storage.
+    /// </summary>
+    [Fact]
+    public void TextFileChangeParentAcrossDocumentsUpdatesPersistentStorage()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document SourceDocument = Project.AddDocument("Source Book", CreateChapterSceneStructure());
+            Document TargetDocument = Project.AddDocument("Target Book", CreateChapterSceneStructure());
+            Folder SourceChapter = SourceDocument.AddFolder("Source Chapter", string.Empty);
+            Folder SourceScene = SourceChapter.AddFolder("Source Scene", string.Empty);
+            Folder TargetChapter = TargetDocument.AddFolder("Target Chapter", string.Empty);
+            Folder TargetScene = TargetChapter.AddFolder("Target Scene", string.Empty);
+            TextFile Existing = TargetScene.AddTextFile("Existing Text");
+            TextFile Moving = SourceScene.AddTextFile("Moving Text");
+            string OldFolderPath = Moving.FolderPath;
+
+            Assert.True(Moving.CanChangeParent(TargetScene));
+            bool Moved = Moving.ChangeParent(TargetScene);
+
+            Assert.True(Moved);
+            Assert.False(Directory.Exists(OldFolderPath));
+            Assert.Same(TargetScene, Moving.Parent);
+            Assert.Empty(SourceScene.Files);
+            Assert.Equal(1, Existing.OrderIndex);
+            Assert.Equal(2, Moving.OrderIndex);
+            Assert.True(Directory.Exists(Path.Combine(TargetScene.TextFilesFolderPath, "001._Existing_Text")));
+            Assert.True(Directory.Exists(Path.Combine(TargetScene.TextFilesFolderPath, "002._Moving_Text")));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that changing a root folder parent across documents updates memory and persistent storage.
+    /// </summary>
+    [Fact]
+    public void RootFolderChangeParentAcrossDocumentsUpdatesPersistentStorage()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document SourceDocument = Project.AddDocument("Source Book", CreateChapterSceneStructure());
+            Document TargetDocument = Project.AddDocument("Target Book", CreateChapterSceneStructure());
+            Folder Moving = SourceDocument.AddFolder("Moving Chapter", string.Empty);
+            Folder Existing = TargetDocument.AddFolder("Existing Chapter", string.Empty);
+            string OldFolderPath = Moving.FolderPath;
+
+            Assert.True(Moving.CanChangeParent(TargetDocument));
+            bool Moved = Moving.ChangeParent(TargetDocument);
+
+            Assert.True(Moved);
+            Assert.False(Directory.Exists(OldFolderPath));
+            Assert.Same(TargetDocument, Moving.Parent);
+            Assert.Empty(SourceDocument.Folders);
+            Assert.Equal(1, Existing.OrderIndex);
+            Assert.Equal(2, Moving.OrderIndex);
+            Assert.True(Directory.Exists(Path.Combine(TargetDocument.FoldersFolderPath, "001._Existing_Chapter")));
+            Assert.True(Directory.Exists(Path.Combine(TargetDocument.FoldersFolderPath, "002._Moving_Chapter")));
         }
         finally
         {
@@ -801,6 +955,61 @@ public class ItemCommandTests
             Assert.Empty(Document.Files);
             Assert.False(Directory.Exists(FileFolderPath));
             Assert.False(TextFileItem.CanDelete());
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that Project.RemoveNote deletes memory and persistent storage.
+    /// </summary>
+    [Fact]
+    public void ProjectRemoveNoteCommandDeletesPersistentStorage()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Note Note = Project.AddNote("Research");
+            string NoteFolderPath = Note.FolderPath;
+
+            bool Removed = Project.RemoveNote(Note);
+
+            Assert.True(Removed);
+            Assert.Empty(Project.Notes);
+            Assert.False(Directory.Exists(NoteFolderPath));
+            Assert.False(Note.CanDelete());
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that Project.RemoveComponent deletes memory and persistent storage.
+    /// </summary>
+    [Fact]
+    public void ProjectRemoveComponentCommandDeletesPersistentStorage()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Component Component = new Component();
+            Component.Title = "Aldrion";
+            Component.Category = "Character";
+            Project.AddComponent(Component);
+            string ComponentFolderPath = Component.FolderPath;
+
+            bool Removed = Project.RemoveComponent(Component);
+
+            Assert.True(Removed);
+            Assert.Empty(Project.Components);
+            Assert.False(Directory.Exists(ComponentFolderPath));
+            Assert.False(Component.CanDelete());
         }
         finally
         {

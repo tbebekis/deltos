@@ -75,6 +75,7 @@ public class ProjectStorageTests
             Assert.True(Directory.Exists(ProjectPath));
             Assert.True(File.Exists(Path.Combine(ProjectPath, BaseItem.InfoFileName)));
             Assert.True(Directory.Exists(Project.DocumentsFolderPath));
+            Assert.True(Directory.Exists(Project.ImagesFolderPath));
         }
         finally
         {
@@ -139,6 +140,125 @@ public class ProjectStorageTests
         finally
         {
             DeleteFolder(ParentFolderPath);
+        }
+    }
+    /// <summary>
+    /// Tests that project temporary text is saved and loaded from the temporary markdown file.
+    /// </summary>
+    [Fact]
+    public void ProjectSaveAndOpenPersistsTempFileText()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Project.TempFileText = "Temporary project notes.";
+            Project.SaveTempFile();
+
+            Project LoadedProject = LoadProject(ProjectPath);
+
+            Assert.Equal("Temporary project notes.", LoadedProject.TempFileText);
+            Assert.True(File.Exists(Path.Combine(ProjectPath, Deltos.Project.TempFileName)));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that project images are copied to the project images bucket.
+    /// </summary>
+    [Fact]
+    public void ProjectAddImageCopiesImageToImagesFolder()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            string SourceFilePath = Path.Combine(Path.GetTempPath(), "Deltos.Tests", Guid.NewGuid().ToString("N") + ".png");
+            Directory.CreateDirectory(Path.GetDirectoryName(SourceFilePath));
+            File.WriteAllBytes(SourceFilePath, new byte[] { 1, 2, 3 });
+
+            string ImagePath = Project.AddImage(SourceFilePath);
+            string SecondImagePath = Project.AddImage(SourceFilePath);
+
+            Assert.Equal(Path.GetFileName(SourceFilePath), ImagePath);
+            Assert.Equal(Path.GetFileNameWithoutExtension(SourceFilePath) + "-2.png", SecondImagePath);
+            Assert.True(File.Exists(Path.Combine(Project.ImagesFolderPath, ImagePath)));
+            Assert.True(File.Exists(Path.Combine(Project.ImagesFolderPath, SecondImagePath)));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that project notes are saved and loaded from the notes bucket.
+    /// </summary>
+    [Fact]
+    public void ProjectSaveAndOpenPersistsProjectNotes()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Note Note = Project.AddNote("Research");
+            Note.Text = "Research note text.";
+            Project.Save();
+
+            Project LoadedProject = LoadProject(ProjectPath);
+            Note LoadedNote = LoadedProject.Notes[0];
+
+            Assert.Single(LoadedProject.Notes);
+            Assert.Equal("Research", LoadedNote.Title);
+            Assert.Equal("Research note text.", LoadedNote.Text);
+            Assert.True(File.Exists(Path.Combine(Project.NotesFolderPath, "001._Research", Deltos.Note.TextFileName)));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that project components are saved and loaded from the components bucket.
+    /// </summary>
+    [Fact]
+    public void ProjectSaveAndOpenPersistsProjectComponents()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Component Component = new Component();
+            Component.Title = "Aldrion";
+            Component.Category = "Character";
+            Component.Tags = "Corp; Corpers";
+            Component.Aliases = "Ald; Captain";
+            Component.Text = "Primary component text.";
+            Component.Text2 = "Secondary component text.";
+            Project.AddComponent(Component);
+            Project.Save();
+
+            Project LoadedProject = LoadProject(ProjectPath);
+            Component LoadedComponent = LoadedProject.Components[0];
+
+            Assert.Single(LoadedProject.Components);
+            Assert.Equal("Aldrion", LoadedComponent.Title);
+            Assert.Equal("Character", LoadedComponent.Category);
+            Assert.Equal(new[] { "Corp", "Corpers" }, LoadedComponent.TagList);
+            Assert.Equal(new[] { "Ald", "Captain" }, LoadedComponent.AliasList);
+            Assert.Equal("Primary component text.", LoadedComponent.Text);
+            Assert.Equal("Secondary component text.", LoadedComponent.Text2);
+            Assert.True(File.Exists(Path.Combine(Project.ComponentsFolderPath, "Aldrion", Deltos.Component.TextFileName)));
+            Assert.True(File.Exists(Path.Combine(Project.ComponentsFolderPath, "Aldrion", Deltos.Component.Text2FileName)));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
         }
     }
     /// <summary>
@@ -691,7 +811,7 @@ public class ProjectStorageTests
         }
     }
     /// <summary>
-    /// Tests that non-component item information clears category and tag fields before persisting.
+    /// Tests that non-component item information clears category, tag, and alias fields before persisting.
     /// </summary>
     [Fact]
     public void NonComponentInfoClearsCategoryAndTagsBeforePersisting()
@@ -704,6 +824,7 @@ public class ProjectStorageTests
             Document Document = Project.AddDocument("Book");
             Document.Info.Category = "World";
             Document.Info.TagList = "tag1;tag2";
+            Document.Info.AliasList = "alias1;alias2";
             Document.Save();
 
             ItemInfo Info = new ItemInfo();
@@ -711,6 +832,7 @@ public class ProjectStorageTests
 
             Assert.Equal(string.Empty, Info.Category);
             Assert.Equal(string.Empty, Info.TagList);
+            Assert.Equal(string.Empty, Info.AliasList);
         }
         finally
         {

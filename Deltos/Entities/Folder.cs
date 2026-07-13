@@ -51,7 +51,7 @@ public class Folder: BaseItem
     /// </summary>
     protected virtual void CheckLevelTitle()
     {
-        AppHost.CheckValidFileName(LevelTitle);
+        AppHost.CheckValidFolderLevelTitle(LevelTitle);
     }
     /// <summary>
     /// Applies the item information after loading it.
@@ -89,6 +89,137 @@ public class Folder: BaseItem
 
         if (!CanContainFolders && !CanContainTextFiles && (Folders.Count > 0 || Files.Count > 0))
             throw new InvalidOperationException("The folder does not match the document structure.");
+    }
+    /// <summary>
+    /// Returns the source folders list.
+    /// </summary>
+    /// <returns>The source folders list.</returns>
+    protected virtual List<Folder> GetSourceFolders()
+    {
+        Document DocumentItem = Parent as Document;
+        if (DocumentItem != null)
+            return DocumentItem.Folders;
+
+        Folder FolderItem = Parent as Folder;
+        if (FolderItem != null)
+            return FolderItem.Folders;
+
+        return null;
+    }
+    /// <summary>
+    /// Returns the target folders list.
+    /// </summary>
+    /// <param name="TargetParent">The target parent item.</param>
+    /// <returns>The target folders list.</returns>
+    protected virtual List<Folder> GetTargetFolders(BaseItem TargetParent)
+    {
+        Document DocumentItem = TargetParent as Document;
+        if (DocumentItem != null)
+            return DocumentItem.Folders;
+
+        Folder FolderItem = TargetParent as Folder;
+        if (FolderItem != null)
+            return FolderItem.Folders;
+
+        return null;
+    }
+    /// <summary>
+    /// Returns a document structure item at a specified level.
+    /// </summary>
+    /// <param name="DocumentItem">The document.</param>
+    /// <param name="LevelIndex">The zero-based level index.</param>
+    /// <returns>The structure item, if found; otherwise null.</returns>
+    protected virtual FolderItem GetStructureItem(Document DocumentItem, int LevelIndex)
+    {
+        FolderItem Result = DocumentItem?.Structure;
+        for (int Index = 0; Result != null && Index < LevelIndex; Index++)
+            Result = Result.Child;
+
+        return Result;
+    }
+    /// <summary>
+    /// Returns true if this folder subtree can match a target document structure.
+    /// </summary>
+    /// <param name="TargetDocument">The target document.</param>
+    /// <param name="TargetLevel">The target folder level.</param>
+    /// <returns>True if this folder subtree can match the target document structure; otherwise false.</returns>
+    protected virtual bool MatchesTargetStructure(Document TargetDocument, int TargetLevel)
+    {
+        FolderItem TargetStructureItem = GetStructureItem(TargetDocument, TargetLevel);
+        if (TargetStructureItem == null)
+            return false;
+
+        if (!string.Equals(TargetStructureItem.Title, LevelTitle, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (Files.Count > 0 && !TargetStructureItem.IsLeaf)
+            return false;
+
+        if (Folders.Count > 0 && TargetStructureItem.IsLeaf)
+            return false;
+
+        foreach (Folder Folder in Folders)
+        {
+            if (!Folder.MatchesTargetStructure(TargetDocument, TargetLevel + 1))
+                return false;
+        }
+
+        return true;
+    }
+    /// <summary>
+    /// Returns true if this folder can change to a document parent.
+    /// </summary>
+    /// <param name="TargetDocument">The target document.</param>
+    /// <returns>True if this folder can change to the target document parent; otherwise false.</returns>
+    protected virtual bool CanChangeToDocument(Document TargetDocument)
+    {
+        if (TargetDocument == null || !(Parent is Document) || ReferenceEquals(Parent, TargetDocument))
+            return false;
+
+        if (Project == null || !ReferenceEquals(Project, TargetDocument.Project))
+            return false;
+
+        if (!TargetDocument.CanAddFolder)
+            return false;
+
+        if (!string.Equals(TargetDocument.Structure?.Title, LevelTitle, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (ContainsTitle(TargetDocument.Folders, Title))
+            return false;
+
+        return MatchesTargetStructure(TargetDocument, 0);
+    }
+    /// <summary>
+    /// Returns true if this folder can change to a folder parent.
+    /// </summary>
+    /// <param name="TargetFolder">The target folder.</param>
+    /// <returns>True if this folder can change to the target folder parent; otherwise false.</returns>
+    protected virtual bool CanChangeToFolder(Folder TargetFolder)
+    {
+        Folder CurrentParentFolder = Parent as Folder;
+        if (TargetFolder == null || CurrentParentFolder == null || ReferenceEquals(Parent, TargetFolder))
+            return false;
+
+        if (Project == null || !ReferenceEquals(Project, TargetFolder.Project))
+            return false;
+
+        if (ReferenceEquals(TargetFolder, this) || ContainsFolder(TargetFolder))
+            return false;
+
+        if (!string.Equals(CurrentParentFolder.LevelTitle, TargetFolder.LevelTitle, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!TargetFolder.CanAddFolder)
+            return false;
+
+        if (!string.Equals(TargetFolder.StructureItem?.Child?.Title, LevelTitle, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (ContainsTitle(TargetFolder.Folders, Title))
+            return false;
+
+        return MatchesTargetStructure(TargetFolder.Document, TargetFolder.Level + 1);
     }
 
     // ● internal
@@ -390,6 +521,42 @@ public class Folder: BaseItem
         return false;
     }
     /// <summary>
+    /// Returns true if the folder can change parent.
+    /// </summary>
+    /// <param name="TargetParent">The target parent item.</param>
+    /// <returns>True if the folder can change parent; otherwise false.</returns>
+    public override bool CanChangeParent(BaseItem TargetParent)
+    {
+        Document TargetDocument = TargetParent as Document;
+        if (TargetDocument != null)
+            return CanChangeToDocument(TargetDocument);
+
+        Folder TargetFolder = TargetParent as Folder;
+        return CanChangeToFolder(TargetFolder);
+    }
+    /// <summary>
+    /// Changes the folder parent.
+    /// </summary>
+    /// <param name="TargetParent">The target parent item.</param>
+    /// <returns>True if the folder parent is changed; otherwise false.</returns>
+    public override bool ChangeParent(BaseItem TargetParent)
+    {
+        if (!CanChangeParent(TargetParent))
+            return false;
+
+        BaseItem SourceParent = Parent;
+        List<Folder> SourceItems = GetSourceFolders();
+        List<Folder> TargetItems = GetTargetFolders(TargetParent);
+        bool Result = MoveItem(SourceItems, TargetItems, this, TargetParent);
+        if (Result)
+        {
+            SourceParent.UpdateReferences(SourceParent.Parent);
+            TargetParent.UpdateReferences(TargetParent.Parent);
+        }
+
+        return Result;
+    }
+    /// <summary>
     /// Deletes the folder from persistent storage.
     /// </summary>
     public override void Delete()
@@ -549,7 +716,17 @@ public class Folder: BaseItem
     /// <summary>
     /// Gets the folder display title.
     /// </summary>
-    public override string DisplayTitle => base.DisplayTitle;
+    public override string DisplayTitle
+    {
+        get
+        {
+            string Result = base.DisplayTitle;
+            if (Document?.Structure?.IsLeaf == true)
+                return Result;
+
+            return string.IsNullOrWhiteSpace(LevelTitle) ? Result : $"{LevelTitle} - {Result}";
+        }
+    }
     /// <summary>
     /// Gets the file-system folder path of the folder.
     /// </summary>
@@ -610,7 +787,7 @@ public class Folder: BaseItem
                 return;
             }
 
-            AppHost.CheckValidFileName(value);
+            AppHost.CheckValidFolderLevelTitle(value);
             fLevelTitle = value.Trim();
         }
     }

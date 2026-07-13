@@ -30,6 +30,16 @@ public class BaseItemStorageTests
         Assert.Equal(1, OrderIndex);
         Assert.Equal("Opening Scene", Title);
         Assert.Equal("001. Opening Scene", DisplayTitle);
+        Assert.True(BaseItem.TryParseStorageName("001._Scene_2_-1", out _, out string HyphenTitle, out _));
+        Assert.Equal("Scene 2 -1", HyphenTitle);
+    }
+    /// <summary>
+    /// Tests that display titles use non-padded order indexes.
+    /// </summary>
+    [Fact]
+    public void GetDisplayTitleUsesNonPaddedOrderIndex()
+    {
+        Assert.Equal("1. Opening Scene", BaseItem.GetDisplayTitle(1, "Opening Scene"));
     }
     /// <summary>
     /// Tests that storage names reject titles with leading or trailing spaces.
@@ -71,7 +81,6 @@ public class BaseItemStorageTests
         Assert.False(BaseItem.TryParseStorageName("001._", out _, out _, out _));
         Assert.False(BaseItem.TryParseStorageName("ABC._Opening_Scene", out _, out _, out _));
         Assert.False(BaseItem.TryParseStorageName("001_Opening_Scene", out _, out _, out _));
-        Assert.False(BaseItem.TryParseStorageName("001._Opening-Scene", out _, out _, out _));
         Assert.False(BaseItem.TryParseStorageName("001._123_Opening", out _, out _, out _));
     }
 }

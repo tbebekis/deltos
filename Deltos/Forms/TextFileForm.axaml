@@ -12,7 +12,6 @@
 
                 <GridSplitter Grid.Column="1"
                               Width="5"
-                              Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
                               ResizeDirection="Columns" />
 
                 <forms:TextEditorForm Name="EditorText2"

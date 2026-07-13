@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:forms="clr-namespace:Deltos.Forms"
+             x:Class="Deltos.Forms.NoteListForm">
+    <DockPanel Margin="2">
+        <Border DockPanel.Dock="Top"
+                Classes="ToolbarContainer">
+            <StackPanel Name="pnlToolBar"
+                        Classes="ToolBar"
+                        MinHeight="32" />
+        </Border>
+
+        <Grid RowDefinitions="2*,Auto,*">
+            <ListBox Name="lboNotes"
+                     Grid.Row="0"
+                     MinHeight="160"
+                     SelectionChanged="NotesSelectionChanged"
+                     DoubleTapped="NotesDoubleTapped" />
+
+            <GridSplitter Grid.Row="1"
+                          Height="4"
+                          ResizeDirection="Rows" />
+
+            <Grid Grid.Row="2"
+                  RowDefinitions="Auto,*">
+                <Border Grid.Row="0"
+                        BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                        BorderThickness="0,1,0,1"
+                        Padding="6,4"
+                        Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+                    <TextBlock Name="lblNoteTitle"
+                               FontSize="14"
+                               FontWeight="Bold"
+                               Text="Note" />
+                </Border>
+
+                <forms:TextEditorForm Name="Editor"
+                                      Grid.Row="1"
+                                      Title="Note"
+                                      ReadOnly="True"
+                                      ToolBarVisible="False"
+                                      SaveButtonVisible="False" />
+            </Grid>
+        </Grid>
+    </DockPanel>
+</UserControl>

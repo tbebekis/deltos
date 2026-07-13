@@ -1,0 +1,111 @@
+<desktop:DialogWindow xmlns="https://github.com/avaloniaui"
+                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                      xmlns:desktop="clr-namespace:Tripous.Desktop;assembly=Tripous.Desktop"
+                      x:Class="Deltos.ComponentEditDialog"
+                      Title="Component"
+                      Width="820"
+                      Height="620"
+                      MinWidth="720"
+                      MinHeight="520"
+                      CanResize="True"
+                      WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="Auto,*,Auto"
+          Margin="12"
+          RowSpacing="10">
+        <Grid ColumnDefinitions="Auto,*,Auto,*"
+              ColumnSpacing="8">
+            <TextBlock Text="Title"
+                       VerticalAlignment="Center" />
+            <TextBox Name="edtTitle"
+                     Grid.Column="1" />
+            <TextBlock Text="Aliases"
+                       Grid.Column="2"
+                       VerticalAlignment="Center" />
+            <TextBox Name="edtAliases"
+                     Grid.Column="3" />
+        </Grid>
+
+        <Grid Grid.Row="1"
+              ColumnDefinitions="1.1*,*,Auto,*"
+              ColumnSpacing="14">
+            <Grid RowDefinitions="Auto,*,Auto"
+                  RowSpacing="6">
+                <TextBlock Text="Categories"
+                           FontWeight="SemiBold" />
+                <ListBox Name="lboCategories"
+                         Grid.Row="1" />
+                <Grid Grid.Row="2"
+                      ColumnDefinitions="Auto,*"
+                      ColumnSpacing="6">
+                    <Button Content="Add"
+                            Click="AddCategory_Click" />
+                    <TextBox Name="edtCategory"
+                             Grid.Column="1"
+                             KeyDown="CategoryKeyDown" />
+                </Grid>
+            </Grid>
+
+            <Grid Grid.Column="1"
+                  RowDefinitions="Auto,*,Auto"
+                  RowSpacing="6">
+                <TextBlock Text="Available"
+                           FontWeight="SemiBold" />
+                <ListBox Name="lboAvailableTags"
+                         Grid.Row="1"
+                         DoubleTapped="AvailableTagsDoubleTapped" />
+                <Grid Grid.Row="2"
+                      ColumnDefinitions="Auto,*"
+                      ColumnSpacing="6">
+                    <Button Content="Add"
+                            Click="AddTags_Click" />
+                    <TextBox Name="edtTags"
+                             Grid.Column="1"
+                             KeyDown="TagsKeyDown" />
+                </Grid>
+            </Grid>
+
+            <StackPanel Grid.Column="2"
+                        VerticalAlignment="Center"
+                        Spacing="8">
+                <Button Content="&gt;&gt;"
+                        Width="48"
+                        Click="SelectAll_Click" />
+                <Button Content="&gt;"
+                        Width="48"
+                        Click="SelectOne_Click" />
+                <Button Content="&lt;"
+                        Width="48"
+                        Click="UnselectOne_Click" />
+                <Button Content="&lt;&lt;"
+                        Width="48"
+                        Click="UnselectAll_Click" />
+            </StackPanel>
+
+            <Grid Grid.Column="3"
+                  RowDefinitions="Auto,*"
+                  RowSpacing="6">
+                <TextBlock Text="Selected"
+                           FontWeight="SemiBold" />
+                <ListBox Name="lboSelectedTags"
+                         Grid.Row="1"
+                         DoubleTapped="SelectedTagsDoubleTapped" />
+            </Grid>
+        </Grid>
+
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Name="btnOK"
+                    Width="90"
+                    Content="OK"
+                    IsDefault="True"
+                    Click="OK_Click" />
+            <Button Name="btnCancel"
+                    Width="90"
+                    Content="Cancel"
+                    IsCancel="True"
+                    Click="Cancel_Click" />
+        </StackPanel>
+    </Grid>
+</desktop:DialogWindow>

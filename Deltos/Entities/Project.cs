@@ -17,6 +17,18 @@ public class Project: BaseItem
     /// Field for the Documents property.
     /// </summary>
     protected List<Document> fDocuments = new();
+    /// <summary>
+    /// Field for the Notes property.
+    /// </summary>
+    protected List<Note> fNotes = new();
+    /// <summary>
+    /// Field for the Components property.
+    /// </summary>
+    protected List<Component> fComponents = new();
+    /// <summary>
+    /// Field for the TempFileText property.
+    /// </summary>
+    protected string fTempFileText = string.Empty;
 
     // ● construction
     /// <summary>
@@ -42,6 +54,19 @@ public class Project: BaseItem
             Result = System.IO.Path.GetFullPath(Result);
 
         return Result;
+    }
+    /// <summary>
+    /// Normalizes an image file name stem.
+    /// </summary>
+    /// <param name="Value">The image file name stem.</param>
+    /// <returns>The normalized image file name stem.</returns>
+    static string NormalizeImageFileName(string Value)
+    {
+        string Result = string.IsNullOrWhiteSpace(Value) ? "Image" : Value.Trim();
+        foreach (char Char in System.IO.Path.GetInvalidFileNameChars())
+            Result = Result.Replace(Char, '_');
+
+        return string.IsNullOrWhiteSpace(Result) ? "Image" : Result;
     }
 
     // ● protected
@@ -138,6 +163,61 @@ public class Project: BaseItem
                 throw new InvalidOperationException($"Duplicate item id in project: {Item.Id}");
         }
     }
+    /// <summary>
+    /// Loads the temporary project markdown file.
+    /// </summary>
+    protected virtual void LoadTempFile()
+    {
+        TempFileText = LoadMarkdownFile(TempFilePath);
+    }
+    /// <summary>
+    /// Loads project components from the components bucket.
+    /// </summary>
+    /// <returns>The loaded components.</returns>
+    protected virtual List<Component> LoadComponents()
+    {
+        List<Component> Result = new();
+        if (System.IO.Directory.Exists(ComponentsFolderPath))
+        {
+            string[] FilePaths = System.IO.Directory.GetFiles(ComponentsFolderPath);
+            if (FilePaths.Length > 0)
+                throw new InvalidOperationException($"Storage bucket contains files: {ComponentsFolderPath}");
+
+            string[] FolderPaths = System.IO.Directory.GetDirectories(ComponentsFolderPath);
+            foreach (string ItemFolderPath in FolderPaths)
+            {
+                Component Component = new Component();
+                Component.Title = DecodeTitle(System.IO.Path.GetFileName(ItemFolderPath));
+                Component.UpdateReferences(this);
+                Component.Load();
+                Result.Add(Component);
+            }
+        }
+
+        Result = Result.OrderBy(Item => Item.Category).ThenBy(Item => Item.Title).ToList();
+        CheckLoadedComponents(Result);
+        return Result;
+    }
+    /// <summary>
+    /// Checks loaded components for duplicate titles or ids.
+    /// </summary>
+    /// <param name="Items">The loaded components.</param>
+    protected virtual void CheckLoadedComponents(List<Component> Items)
+    {
+        for (int Index = 0; Index < Items.Count; Index++)
+        {
+            Component Item = Items[Index];
+            for (int OtherIndex = Index + 1; OtherIndex < Items.Count; OtherIndex++)
+            {
+                Component OtherItem = Items[OtherIndex];
+                if (Item.Title.IsSameText(OtherItem.Title))
+                    throw new InvalidOperationException($"Duplicate component title {Item.Title} in folder: {ComponentsFolderPath}");
+
+                if (Item.Id.IsSameText(OtherItem.Id))
+                    throw new InvalidOperationException($"Duplicate component id {Item.Id} in folder: {ComponentsFolderPath}");
+            }
+        }
+    }
 
     // ● static public
     /// <summary>
@@ -222,6 +302,39 @@ public class Project: BaseItem
 
         return Result;
     }
+    /// <summary>
+    /// Detaches a note from memory without deleting persistent storage.
+    /// </summary>
+    /// <param name="Note">The note to remove.</param>
+    /// <returns>True if the note is removed; otherwise false.</returns>
+    internal bool DetachNote(Note Note)
+    {
+        bool Result = Notes.Remove(Note);
+        if (Result)
+        {
+            Note.ClearReferences();
+            RenumberChildren();
+            UpdateReferences(null);
+        }
+
+        return Result;
+    }
+    /// <summary>
+    /// Detaches a component from memory without deleting persistent storage.
+    /// </summary>
+    /// <param name="Component">The component to remove.</param>
+    /// <returns>True if the component is removed; otherwise false.</returns>
+    internal bool DetachComponent(Component Component)
+    {
+        bool Result = Components.Remove(Component);
+        if (Result)
+        {
+            Component.ClearReferences();
+            UpdateReferences(null);
+        }
+
+        return Result;
+    }
 
     // ● public
     /// <summary>
@@ -276,6 +389,66 @@ public class Project: BaseItem
         return RemoveChild(Document);
     }
     /// <summary>
+    /// Adds a note.
+    /// </summary>
+    /// <param name="Title">The note title.</param>
+    /// <returns>The added note.</returns>
+    public override Note AddNote(string Title)
+    {
+        if (!CanAddNote)
+            throw new InvalidOperationException("This project cannot contain notes.");
+
+        CheckCanAddItem(Notes);
+        CheckDuplicateTitle(Notes, Title);
+
+        Note Result = new Note();
+        Result.Title = Title;
+        Notes.Add(Result);
+        Result.UpdateReferences(this);
+        RenumberChildren();
+        SaveItemIfStorageReady(Result);
+        return Result;
+    }
+    /// <summary>
+    /// Removes a note from memory and persistent storage.
+    /// </summary>
+    /// <param name="Note">The note to remove.</param>
+    /// <returns>True if the note is removed; otherwise false.</returns>
+    public bool RemoveNote(Note Note)
+    {
+        return RemoveChild(Note);
+    }
+    /// <summary>
+    /// Adds a component.
+    /// </summary>
+    /// <param name="Component">The component to add.</param>
+    /// <returns>The added component.</returns>
+    public override Component AddComponent(Component Component)
+    {
+        if (!CanAddComponent)
+            throw new InvalidOperationException("This project cannot contain components.");
+
+        if (Component == null)
+            throw new ArgumentNullException(nameof(Component));
+
+        CheckCanAddItem(Components);
+        CheckDuplicateTitle(Components, Component.Title);
+
+        Components.Add(Component);
+        Component.UpdateReferences(this);
+        SaveItemIfStorageReady(Component);
+        return Component;
+    }
+    /// <summary>
+    /// Removes a component from memory and persistent storage.
+    /// </summary>
+    /// <param name="Component">The component to remove.</param>
+    /// <returns>True if the component is removed; otherwise false.</returns>
+    public bool RemoveComponent(Component Component)
+    {
+        return RemoveChild(Component);
+    }
+    /// <summary>
     /// Deletes a child item from memory and persistent storage.
     /// </summary>
     /// <param name="Item">The child item to delete.</param>
@@ -283,10 +456,30 @@ public class Project: BaseItem
     public override bool RemoveChild(BaseItem Item)
     {
         Document Document = Item as Document;
-        if (Document == null || !Documents.Contains(Document))
+        if (Document != null)
+        {
+            if (!Documents.Contains(Document))
+                return false;
+
+            Document.Delete();
+            return true;
+        }
+
+        Note Note = Item as Note;
+        if (Note != null)
+        {
+            if (!Notes.Contains(Note))
+                return false;
+
+            Note.Delete();
+            return true;
+        }
+
+        Component Component = Item as Component;
+        if (Component == null || !Components.Contains(Component))
             return false;
 
-        Document.Delete();
+        Component.Delete();
         return true;
     }
     /// <summary>
@@ -304,6 +497,117 @@ public class Project: BaseItem
         return Result;
     }
     /// <summary>
+    /// Moves a note inside the project notes list.
+    /// </summary>
+    /// <param name="Note">The note to move.</param>
+    /// <param name="NewOrderIndex">The new one-based order index.</param>
+    /// <returns>True if the note is moved; otherwise false.</returns>
+    public bool MoveNote(Note Note, int NewOrderIndex)
+    {
+        if (!CanContainNotes)
+            throw new InvalidOperationException("This project cannot contain notes.");
+
+        bool Result = MoveItem(Notes, Note, NewOrderIndex);
+        if (Result)
+            UpdateReferences(null);
+
+        return Result;
+    }
+    /// <summary>
+    /// Copies an image file to the project images folder.
+    /// </summary>
+    /// <param name="SourceFilePath">The source image file path.</param>
+    /// <returns>The markdown relative image path.</returns>
+    public string AddImage(string SourceFilePath)
+    {
+        CheckProjectPath(false);
+
+        if (string.IsNullOrWhiteSpace(SourceFilePath))
+            throw new InvalidOperationException("No image file was selected.");
+
+        if (!System.IO.File.Exists(SourceFilePath))
+            throw new InvalidOperationException($"The image file does not exist: {SourceFilePath}");
+
+        System.IO.Directory.CreateDirectory(ImagesFolderPath);
+
+        string Extension = System.IO.Path.GetExtension(SourceFilePath);
+        string FileName = NormalizeImageFileName(System.IO.Path.GetFileNameWithoutExtension(SourceFilePath));
+
+        string DestFileName = FileName + Extension;
+        string DestFilePath = System.IO.Path.Combine(ImagesFolderPath, DestFileName);
+        int Index = 2;
+
+        while (System.IO.File.Exists(DestFilePath))
+        {
+            DestFileName = $"{FileName}-{Index}{Extension}";
+            DestFilePath = System.IO.Path.Combine(ImagesFolderPath, DestFileName);
+            Index++;
+        }
+
+        System.IO.File.Copy(SourceFilePath, DestFilePath);
+        return DestFileName;
+    }
+    /// <summary>
+    /// Returns the sorted component list.
+    /// </summary>
+    /// <returns>The sorted component list.</returns>
+    public List<Component> GetComponentList()
+    {
+        return Components.OrderBy(Item => Item.Category).ThenBy(Item => Item.Title).ToList();
+    }
+    /// <summary>
+    /// Finds a component by id.
+    /// </summary>
+    /// <param name="Id">The component id.</param>
+    /// <returns>The component, if found; otherwise null.</returns>
+    public Component FindComponentById(string Id)
+    {
+        return Components.FirstOrDefault(Item => Item.Id.IsSameText(Id));
+    }
+    /// <summary>
+    /// Counts components with the specified title.
+    /// </summary>
+    /// <param name="Title">The component title.</param>
+    /// <returns>The component count.</returns>
+    public int CountComponentTitle(string Title)
+    {
+        return Components.Count(Item => Item.Title.IsSameText(Title));
+    }
+    /// <summary>
+    /// Returns the sorted project category list.
+    /// </summary>
+    /// <returns>The sorted category list.</returns>
+    public List<string> GetCategoryList()
+    {
+        return Components
+            .Select(Item => Item.Category)
+            .Where(Item => !string.IsNullOrWhiteSpace(Item))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(Item => Item)
+            .ToList();
+    }
+    /// <summary>
+    /// Returns the sorted project tag list.
+    /// </summary>
+    /// <returns>The sorted tag list.</returns>
+    public List<string> GetTagList()
+    {
+        return Components
+            .SelectMany(Item => Item.TagList)
+            .Where(Item => !string.IsNullOrWhiteSpace(Item))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(Item => Item)
+            .ToList();
+    }
+    /// <summary>
+    /// Saves the temporary project markdown file.
+    /// </summary>
+    public void SaveTempFile()
+    {
+        CheckProjectPath(false);
+        SaveMarkdownFile(TempFilePath, TempFileText);
+    }
+    /// <summary>
     /// Saves the project to persistent storage.
     /// </summary>
     public override void Save()
@@ -315,11 +619,24 @@ public class Project: BaseItem
         UpdateReferences(null);
         CheckDuplicateItemIds();
         base.Save();
+        SaveTempFile();
 
         System.IO.Directory.CreateDirectory(DocumentsFolderPath);
 
         foreach (Document Document in Documents)
             Document.Save();
+
+        System.IO.Directory.CreateDirectory(NotesFolderPath);
+
+        foreach (Note Note in Notes)
+            Note.Save();
+
+        System.IO.Directory.CreateDirectory(ComponentsFolderPath);
+
+        foreach (Component Component in Components)
+            Component.Save();
+
+        System.IO.Directory.CreateDirectory(ImagesFolderPath);
     }
     /// <summary>
     /// Loads the project from persistent storage.
@@ -330,8 +647,11 @@ public class Project: BaseItem
         CheckProjectInfoFile();
         UpdateReferences(null);
         base.Load();
+        LoadTempFile();
 
         Documents = LoadItems<Document>(DocumentsFolderPath);
+        Notes = LoadItems<Note>(NotesFolderPath);
+        Components = LoadComponents();
         UpdateReferences(null);
         CheckDuplicateItemIds();
     }
@@ -385,6 +705,12 @@ public class Project: BaseItem
 
         foreach (Document Document in Documents)
             Document.PrepareInfo();
+
+        foreach (Note Note in Notes)
+            Note.PrepareInfo();
+
+        foreach (Component Component in Components)
+            Component.PrepareInfo();
     }
     /// <summary>
     /// Applies persisted item information after loading the project.
@@ -395,6 +721,12 @@ public class Project: BaseItem
 
         foreach (Document Document in Documents)
             Document.ApplyInfo();
+
+        foreach (Note Note in Notes)
+            Note.ApplyInfo();
+
+        foreach (Component Component in Components)
+            Component.ApplyInfo();
     }
     /// <summary>
     /// Renumbers project child items.
@@ -402,6 +734,7 @@ public class Project: BaseItem
     public override void RenumberChildren()
     {
         RenumberItems(Documents);
+        RenumberItems(Notes);
 
         foreach (Document Document in Documents)
             Document.RenumberChildren();
@@ -417,6 +750,12 @@ public class Project: BaseItem
 
         foreach (Document Document in Documents)
             Document.UpdateReferences(this);
+
+        foreach (Note Note in Notes)
+            Note.UpdateReferences(this);
+
+        foreach (Component Component in Components)
+            Component.UpdateReferences(this);
     }
     /// <summary>
     /// Returns the project child items.
@@ -427,6 +766,12 @@ public class Project: BaseItem
         List<BaseItem> Result = new();
         foreach (Document Document in Documents)
             Result.Add(Document);
+
+        foreach (Note Note in Notes)
+            Result.Add(Note);
+
+        foreach (Component Component in Components)
+            Result.Add(Component);
 
         return Result;
     }
@@ -441,6 +786,22 @@ public class Project: BaseItem
     /// </summary>
     static public string DocumentsFolderName => "Documents";
     /// <summary>
+    /// Gets the notes folder name.
+    /// </summary>
+    static public string NotesFolderName => "Notes";
+    /// <summary>
+    /// Gets the components folder name.
+    /// </summary>
+    static public string ComponentsFolderName => "Components";
+    /// <summary>
+    /// Gets the images folder name.
+    /// </summary>
+    static public string ImagesFolderName => "Images";
+    /// <summary>
+    /// Gets the temporary markdown file name.
+    /// </summary>
+    static public string TempFileName => "Temp.md";
+    /// <summary>
     /// Gets the owning document.
     /// </summary>
     [JsonIgnore]
@@ -451,6 +812,16 @@ public class Project: BaseItem
     [JsonIgnore]
     public override bool CanContainDocuments => true;
     /// <summary>
+    /// Gets a value indicating whether this item can contain notes.
+    /// </summary>
+    [JsonIgnore]
+    public override bool CanContainNotes => true;
+    /// <summary>
+    /// Gets a value indicating whether this item can contain components.
+    /// </summary>
+    [JsonIgnore]
+    public override bool CanContainComponents => true;
+    /// <summary>
     /// Gets a value indicating whether a document can be added to this item.
     /// </summary>
     [JsonIgnore]
@@ -460,6 +831,16 @@ public class Project: BaseItem
     /// </summary>
     [JsonIgnore]
     public override bool CanAddStructuredDocument => CanAddItem(Documents);
+    /// <summary>
+    /// Gets a value indicating whether a note can be added to this item.
+    /// </summary>
+    [JsonIgnore]
+    public override bool CanAddNote => CanContainNotes && CanAddItem(Notes);
+    /// <summary>
+    /// Gets a value indicating whether a component can be added to this item.
+    /// </summary>
+    [JsonIgnore]
+    public override bool CanAddComponent => CanContainComponents && CanAddItem(Components);
     /// <summary>
     /// Gets or sets the project root folder path.
     /// </summary>
@@ -489,6 +870,50 @@ public class Project: BaseItem
     /// </summary>
     [JsonIgnore]
     public string DocumentsFolderPath => System.IO.Path.Combine(FolderPath, DocumentsFolderName);
+    /// <summary>
+    /// Gets the file-system folder path of the project notes bucket.
+    /// </summary>
+    [JsonIgnore]
+    public string NotesFolderPath => System.IO.Path.Combine(FolderPath, NotesFolderName);
+    /// <summary>
+    /// Gets the file-system folder path of the project components bucket.
+    /// </summary>
+    [JsonIgnore]
+    public string ComponentsFolderPath => System.IO.Path.Combine(FolderPath, ComponentsFolderName);
+    /// <summary>
+    /// Gets the file-system folder path of the project images bucket.
+    /// </summary>
+    [JsonIgnore]
+    public string ImagesFolderPath => System.IO.Path.Combine(FolderPath, ImagesFolderName);
+    /// <summary>
+    /// Gets the file-system path of the temporary markdown file.
+    /// </summary>
+    [JsonIgnore]
+    public string TempFilePath => System.IO.Path.Combine(FolderPath, TempFileName);
+    /// <summary>
+    /// Gets or sets the temporary markdown text.
+    /// </summary>
+    public string TempFileText
+    {
+        get => fTempFileText;
+        set => fTempFileText = value ?? string.Empty;
+    }
+    /// <summary>
+    /// Gets or sets the project notes.
+    /// </summary>
+    public List<Note> Notes
+    {
+        get => fNotes;
+        set => fNotes = value ?? new List<Note>();
+    }
+    /// <summary>
+    /// Gets or sets the project components.
+    /// </summary>
+    public List<Component> Components
+    {
+        get => fComponents;
+        set => fComponents = value ?? new List<Component>();
+    }
     /// <summary>
     /// Gets or sets the project documents.
     /// </summary>

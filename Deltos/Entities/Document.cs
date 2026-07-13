@@ -265,11 +265,16 @@ public class Document: BaseItem
         }
 
         TextFile File = Item as TextFile;
-        if (File == null || !Files.Contains(File))
-            return false;
+        if (File != null)
+        {
+            if (!Files.Contains(File))
+                return false;
 
-        File.Delete();
-        return true;
+            File.Delete();
+            return true;
+        }
+
+        return false;
     }
     /// <summary>
     /// Moves a folder inside the document folders list.
@@ -462,6 +467,7 @@ public class Document: BaseItem
             foreach (TextFile File in Files)
                 File.Save();
         }
+
     }
     /// <summary>
     /// Loads the document from persistent storage.
@@ -496,6 +502,7 @@ public class Document: BaseItem
 
         foreach (TextFile File in Files)
             File.PrepareInfo();
+
     }
     /// <summary>
     /// Applies persisted item information after loading the document.
@@ -509,6 +516,7 @@ public class Document: BaseItem
 
         foreach (TextFile File in Files)
             File.ApplyInfo();
+
     }
     /// <summary>
     /// Renumbers document child items.
@@ -540,6 +548,7 @@ public class Document: BaseItem
 
         foreach (TextFile File in Files)
             File.UpdateReferences(this);
+
     }
     /// <summary>
     /// Clears runtime references when the document is detached from its parent.
@@ -553,6 +562,7 @@ public class Document: BaseItem
 
         foreach (TextFile File in Files)
             File.ClearReferences();
+
     }
     
     // ● properties
@@ -572,7 +582,6 @@ public class Document: BaseItem
     /// Gets the text files bucket folder name.
     /// </summary>
     static public string TextFilesFolderName => "TextFiles";
-    /// <summary>
     /// Gets the synopsis text file name.
     /// </summary>
     static public string SynopsisFileName => "Synopsis.md";
@@ -613,7 +622,6 @@ public class Document: BaseItem
     /// </summary>
     [JsonIgnore]
     public string TextFilesFolderPath => System.IO.Path.Combine(FolderPath, TextFilesFolderName);
-    /// <summary>
     /// Gets the file-system path of the document structure file.
     /// </summary>
     [JsonIgnore]
@@ -653,7 +661,6 @@ public class Document: BaseItem
     /// </summary>
     [JsonIgnore]
     public override bool CanContainTextFiles => !HasFolderStructure && Folders.Count == 0;
-    /// <summary>
     /// Gets a value indicating whether a root folder can be added.
     /// </summary>
     [JsonIgnore]
@@ -663,7 +670,6 @@ public class Document: BaseItem
     /// </summary>
     [JsonIgnore]
     public override bool CanAddTextFile => CanContainTextFiles && CanAddItem(Files);
-    /// <summary>
     /// Gets or sets the document folders.
     /// </summary>
     public List<Folder> Folders
@@ -679,7 +685,6 @@ public class Document: BaseItem
         get => fFiles;
         set => fFiles = value ?? new List<TextFile>();
     }
-    /// <summary>
     /// Gets or sets the document synopsis.
     /// </summary>
     public string Synopsis

@@ -32,5 +32,9 @@ public enum ItemType
     /// <summary>
     /// A text file item.
     /// </summary>
-    TextFile = 16
+    TextFile = 16,
+    /// <summary>
+    /// A note item.
+    /// </summary>
+    Note = 32
 }

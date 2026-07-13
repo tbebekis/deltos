@@ -45,6 +45,7 @@ public class BaseItem
         Info.Type = Type;
         Info.Category = string.Empty;
         Info.TagList = string.Empty;
+        Info.AliasList = string.Empty;
         Info.IsFolder = false;
         Info.LevelTitle = string.Empty;
     }
@@ -182,6 +183,41 @@ public class BaseItem
         return true;
     }
     /// <summary>
+    /// Moves an item to the end of another parent sibling list.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="SourceItems">The source sibling items.</param>
+    /// <param name="TargetItems">The target sibling items.</param>
+    /// <param name="Item">The item to move.</param>
+    /// <param name="TargetParent">The target parent item.</param>
+    /// <returns>True if the item is moved; otherwise false.</returns>
+    static protected bool MoveItem<T>(List<T> SourceItems, List<T> TargetItems, T Item, BaseItem TargetParent) where T: BaseItem
+    {
+        if (!SourceItems.Contains(Item))
+            throw new InvalidOperationException("The item does not belong to the specified source list.");
+
+        if (SourceItems == TargetItems)
+            return false;
+
+        CheckCanAddItem(TargetItems);
+        CheckDuplicateTitle(TargetItems, Item.Title);
+
+        string OldFolderPath = Item.FolderPath;
+        int NewOrderIndex = TargetItems.Count + 1;
+        string NewFolderPath = GetTargetFolderPath(Item, TargetParent, NewOrderIndex);
+        if (!IsSamePath(OldFolderPath, NewFolderPath) && System.IO.Directory.Exists(NewFolderPath))
+            throw new InvalidOperationException($"Folder already exists: {NewFolderPath}");
+
+        SourceItems.Remove(Item);
+        TargetItems.Add(Item);
+        Item.UpdateReferences(TargetParent);
+
+        RenumberItems(SourceItems);
+        RenumberItems(TargetItems);
+        MoveStorage(OldFolderPath, Item.FolderPath);
+        return true;
+    }
+    /// <summary>
     /// Returns the target folder path for a cross-parent move.
     /// </summary>
     /// <typeparam name="T">The item type.</typeparam>
@@ -192,6 +228,13 @@ public class BaseItem
     static protected string GetTargetFolderPath<T>(T Item, BaseItem TargetParent, int NewOrderIndex) where T: BaseItem
     {
         string StorageName = GetStorageName(NewOrderIndex, Item.Title);
+
+        Project ProjectParent = TargetParent as Project;
+        if (ProjectParent != null)
+        {
+            if (Item is Note)
+                return System.IO.Path.Combine(ProjectParent.NotesFolderPath, StorageName);
+        }
 
         Document DocumentParent = TargetParent as Document;
         if (DocumentParent != null)
@@ -639,7 +682,7 @@ public class BaseItem
     /// <returns>The display title.</returns>
     static public string GetDisplayTitle(int OrderIndex, string Title)
     {
-        return DecodeTitle(GetStorageName(OrderIndex, Title));
+        return $"{OrderIndex}. {Title.Trim()}";
     }
     /// <summary>
     /// Tries to parse a storage name.
@@ -804,6 +847,24 @@ public class BaseItem
         return false;
     }
     /// <summary>
+    /// Returns true if the item can change parent.
+    /// </summary>
+    /// <param name="TargetParent">The target parent item.</param>
+    /// <returns>True if the item can change parent; otherwise false.</returns>
+    public virtual bool CanChangeParent(BaseItem TargetParent)
+    {
+        return false;
+    }
+    /// <summary>
+    /// Changes the item parent.
+    /// </summary>
+    /// <param name="TargetParent">The target parent item.</param>
+    /// <returns>True if the item parent is changed; otherwise false.</returns>
+    public virtual bool ChangeParent(BaseItem TargetParent)
+    {
+        return false;
+    }
+    /// <summary>
     /// Sets a document folder structure.
     /// </summary>
     /// <param name="Structure">The document folder structure.</param>
@@ -855,6 +916,24 @@ public class BaseItem
     public virtual TextFile AddTextFile(string Title)
     {
         throw new InvalidOperationException("This item cannot contain text files.");
+    }
+    /// <summary>
+    /// Adds a child note.
+    /// </summary>
+    /// <param name="Title">The note title.</param>
+    /// <returns>The added note.</returns>
+    public virtual Note AddNote(string Title)
+    {
+        throw new InvalidOperationException("This item cannot contain notes.");
+    }
+    /// <summary>
+    /// Adds a child component.
+    /// </summary>
+    /// <param name="Component">The component to add.</param>
+    /// <returns>The added component.</returns>
+    public virtual Component AddComponent(Component Component)
+    {
+        throw new InvalidOperationException("This item cannot contain components.");
     }
     /// <summary>
     /// Deletes a child item from memory and persistent storage.
@@ -990,6 +1069,16 @@ public class BaseItem
     [JsonIgnore]
     public bool IsTextFile => Type == ItemType.TextFile;
     /// <summary>
+    /// Gets a value indicating whether this item is a note.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsNote => Type == ItemType.Note;
+    /// <summary>
+    /// Gets a value indicating whether this item is a component.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsComponent => Type == ItemType.Component;
+    /// <summary>
     /// Gets a value indicating whether this item can contain documents.
     /// </summary>
     [JsonIgnore]
@@ -1004,6 +1093,16 @@ public class BaseItem
     /// </summary>
     [JsonIgnore]
     public virtual bool CanContainTextFiles => false;
+    /// <summary>
+    /// Gets a value indicating whether this item can contain notes.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanContainNotes => false;
+    /// <summary>
+    /// Gets a value indicating whether this item can contain components.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanContainComponents => false;
     /// <summary>
     /// Gets a value indicating whether a document can be added to this item.
     /// </summary>
@@ -1034,6 +1133,16 @@ public class BaseItem
     /// </summary>
     [JsonIgnore]
     public virtual bool CanAddTextFile => false;
+    /// <summary>
+    /// Gets a value indicating whether a note can be added to this item.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanAddNote => false;
+    /// <summary>
+    /// Gets a value indicating whether a component can be added to this item.
+    /// </summary>
+    [JsonIgnore]
+    public virtual bool CanAddComponent => false;
     /// <summary>
     /// Gets or sets the unique item identifier.
     /// </summary>
