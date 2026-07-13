@@ -5,12 +5,14 @@
     <TabControl Name="pager">
         <TabItem Name="tabText"
                  Header="Text">
-            <Grid ColumnDefinitions="*,Auto,*">
+            <Grid Name="TextGrid"
+                  ColumnDefinitions="*,Auto,*">
                 <forms:TextEditorForm Name="EditorText"
                                       Grid.Column="0"
                                       Title="Text" />
 
-                <GridSplitter Grid.Column="1"
+                <GridSplitter Name="Text2Splitter"
+                              Grid.Column="1"
                               Width="5"
                               ResizeDirection="Columns" />
 

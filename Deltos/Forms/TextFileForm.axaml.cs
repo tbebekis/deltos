@@ -40,6 +40,7 @@ public partial class TextFileForm: AppForm
     /// </summary>
     private void LoadItem()
     {
+        ApplySettings();
         fLoading = true;
         try
         {
@@ -127,9 +128,21 @@ public partial class TextFileForm: AppForm
     /// <param name="Editor">The editor.</param>
     private void PrepareEditor(TextEditorForm Editor)
     {
+        Editor.ApplyAppSettings();
         Editor.ReadOnly = false;
         Editor.Modified = false;
         Editor.RegisterHighlighter(Editor.FilePath);
+    }
+    /// <summary>
+    /// Applies application settings to the form.
+    /// </summary>
+    private void ApplySettings()
+    {
+        bool Visible = AppHost.Settings?.SecondLanguageVisible == true;
+        EditorText2.IsVisible = Visible;
+        Text2Splitter.IsVisible = Visible;
+        TextGrid.ColumnDefinitions[1].Width = Visible ? GridLength.Auto : new GridLength(0);
+        TextGrid.ColumnDefinitions[2].Width = Visible ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
     }
     /// <summary>
     /// Saves all editor values to the edited item.

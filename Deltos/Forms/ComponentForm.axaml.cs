@@ -40,6 +40,7 @@ public partial class ComponentForm: AppForm
     /// </summary>
     void LoadComponent()
     {
+        ApplySettings();
         fLoading = true;
         try
         {
@@ -69,6 +70,7 @@ public partial class ComponentForm: AppForm
 
             foreach (TextEditorForm Editor in Editors)
             {
+                Editor.ApplyAppSettings();
                 Editor.ReadOnly = false;
                 Editor.Modified = false;
                 Editor.RegisterHighlighter(Editor.FilePath);
@@ -103,6 +105,17 @@ public partial class ComponentForm: AppForm
     void AdjustTitle()
     {
         TitleText = IsModified ? $"{fBaseTitle}*" : fBaseTitle;
+    }
+    /// <summary>
+    /// Applies application settings to the form.
+    /// </summary>
+    void ApplySettings()
+    {
+        bool Visible = AppHost.Settings?.SecondLanguageVisible == true;
+        EditorText2.IsVisible = Visible;
+        Text2Splitter.IsVisible = Visible;
+        EditorGrid.ColumnDefinitions[1].Width = Visible ? GridLength.Auto : new GridLength(0);
+        EditorGrid.ColumnDefinitions[2].Width = Visible ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
     }
     /// <summary>
     /// Handles editor Save requests.

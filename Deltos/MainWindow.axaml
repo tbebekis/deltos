@@ -30,7 +30,7 @@
         <!-- Main Panel -->
         <Grid Name="MainPanel"
               Grid.Row="1"
-              ColumnDefinitions="460,Auto,*">
+              ColumnDefinitions="510,Auto,*">
             <!-- Left SideBar -->
             <TabControl Name="pagerSideBar"
                         Grid.Column="0"

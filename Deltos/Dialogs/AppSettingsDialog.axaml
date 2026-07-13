@@ -1,0 +1,72 @@
+<desktop:DialogWindow xmlns="https://github.com/avaloniaui"
+                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                      xmlns:desktop="clr-namespace:Tripous.Desktop;assembly=Tripous.Desktop"
+                      x:Class="Deltos.AppSettingsDialog"
+                      Title="Settings"
+                      Width="440"
+                      Height="320"
+                      MinWidth="420"
+                      MinHeight="300"
+                      CanResize="False"
+                      WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="*,Auto"
+          Margin="16"
+          RowSpacing="14">
+        <Grid ColumnDefinitions="Auto,*"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+              ColumnSpacing="12"
+              RowSpacing="10">
+            <CheckBox Name="chkAutoSave"
+                      Grid.ColumnSpan="2"
+                      Content="Auto-save" />
+
+            <TextBlock Grid.Row="1"
+                       Text="Auto-save interval"
+                       VerticalAlignment="Center" />
+            <NumericUpDown Name="edtAutoSaveSecondsInterval"
+                           Grid.Row="1"
+                           Grid.Column="1"
+                           Minimum="5"
+                           Maximum="3600"
+                           Increment="5" />
+
+            <TextBlock Grid.Row="2"
+                       Text="Font family"
+                       VerticalAlignment="Center" />
+            <TextBox Name="edtFontFamily"
+                     Grid.Row="2"
+                     Grid.Column="1" />
+
+            <TextBlock Grid.Row="3"
+                       Text="Font size"
+                       VerticalAlignment="Center" />
+            <NumericUpDown Name="edtFontSize"
+                           Grid.Row="3"
+                           Grid.Column="1"
+                           Minimum="8"
+                           Maximum="32"
+                           Increment="1" />
+
+            <CheckBox Name="chkSecondLanguageVisible"
+                      Grid.Row="4"
+                      Grid.ColumnSpan="2"
+                      Content="Show second language editor" />
+        </Grid>
+
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Name="btnOK"
+                    Width="90"
+                    Content="OK"
+                    IsDefault="True"
+                    Click="OK_Click" />
+            <Button Name="btnCancel"
+                    Width="90"
+                    Content="Cancel"
+                    IsCancel="True"
+                    Click="Cancel_Click" />
+        </StackPanel>
+    </Grid>
+</desktop:DialogWindow>

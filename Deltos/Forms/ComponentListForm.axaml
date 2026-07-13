@@ -22,11 +22,23 @@
                          TextChanged="FilterTextChanged" />
             </Grid>
 
-            <TreeView Name="tvComponents"
-                      Grid.Row="1"
-                      MinHeight="180"
-                      SelectionChanged="TreeSelectionChanged"
-                      DoubleTapped="TreeDoubleTapped" />
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="*,Auto,*"
+                  ColumnSpacing="2"
+                  MinHeight="180">
+                <ListBox Name="lboCategories"
+                         Grid.Column="0"
+                         SelectionChanged="CategoriesSelectionChanged" />
+
+                <GridSplitter Grid.Column="1"
+                              Width="4"
+                              ResizeDirection="Columns" />
+
+                <ListBox Name="lboComponents"
+                         Grid.Column="2"
+                         SelectionChanged="ComponentsSelectionChanged"
+                         DoubleTapped="ComponentsDoubleTapped" />
+            </Grid>
 
             <GridSplitter Grid.Row="2"
                           Height="4"
@@ -35,12 +47,26 @@
             <TabControl Grid.Row="3">
                 <TabItem Name="tabMarkdownPreview"
                          Header="Text">
-                    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
-                                  VerticalScrollBarVisibility="Auto">
-                        <StackPanel Name="MarkdownPreviewPanel"
-                                    Margin="10"
-                                    Spacing="6" />
-                    </ScrollViewer>
+                    <Grid RowDefinitions="Auto,*">
+                        <Border Grid.Row="0"
+                                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                                BorderThickness="0,0,0,1"
+                                Padding="6,4"
+                                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+                            <TextBlock Name="lblComponentTitle"
+                                       FontSize="14"
+                                       FontWeight="Bold"
+                                       Text="Component" />
+                        </Border>
+
+                        <ScrollViewer Grid.Row="1"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      VerticalScrollBarVisibility="Auto">
+                            <StackPanel Name="MarkdownPreviewPanel"
+                                        Margin="10"
+                                        Spacing="6" />
+                        </ScrollViewer>
+                    </Grid>
                 </TabItem>
                 <TabItem Header="Tags">
                     <ListBox Name="lboTags" />

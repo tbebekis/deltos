@@ -837,7 +837,7 @@ public partial class DocumentListForm: AppForm
         if (Project == null)
         {
             lblProjectTitle.Text = "No project open";
-            txtMetrics.Text = "No project open.";
+            RenderNoProjectMetrics();
             lblTextTitle.Text = "Text";
             Editor.EditorText = string.Empty;
             Editor.FilePath = string.Empty;
@@ -849,7 +849,7 @@ public partial class DocumentListForm: AppForm
         foreach (Document Document in Project.Documents)
             AddDocumentNode(tvProject, Document);
 
-        txtMetrics.Text = BuildMetricsText(Project);
+        RenderMetrics(Project);
     }
     /// <summary>
     /// Adds a document node.
@@ -893,6 +893,29 @@ public partial class DocumentListForm: AppForm
         ParentNode.Items.Add(CreateNode(File.DisplayTitle, File));
     }
     /// <summary>
+    /// Creates a folder tree node.
+    /// </summary>
+    /// <param name="Text">The node text.</param>
+    /// <param name="Tag">The node tag.</param>
+    /// <returns>The created tree node.</returns>
+    TreeViewItem CreateFolderNode(string Text, object Tag)
+    {
+        TreeViewItem Result = Ui.CreateContainerNode(Text, Tag, IconFile: "folder.png", NegativeMargin: 10);
+        if (Result.Header is StackPanel Panel)
+        {
+            foreach (Control Control in Panel.Children)
+            {
+                if (Control is TextBlock TextBlock)
+                {
+                    TextBlock.FontSize = 12;
+                    TextBlock.FontWeight = FontWeight.Medium;
+                }
+            }
+        }
+
+        return Result;
+    }
+    /// <summary>
     /// Creates a tree node.
     /// </summary>
     /// <param name="Text">The node text.</param>
@@ -904,7 +927,7 @@ public partial class DocumentListForm: AppForm
         {
             Project => Ui.CreateContainerNode(Text, Tag, IconFile: "application_home.png", NegativeMargin: 10),
             Document => Ui.CreateContainerNode(Text, Tag, IconFile: "book.png", NegativeMargin: 10),
-            Folder => Ui.CreateContainerNode(Text, Tag, IconFile: "folder.png", NegativeMargin: 10),
+            Folder => CreateFolderNode(Text, Tag),
             TextFile => Ui.CreateLeafNode(Text, Tag, IconFile: "table.png", NegativeMargin: 10),
             _ => new TreeViewItem { Header = Text, Tag = Tag }
         };
@@ -912,23 +935,198 @@ public partial class DocumentListForm: AppForm
 
     // ● metrics
     /// <summary>
-    /// Builds the text metrics display.
+    /// Renders an empty metrics display.
+    /// </summary>
+    void RenderNoProjectMetrics()
+    {
+        MetricsPanel.Children.Clear();
+        AddMetricText("No project open.", 12, FontWeight.Normal, Brushes.Black);
+    }
+    /// <summary>
+    /// Renders the text metrics display.
     /// </summary>
     /// <param name="Project">The project.</param>
-    /// <returns>The text metrics display.</returns>
-    string BuildMetricsText(Project Project)
+    void RenderMetrics(Project Project)
     {
         int DocumentCount = Project.Documents.Count;
         int FolderCount = Project.Documents.Sum(CountFolders);
         int TextFileCount = Project.Documents.Sum(CountTextFiles);
+        TextStats ProjectStats = new TextStats();
+        TextStats ProjectStats2 = new TextStats();
 
-        return $"""
-               Project: {Project.Title}
+        foreach (Document Document in Project.Documents)
+        {
+            ProjectStats.Add(GetDocumentTextStats(Document, false));
+            ProjectStats2.Add(GetDocumentTextStats(Document, true));
+        }
 
-               Documents: {DocumentCount}
-               Folders: {FolderCount}
-               Text files: {TextFileCount}
-               """;
+        MetricsPanel.Children.Clear();
+        AddMetricHeader(Project.Title, 16);
+        AddMetricGroup("Project", Panel =>
+        {
+            AddMetricRow(Panel, "Documents", DocumentCount.ToString());
+            AddMetricRow(Panel, "Folders", FolderCount.ToString());
+            AddMetricRow(Panel, "Text files", TextFileCount.ToString());
+            AddMetricRow(Panel, "Components", Project.Components.Count.ToString());
+            AddMetricRow(Panel, "Notes", Project.Notes.Count.ToString());
+        });
+
+        AddStatsGroup("Total Text", ProjectStats);
+        AddStatsGroup("Total Text2", ProjectStats2);
+
+        foreach (Document Document in Project.Documents)
+        {
+            AddMetricHeader(Document.DisplayTitle, 14);
+            AddStatsGroup("Text", GetDocumentTextStats(Document, false));
+            AddStatsGroup("Text2", GetDocumentTextStats(Document, true));
+        }
+    }
+    /// <summary>
+    /// Adds metric text to the metrics panel.
+    /// </summary>
+    /// <param name="Text">The text.</param>
+    /// <param name="FontSize">The font size.</param>
+    /// <param name="FontWeight">The font weight.</param>
+    /// <param name="Foreground">The foreground brush.</param>
+    void AddMetricText(string Text, double FontSize, FontWeight FontWeight, IBrush Foreground)
+    {
+        MetricsPanel.Children.Add(new TextBlock
+        {
+            Text = Text,
+            FontSize = FontSize,
+            FontWeight = FontWeight,
+            Foreground = Foreground,
+            TextWrapping = TextWrapping.Wrap
+        });
+    }
+    /// <summary>
+    /// Adds a metric header.
+    /// </summary>
+    /// <param name="Text">The header text.</param>
+    /// <param name="FontSize">The font size.</param>
+    void AddMetricHeader(string Text, double FontSize)
+    {
+        AddMetricText(Text, FontSize, FontWeight.Bold, new SolidColorBrush(Color.Parse("#8A4B16")));
+    }
+    /// <summary>
+    /// Adds a metric group.
+    /// </summary>
+    /// <param name="Title">The group title.</param>
+    /// <param name="LoadRows">The row loader.</param>
+    void AddMetricGroup(string Title, Action<Grid> LoadRows)
+    {
+        Border Border = new Border();
+        Border.BorderBrush = new SolidColorBrush(Color.Parse("#D8C5B4"));
+        Border.BorderThickness = new Thickness(0, 1, 0, 0);
+        Border.Padding = new Thickness(0, 5, 0, 0);
+
+        Grid Grid = new Grid();
+        Grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+        Grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        Grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        Grid.RowSpacing = 2;
+        Grid.ColumnSpacing = 10;
+
+        TextBlock Header = new TextBlock
+        {
+            Text = Title,
+            FontSize = 13,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = Brushes.Black
+        };
+        Grid.SetColumnSpan(Header, 2);
+        Grid.Children.Add(Header);
+
+        LoadRows(Grid);
+        Border.Child = Grid;
+        MetricsPanel.Children.Add(Border);
+    }
+    /// <summary>
+    /// Adds a metric row.
+    /// </summary>
+    /// <param name="Grid">The target grid.</param>
+    /// <param name="Label">The label.</param>
+    /// <param name="Value">The value.</param>
+    void AddMetricRow(Grid Grid, string Label, string Value)
+    {
+        int RowIndex = Grid.RowDefinitions.Count;
+        Grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+
+        TextBlock LabelBlock = new TextBlock
+        {
+            Text = Label,
+            FontSize = 12,
+            Foreground = Brushes.Black,
+            Opacity = 0.82
+        };
+        TextBlock ValueBlock = new TextBlock
+        {
+            Text = Value,
+            FontSize = 12,
+            FontWeight = FontWeight.SemiBold,
+            FontFamily = new FontFamily("Cascadia Code, Consolas, Monospace"),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right
+        };
+
+        Grid.SetRow(LabelBlock, RowIndex);
+        Grid.SetColumn(LabelBlock, 0);
+        Grid.SetRow(ValueBlock, RowIndex);
+        Grid.SetColumn(ValueBlock, 1);
+        Grid.Children.Add(LabelBlock);
+        Grid.Children.Add(ValueBlock);
+    }
+    /// <summary>
+    /// Adds a text stats group.
+    /// </summary>
+    /// <param name="Title">The group title.</param>
+    /// <param name="Stats">The text stats.</param>
+    void AddStatsGroup(string Title, TextStats Stats)
+    {
+        AddMetricGroup(Title, Panel =>
+        {
+            AddMetricRow(Panel, "Words", Stats.WordCount.ToString());
+            AddMetricRow(Panel, "Pages", $"{Stats.EstimatedPages:0.00}");
+            AddMetricRow(Panel, "Chars", Stats.CharCount.ToString());
+            AddMetricRow(Panel, "Chars no spaces", Stats.CharCountNoSpaces.ToString());
+            AddMetricRow(Panel, "Lines", Stats.LineCount.ToString());
+            AddMetricRow(Panel, "Paragraphs", Stats.ParagraphCount.ToString());
+        });
+    }
+    /// <summary>
+    /// Returns document text stats.
+    /// </summary>
+    /// <param name="Document">The document.</param>
+    /// <param name="UseSecondText">True to use Text2; otherwise false.</param>
+    /// <returns>The document text stats.</returns>
+    TextStats GetDocumentTextStats(Document Document, bool UseSecondText)
+    {
+        TextStats Result = new TextStats();
+
+        foreach (TextFile File in Document.Files)
+            Result.Add(TextMetrics.Compute(UseSecondText ? File.Text2 : File.Text));
+
+        foreach (Folder Folder in Document.Folders)
+            Result.Add(GetFolderTextStats(Folder, UseSecondText));
+
+        return Result;
+    }
+    /// <summary>
+    /// Returns folder text stats.
+    /// </summary>
+    /// <param name="Folder">The folder.</param>
+    /// <param name="UseSecondText">True to use Text2; otherwise false.</param>
+    /// <returns>The folder text stats.</returns>
+    TextStats GetFolderTextStats(Folder Folder, bool UseSecondText)
+    {
+        TextStats Result = new TextStats();
+
+        foreach (TextFile File in Folder.Files)
+            Result.Add(TextMetrics.Compute(UseSecondText ? File.Text2 : File.Text));
+
+        foreach (Folder ChildFolder in Folder.Folders)
+            Result.Add(GetFolderTextStats(ChildFolder, UseSecondText));
+
+        return Result;
     }
     /// <summary>
     /// Counts all folders in a document.

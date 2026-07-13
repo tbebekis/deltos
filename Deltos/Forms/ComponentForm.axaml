@@ -2,12 +2,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:forms="clr-namespace:Deltos.Forms"
              x:Class="Deltos.Forms.ComponentForm">
-    <Grid ColumnDefinitions="*,Auto,*">
+    <Grid Name="EditorGrid"
+          ColumnDefinitions="*,Auto,*">
         <forms:TextEditorForm Name="EditorText"
                               Grid.Column="0"
                               Title="Text" />
 
-        <GridSplitter Grid.Column="1"
+        <GridSplitter Name="Text2Splitter"
+                      Grid.Column="1"
                       Width="5"
                       ResizeDirection="Columns" />
 

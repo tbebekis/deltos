@@ -16,7 +16,6 @@ public class AppSettings: SettingsBase
     {
         base.LoadBefore();
     }
-
     /// <summary>
     /// Called after settings have been loaded from disk.
     /// </summary>
@@ -33,37 +32,48 @@ public class AppSettings: SettingsBase
     {
     }
 
+    // ● public
+    /// <summary>
+    /// Copies editable settings from another settings instance.
+    /// </summary>
+    /// <param name="Source">The source settings.</param>
+    public void CopyEditableSettingsFrom(AppSettings Source)
+    {
+        if (Source == null)
+            return;
+
+        AutoSave = Source.AutoSave;
+        AutoSaveSecondsInterval = Source.AutoSaveSecondsInterval;
+        FontFamily = Source.FontFamily;
+        FontSize = Source.FontSize;
+        SecondLanguageVisible = Source.SecondLanguageVisible;
+    }
+
     // ● properties
     /// <summary>
     /// Gets or sets a value indicating whether the last project is loaded on startup.
     /// </summary>
     public bool LoadLastProjectOnStartup { get; set; } = true;
-
     /// <summary>
     /// Gets or sets the last project folder path.
     /// </summary>
     public string LastProjectFolderPath { get; set; } = "___";
-
     /// <summary>
     /// Gets or sets a value indicating whether auto-save is enabled.
     /// </summary>
     public bool AutoSave { get; set; } = true;
-
     /// <summary>
     /// Gets or sets the auto-save interval in seconds.
     /// </summary>
     public int AutoSaveSecondsInterval { get; set; } = 30;
-
     /// <summary>
     /// Gets or sets the editor font family.
     /// </summary>
-    public string FontFamily { get; set; } = "Times New Roman";
-
+    public string FontFamily { get; set; } = "Liberation Mono, Cascadia Code, Consolas, Monospace";
     /// <summary>
     /// Gets or sets the editor font size.
     /// </summary>
     public int FontSize { get; set; } = 13;
-
     /// <summary>
     /// Gets or sets a value indicating whether the second language editor is visible.
     /// </summary>

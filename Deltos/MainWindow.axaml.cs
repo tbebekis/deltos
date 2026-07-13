@@ -226,6 +226,50 @@ public partial class MainWindow : Window
             await Tripous.Desktop.MessageBox.Error(e, this);
         }
     }
+    /// <summary>
+    /// Edits application settings.
+    /// </summary>
+    async Task EditSettings()
+    {
+        string ProjectPath = AppHost.CurrentProject?.ProjectPath;
+
+        if (!string.IsNullOrWhiteSpace(ProjectPath))
+        {
+            AppHost.CloseProject();
+            UpdateProjectStatus("Project closed for settings");
+        }
+
+        DialogInfo Info = await DialogWindow.ShowModal<AppSettingsDialog>(AppHost.Settings, this);
+        if (Info.Result && Info.ResultData is AppSettings EditedSettings)
+        {
+            AppHost.Settings.CopyEditableSettingsFrom(EditedSettings);
+            AppHost.Settings.Save();
+            LogBox.AppendLine("Settings saved.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(ProjectPath) && System.IO.Directory.Exists(ProjectPath))
+        {
+            try
+            {
+                AppHost.ShowPleaseWait("Opening project...", this);
+                Project Project = AppHost.OpenProject(ProjectPath, false);
+                UpdateProjectStatus($"Project opened: {Project.Title}");
+            }
+            catch (Exception e)
+            {
+                LogBox.AppendLine(e);
+                await Tripous.Desktop.MessageBox.Error(e, this);
+            }
+            finally
+            {
+                AppHost.HidePleaseWait();
+            }
+        }
+        else
+        {
+            UpdateProjectStatus("Ready");
+        }
+    }
 
     /// <summary>
     /// Creates the main toolbar.
@@ -318,8 +362,7 @@ public partial class MainWindow : Window
                 await AddProjectImage();
                 break;
             case "Settings":
-                UpdateStatusBar($"Command: {CommandName}", "No project open");
-                LogBox.AppendLine($"Command not implemented yet: {CommandName}");
+                await EditSettings();
                 break;
             case "ToggleSideBar":
                 ToggleSideBar();

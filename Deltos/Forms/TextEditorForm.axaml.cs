@@ -87,6 +87,12 @@ public partial class TextEditorForm: UserControl
         PrepareToolBar();
         fSearchPanel = AvaloniaEdit.Search.SearchPanel.Install(edtText);
 
+        edtText.Options.ShowSpaces = false;
+        edtText.Options.ShowTabs = false;
+        edtText.Options.ShowEndOfLine = false;
+        edtText.Options.ShowBoxForControlCharacters = false;
+        ApplyAppSettings();
+
         edtText.TextChanged += Editor_TextChanged;
         edtText.TextArea.Caret.PositionChanged += Caret_PositionChanged;
         edtText.KeyDown += Editor_KeyDown;
@@ -209,19 +215,6 @@ public partial class TextEditorForm: UserControl
     {
         return char.IsLetterOrDigit(Value) || Value == '_';
     }
-    /// <summary>
-    /// Counts words in text.
-    /// </summary>
-    /// <param name="Text">The text.</param>
-    /// <returns>The word count.</returns>
-    private int CountWords(string Text)
-    {
-        if (string.IsNullOrWhiteSpace(Text))
-            return 0;
-
-        return Regex.Matches(Text, @"[\p{L}\p{N}_]+").Count;
-    }
-    /// <summary>
     /// Updates toolbar button visibility from the public visibility properties.
     /// </summary>
     private void UpdateButtonVisibility()
@@ -289,7 +282,19 @@ public partial class TextEditorForm: UserControl
     /// </summary>
     public void ResetFontSize()
     {
-        EditorFontSize = DefaultFontSize;
+        EditorFontSize = AppHost.Settings?.FontSize ?? DefaultFontSize;
+    }
+    /// <summary>
+    /// Applies global application settings to the editor.
+    /// </summary>
+    public void ApplyAppSettings()
+    {
+        AppSettings Settings = AppHost.Settings;
+        if (Settings == null)
+            return;
+
+        TextEditor.FontFamily = new FontFamily(Settings.FontFamily);
+        EditorFontSize = Settings.FontSize;
     }
     /// <summary>
     /// Sets the syntax highlighter by mode.
@@ -323,9 +328,8 @@ public partial class TextEditorForm: UserControl
     {
         UpdateStatusBarLineColumn();
 
-        int WordCount = CountWords(EditorText);
-        double Pages = WordCount / 250.0;
-        lblMetrics.Text = $"Pages: {Pages:0.00}, Words: {WordCount}";
+        TextStats Stats = TextMetrics.Compute(EditorText);
+        lblMetrics.Text = $"Pages: {Stats.EstimatedPages:0.00}, Words: {Stats.WordCount}, Chars: {Stats.CharCount}, Lines: {Stats.LineCount}, Pars: {Stats.ParagraphCount}";
         lblReadOnly.Text = $"ReadOnly: {TextEditor.IsReadOnly}";
         lblModified.Text = Modified ? "Modified" : "Saved";
     }

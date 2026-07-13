@@ -13,6 +13,10 @@ public partial class ComponentListForm: AppForm
     /// The toolbar helper.
     /// </summary>
     Tripous.Desktop.ToolBar fToolBar;
+    /// <summary>
+    /// True while list controls are being reloaded.
+    /// </summary>
+    bool fLoading;
 
     // ● toolbar
     /// <summary>
@@ -30,44 +34,115 @@ public partial class ComponentListForm: AppForm
         fToolBar.AddButton("page_edit.png", "Edit Text", EditComponentText);
         fToolBar.AddButton("html.png", "HTML Preview", PreviewComponentText);
         fToolBar.AddButton("wishlist_add.png", "Quick View", QuickViewComponent);
-        fToolBar.AddSeparator();
-        fToolBar.AddButton("arrow_out.png", "Expand All", ExpandAll);
-        fToolBar.AddButton("arrow_in.png", "Collapse All", CollapseAll);
     }
 
-    // ● private
+    // ● loading
     /// <summary>
-    /// Reloads the component tree.
+    /// Reloads the category list.
     /// </summary>
     void LoadComponents()
     {
-        string SelectedId = SelectedComponent?.Id;
-        tvComponents.Items.Clear();
+        string SelectedCategoryText = SelectedCategory;
+        string SelectedComponentId = SelectedComponent?.Id;
+        LoadComponents(SelectedCategoryText, SelectedComponentId);
+    }
+    /// <summary>
+    /// Reloads the category list.
+    /// </summary>
+    /// <param name="SelectedCategoryText">The category text to select after loading.</param>
+    /// <param name="SelectedComponentId">The component id to select after loading.</param>
+    void LoadComponents(string SelectedCategoryText, string SelectedComponentId)
+    {
 
-        Project Project = AppHost.CurrentProject;
-        if (Project != null)
+        fLoading = true;
+        try
         {
-            string Filter = edtFilter.Text?.Trim() ?? string.Empty;
-            List<Component> Components = Project.GetComponentList()
-                .Where(Item => ComponentMatchesFilter(Item, Filter))
-                .ToList();
+            lboCategories.Items.Clear();
 
-            foreach (string Category in Components.Select(Item => Item.Category).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(Item => Item))
+            Project Project = AppHost.CurrentProject;
+            if (Project != null)
             {
-                TreeViewItem CategoryNode = Ui.CreateContainerNode(Category, Category, IconFile: "folder.png", NegativeMargin: 10);
-                tvComponents.Items.Add(CategoryNode);
-
-                foreach (Component Component in Components.Where(Item => Item.Category.IsSameText(Category)).OrderBy(Item => Item.Title))
-                    CategoryNode.Items.Add(Ui.CreateLeafNode(Component.Title, Component, IconFile: "table.png", NegativeMargin: 10));
-
-                CategoryNode.IsExpanded = true;
+                foreach (string Category in GetFilteredCategories(Project))
+                    lboCategories.Items.Add(CreateCategoryItem(Category));
             }
+
+            SelectCategory(SelectedCategoryText);
+
+            if (lboCategories.SelectedItem == null && lboCategories.Items.Count > 0)
+                lboCategories.SelectedIndex = 0;
+        }
+        finally
+        {
+            fLoading = false;
         }
 
-        SelectComponent(SelectedId);
+        LoadCategoryComponents(SelectedComponentId);
+    }
+    /// <summary>
+    /// Reloads the component list for the selected category.
+    /// </summary>
+    /// <param name="SelectedComponentId">The component id to select after loading.</param>
+    void LoadCategoryComponents(string SelectedComponentId = null)
+    {
+        SelectedComponentId = SelectedComponentId ?? SelectedComponent?.Id;
 
-        if (tvComponents.SelectedItem == null)
-            ShowNoSelectedComponent();
+        fLoading = true;
+        try
+        {
+            lboComponents.Items.Clear();
+
+            Project Project = AppHost.CurrentProject;
+            string Category = SelectedCategory;
+            if (Project != null && Category != null)
+            {
+                foreach (Component Component in GetCategoryComponents(Project, Category))
+                    lboComponents.Items.Add(CreateComponentItem(Component));
+            }
+
+            SelectComponent(SelectedComponentId);
+
+            if (lboComponents.SelectedItem == null && lboComponents.Items.Count > 0)
+                lboComponents.SelectedIndex = 0;
+        }
+        finally
+        {
+            fLoading = false;
+        }
+
+        ShowComponent(SelectedComponent);
+    }
+    /// <summary>
+    /// Returns the filtered project category list.
+    /// </summary>
+    /// <param name="Project">The project.</param>
+    /// <returns>The filtered category list.</returns>
+    List<string> GetFilteredCategories(Project Project)
+    {
+        string Filter = edtFilter.Text?.Trim() ?? string.Empty;
+        List<Component> Components = Project.GetComponentList()
+            .Where(Component => ComponentMatchesFilter(Component, Filter))
+            .ToList();
+
+        return Components
+            .Select(Component => Component.Category ?? string.Empty)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(Category => Category)
+            .ToList();
+    }
+    /// <summary>
+    /// Returns the components assigned to a category.
+    /// </summary>
+    /// <param name="Project">The project.</param>
+    /// <param name="Category">The category.</param>
+    /// <returns>The component list.</returns>
+    List<Component> GetCategoryComponents(Project Project, string Category)
+    {
+        string Filter = edtFilter.Text?.Trim() ?? string.Empty;
+        return Project.GetComponentList()
+            .Where(Component => (Component.Category ?? string.Empty).IsSameText(Category))
+            .Where(Component => ComponentMatchesFilter(Component, Filter))
+            .OrderBy(Component => Component.Title)
+            .ToList();
     }
     /// <summary>
     /// Returns true if a component matches the filter text.
@@ -86,6 +161,50 @@ public partial class ComponentListForm: AppForm
             || Component.Aliases.ContainsText(Filter);
     }
     /// <summary>
+    /// Creates a category list item.
+    /// </summary>
+    /// <param name="Category">The category.</param>
+    /// <returns>The list item.</returns>
+    ListBoxItem CreateCategoryItem(string Category)
+    {
+        return new ListBoxItem
+        {
+            Content = string.IsNullOrWhiteSpace(Category) ? "No Category" : Category,
+            Tag = Category ?? string.Empty
+        };
+    }
+    /// <summary>
+    /// Creates a component list item.
+    /// </summary>
+    /// <param name="Component">The component.</param>
+    /// <returns>The list item.</returns>
+    ListBoxItem CreateComponentItem(Component Component)
+    {
+        return new ListBoxItem
+        {
+            Content = Component.Title,
+            Tag = Component
+        };
+    }
+    /// <summary>
+    /// Selects a category by text.
+    /// </summary>
+    /// <param name="Category">The category text.</param>
+    void SelectCategory(string Category)
+    {
+        if (Category == null)
+            return;
+
+        foreach (object Item in lboCategories.Items)
+        {
+            if (Item is ListBoxItem ListItem && ListItem.Tag is string Text && Text.IsSameText(Category))
+            {
+                lboCategories.SelectedItem = ListItem;
+                return;
+            }
+        }
+    }
+    /// <summary>
     /// Selects a component by id.
     /// </summary>
     /// <param name="Id">The component id.</param>
@@ -94,19 +213,12 @@ public partial class ComponentListForm: AppForm
         if (string.IsNullOrWhiteSpace(Id))
             return;
 
-        foreach (object CategoryObject in tvComponents.Items)
+        foreach (object Item in lboComponents.Items)
         {
-            if (CategoryObject is TreeViewItem CategoryNode)
+            if (Item is ListBoxItem ListItem && ListItem.Tag is Component Component && Component.Id.IsSameText(Id))
             {
-                foreach (object ComponentObject in CategoryNode.Items)
-                {
-                    if (ComponentObject is TreeViewItem ComponentNode && ComponentNode.Tag is Component Component && Component.Id.IsSameText(Id))
-                    {
-                        CategoryNode.IsExpanded = true;
-                        ComponentNode.IsSelected = true;
-                        return;
-                    }
-                }
+                lboComponents.SelectedItem = ListItem;
+                return;
             }
         }
     }
@@ -122,6 +234,7 @@ public partial class ComponentListForm: AppForm
             return;
         }
 
+        lblComponentTitle.Text = Component.Title;
         SetMarkdownPreview(Component.Text);
 
         ReloadList(lboTags, Component.TagList);
@@ -132,6 +245,7 @@ public partial class ComponentListForm: AppForm
     /// </summary>
     void ShowNoSelectedComponent()
     {
+        lblComponentTitle.Text = "Component";
         ClearMarkdownPreview();
         lboTags.Items.Clear();
         lboAliases.Items.Clear();
@@ -208,8 +322,7 @@ public partial class ComponentListForm: AppForm
         try
         {
             Project.AddComponent(Component);
-            LoadComponents();
-            SelectComponent(Component.Id);
+            LoadComponents(Component.Category ?? string.Empty, Component.Id);
             ShowComponent(Component);
             LogBox.AppendLine($"Component created: {Component.Title}");
         }
@@ -243,8 +356,7 @@ public partial class ComponentListForm: AppForm
             Component.Aliases = EditedComponent.Aliases;
             Component.Save();
 
-            LoadComponents();
-            SelectComponent(Component.Id);
+            LoadComponents(Component.Category ?? string.Empty, Component.Id);
             ShowComponent(Component);
             RefreshOpenComponentForm(Component);
             LogBox.AppendLine($"Component updated: {Component.Title}");
@@ -310,20 +422,6 @@ public partial class ComponentListForm: AppForm
         LogBox.AppendLine("Quick View command not implemented yet.");
     }
     /// <summary>
-    /// Expands all component tree nodes.
-    /// </summary>
-    void ExpandAll()
-    {
-        tvComponents.ExpandAll(true);
-    }
-    /// <summary>
-    /// Collapses all component tree nodes.
-    /// </summary>
-    void CollapseAll()
-    {
-        tvComponents.ExpandAll(false);
-    }
-    /// <summary>
     /// Refreshes an open component editor form.
     /// </summary>
     /// <param name="Component">The component.</param>
@@ -345,20 +443,31 @@ public partial class ComponentListForm: AppForm
         LoadComponents();
     }
     /// <summary>
-    /// Handles selected tree item changes.
+    /// Handles category selection changes.
     /// </summary>
     /// <param name="Sender">The event sender.</param>
     /// <param name="Args">The event arguments.</param>
-    void TreeSelectionChanged(object Sender, SelectionChangedEventArgs Args)
+    void CategoriesSelectionChanged(object Sender, SelectionChangedEventArgs Args)
     {
-        ShowComponent(SelectedComponent);
+        if (!fLoading)
+            LoadCategoryComponents();
     }
     /// <summary>
-    /// Handles tree double-tap events.
+    /// Handles component selection changes.
     /// </summary>
     /// <param name="Sender">The event sender.</param>
     /// <param name="Args">The event arguments.</param>
-    void TreeDoubleTapped(object Sender, TappedEventArgs Args)
+    void ComponentsSelectionChanged(object Sender, SelectionChangedEventArgs Args)
+    {
+        if (!fLoading)
+            ShowComponent(SelectedComponent);
+    }
+    /// <summary>
+    /// Handles component double-tap events.
+    /// </summary>
+    /// <param name="Sender">The event sender.</param>
+    /// <param name="Args">The event arguments.</param>
+    void ComponentsDoubleTapped(object Sender, TappedEventArgs Args)
     {
         if (SelectedComponent == null)
             return;
@@ -399,13 +508,26 @@ public partial class ComponentListForm: AppForm
 
     // ● properties
     /// <summary>
+    /// Gets the selected category.
+    /// </summary>
+    string SelectedCategory
+    {
+        get
+        {
+            if (lboCategories.SelectedItem is ListBoxItem Item)
+                return Item.Tag as string;
+
+            return null;
+        }
+    }
+    /// <summary>
     /// Gets the selected component.
     /// </summary>
     Component SelectedComponent
     {
         get
         {
-            if (tvComponents.SelectedItem is TreeViewItem Item)
+            if (lboComponents.SelectedItem is ListBoxItem Item)
                 return Item.Tag as Component;
 
             return null;

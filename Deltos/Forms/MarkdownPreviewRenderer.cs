@@ -13,6 +13,10 @@ static public class MarkdownPreviewRenderer
     /// The markdown parser pipeline.
     /// </summary>
     static readonly MarkdownPipeline fMarkdownPipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+    /// <summary>
+    /// The heading foreground brush.
+    /// </summary>
+    static readonly IBrush fHeadingBrush = new SolidColorBrush(Color.Parse("#8A4B16"));
 
     // ● private
     /// <summary>
@@ -26,12 +30,13 @@ static public class MarkdownPreviewRenderer
         if (Block is HeadingBlock HeadingBlock)
         {
             TextBlock TextBlock = CreatePreviewTextBlock(GetHeadingFontSize(HeadingBlock.Level), FontWeight.Bold, GetIndentedMargin(Indent, 6, 2));
-            AddInlineContent(Panel, TextBlock, HeadingBlock.Inline, FontWeight.Normal, FontStyle.Normal);
+            TextBlock.Foreground = fHeadingBrush;
+            AddInlineContent(Panel, TextBlock, HeadingBlock.Inline, FontWeight.Bold, FontStyle.Normal);
             Panel.Children.Add(TextBlock);
         }
         else if (Block is ParagraphBlock ParagraphBlock)
         {
-            TextBlock TextBlock = CreatePreviewTextBlock(14, FontWeight.Normal, GetIndentedMargin(Indent, 0, 2));
+            TextBlock TextBlock = CreatePreviewTextBlock(GetPreviewFontSize(), FontWeight.Normal, GetIndentedMargin(Indent, 0, 2));
             AddInlineContent(Panel, TextBlock, ParagraphBlock.Inline, FontWeight.Normal, FontStyle.Normal);
             Panel.Children.Add(TextBlock);
         }
@@ -80,7 +85,7 @@ static public class MarkdownPreviewRenderer
                 if (FirstBlock && ChildBlock is ParagraphBlock ParagraphBlock)
                 {
                     string Prefix = ListBlock.IsOrdered ? $"{Index}. " : "• ";
-                    TextBlock TextBlock = CreatePreviewTextBlock(14, FontWeight.Normal, GetIndentedMargin(Indent + 1, 0, 0));
+                    TextBlock TextBlock = CreatePreviewTextBlock(GetPreviewFontSize(), FontWeight.Normal, GetIndentedMargin(Indent + 1, 0, 0));
                     TextBlock.Inlines.Add(new Run(Prefix));
                     AddInlineContent(Panel, TextBlock, ParagraphBlock.Inline, FontWeight.Normal, FontStyle.Normal);
                     Panel.Children.Add(TextBlock);
@@ -126,7 +131,7 @@ static public class MarkdownPreviewRenderer
     /// <param name="Indent">The indent level.</param>
     static void AddPreviewCodeBlock(StackPanel Panel, CodeBlock CodeBlock, int Indent)
     {
-        TextBlock TextBlock = CreatePreviewTextBlock(13, FontWeight.Normal, GetIndentedMargin(Indent, 4, 4));
+        TextBlock TextBlock = CreatePreviewTextBlock(Math.Max(8, GetPreviewFontSize() - 1), FontWeight.Normal, GetIndentedMargin(Indent, 4, 4));
         TextBlock.FontFamily = new FontFamily("Liberation Mono, Cascadia Code, Consolas, Monospace");
         TextBlock.Background = Brushes.WhiteSmoke;
         TextBlock.Padding = new Thickness(6);
@@ -230,6 +235,7 @@ static public class MarkdownPreviewRenderer
     static TextBlock CreatePreviewTextBlock(double FontSize, FontWeight FontWeight, Thickness Margin)
     {
         TextBlock Result = new TextBlock();
+        Result.FontFamily = GetPreviewFontFamily();
         Result.FontSize = FontSize;
         Result.FontWeight = FontWeight;
         Result.Foreground = Brushes.Black;
@@ -276,7 +282,7 @@ static public class MarkdownPreviewRenderer
         string FilePath = ResolveImagePath(ImagePath);
         if (string.IsNullOrWhiteSpace(FilePath) || !System.IO.File.Exists(FilePath))
         {
-            AddPreviewText(Panel, $"[Missing image: {ImagePath}]", 13, FontWeight.Normal, new Thickness(0));
+            AddPreviewText(Panel, $"[Missing image: {ImagePath}]", GetPreviewFontSize(), FontWeight.Normal, new Thickness(0));
             return;
         }
 
@@ -291,11 +297,11 @@ static public class MarkdownPreviewRenderer
             Panel.Children.Add(Image);
 
             if (!string.IsNullOrWhiteSpace(AltText))
-                AddPreviewText(Panel, AltText, 12, FontWeight.Normal, new Thickness(0, 0, 0, 4));
+                AddPreviewText(Panel, AltText, Math.Max(8, GetPreviewFontSize() - 1), FontWeight.Normal, new Thickness(0, 0, 0, 4));
         }
         catch
         {
-            AddPreviewText(Panel, $"[Invalid image: {ImagePath}]", 13, FontWeight.Normal, new Thickness(0));
+            AddPreviewText(Panel, $"[Invalid image: {ImagePath}]", GetPreviewFontSize(), FontWeight.Normal, new Thickness(0));
         }
     }
     /// <summary>
@@ -333,7 +339,24 @@ static public class MarkdownPreviewRenderer
     /// <returns>The font size.</returns>
     static double GetHeadingFontSize(int Level)
     {
-        return Level == 1 ? 22 : Level == 2 ? 18 : Level == 3 ? 16 : 15;
+        double BaseSize = GetPreviewFontSize();
+        return Level == 1 ? BaseSize + 8 : Level == 2 ? BaseSize + 5 : Level == 3 ? BaseSize + 3 : BaseSize + 2;
+    }
+    /// <summary>
+    /// Returns the preview body font size.
+    /// </summary>
+    /// <returns>The preview body font size.</returns>
+    static double GetPreviewFontSize()
+    {
+        return AppHost.Settings?.FontSize ?? 13;
+    }
+    /// <summary>
+    /// Returns the preview font family.
+    /// </summary>
+    /// <returns>The preview font family.</returns>
+    static FontFamily GetPreviewFontFamily()
+    {
+        return new FontFamily(AppHost.Settings?.FontFamily ?? "Liberation Mono, Cascadia Code, Consolas, Monospace");
     }
     /// <summary>
     /// Returns an indented margin.

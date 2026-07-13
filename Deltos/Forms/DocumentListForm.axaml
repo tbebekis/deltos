@@ -48,11 +48,10 @@
                                   VerticalScrollBarVisibility="Auto">
                         <StackPanel Spacing="6">
                             <TextBlock Text="Text Metrics"
-                                       FontWeight="SemiBold" />
-                            <TextBlock Name="txtMetrics"
-                                       FontFamily="Cascadia Code, Consolas, Monospace"
-                                       FontSize="12"
-                                       TextWrapping="Wrap" />
+                                       FontSize="15"
+                                       FontWeight="Bold" />
+                            <StackPanel Name="MetricsPanel"
+                                        Spacing="8" />
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
