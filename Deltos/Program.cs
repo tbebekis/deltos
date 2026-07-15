@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 Theodoros Bebekis
+// Copyright (c) 2026 Theodoros Bebekis
 // Licensed under the MIT License.
 
 namespace Deltos;
