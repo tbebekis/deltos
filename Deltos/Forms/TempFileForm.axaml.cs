@@ -39,14 +39,14 @@ public partial class TempFileForm: AppForm
         try
         {
             Project Project = AppHost.CurrentProject;
-            Editor.Title = "Temp Text";
+            Editor.Title = "Temp";
 
             if (Project == null)
             {
                 Editor.EditorText = string.Empty;
                 Editor.FilePath = string.Empty;
                 Editor.ReadOnly = true;
-                TitleText = "Temp Text";
+                TitleText = "Temp";
                 return;
             }
 
@@ -83,7 +83,7 @@ public partial class TempFileForm: AppForm
     /// </summary>
     void AdjustTitle()
     {
-        TitleText = Editor.Modified ? "Temp Text*" : "Temp Text";
+        TitleText = Editor.Modified ? "Temp*" : "Temp";
     }
     /// <summary>
     /// Handles editor Save requests.
@@ -135,7 +135,7 @@ public partial class TempFileForm: AppForm
     /// </summary>
     protected override void FormInitialize()
     {
-        TitleText = "Temp Text";
+        TitleText = "Temp";
         ClosableByUser = false;
         CreateToolBar();
         Editor.SaveRequested += Editor_SaveRequested;

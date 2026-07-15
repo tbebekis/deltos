@@ -19,6 +19,15 @@ ordinary files and folders.
 
 > Your writing remains yours, stored as ordinary Markdown files and folders.
 
+## Status
+
+Deltos is an early release and is actively developed.
+
+The current version is already usable for real writing projects, but the
+application is still evolving. The project storage format is plain files and
+folders, yet users should keep normal backups, especially before moving,
+renaming, exporting, or generating large project outputs.
+
 ## Features
 
 - Project-based writing workspace.
@@ -26,7 +35,7 @@ ordinary files and folders.
 - File-system-first storage with ordinary folders, markdown files, and JSON
   metadata.
 - Multiple documents inside a single project.
-- Bilingual titles for documents, folders, text files, and components.
+- Two-language writing support with primary and secondary titles and text.
 - Item titles are stored in `Info.json` as human-readable text. Storage folder
   names are generated from sanitized primary titles.
 - Configurable document structures, such as Part, Chapter, Section, Scene.
@@ -34,7 +43,7 @@ ordinary files and folders.
 - Folder and text-file organization with clear ordering.
 - Markdown editing with primary and secondary language text.
 - Synopsis and draft text areas for documents, folders, and text files.
-- Temp text scratchpad.
+- Temp scratchpad.
 - Notes list for project-level notes.
 - Components for worldbuilding, reference material, characters, places,
   organizations, concepts, and technical entities.
@@ -74,6 +83,20 @@ entries, terms, categories, tags, and documentation pages.
 
 The same model works because Deltos does not force a specific literary shape.
 The document structure is chosen by the user.
+
+## Two-Language Writing
+
+Deltos supports writing the same project in two languages.
+
+Documents, folders, text files, and components have a primary title and a
+secondary title. In storage and metadata these are named `Title` and `Title2`.
+The primary title is used by default. The secondary title is used in
+secondary-language editor headers, exports, and wiki output when it exists.
+
+Text files and components also have primary and secondary text. The secondary
+text can be shown beside the primary text in the editor, making it possible to
+write, translate, or maintain parallel versions of the same material inside one
+project.
 
 ## Core Concepts
 
@@ -178,10 +201,10 @@ Components can be exported as a static wiki.
 Notes are project-level text items for supporting material that does not belong
 inside the document tree or the component library.
 
-### Temp Text
+### Temp
 
-Temp Text is a scratchpad for transient writing, fragments, reminders, and
-material that has not yet found its place.
+Temp is a scratchpad for transient writing, fragments, reminders, and material
+that has not yet found its place.
 
 ### Search
 
@@ -332,6 +355,30 @@ whole-word search.
 - `Ctrl + -`: Decrease editor font size.
 - `Ctrl + 0`: Reset editor font size.
 
+## Project Settings
+
+Project settings are saved with each project and cover the parts that depend on
+that project rather than on the application as a whole.
+
+Git settings:
+
+- Remote name.
+- Branch.
+- Remote URL.
+
+Wiki settings:
+
+- Primary wiki output folder.
+- Secondary-language wiki output folder.
+- Home component title.
+- About component title.
+- Tag page generation.
+- Site base URL.
+- Default social image URL.
+
+Application settings cover local preferences such as recent projects, auto-save,
+editor font settings, and secondary-language editor visibility.
+
 ## Export
 
 Deltos exports documents, not the whole project.
@@ -343,9 +390,34 @@ Supported formats:
 - HTML.
 - ODT.
 
-The export process can include document headings, folder headings, text-file
-titles, primary language text, secondary language text, and plain-text handling
-for prose that should not be parsed as markdown.
+The export dialog lets the user choose language, source material, output format,
+title handling, and page-break behavior.
+
+Language options:
+
+- Primary text.
+- Secondary text.
+
+Source options:
+
+- Text.
+- Synopsis.
+
+Title options:
+
+- Folder title parts: bullet, number, word, and title.
+- Text-file title parts: bullet, number, word, and title.
+
+Output behavior:
+
+- Exports are generated into an output folder and do not replace the source
+  markdown files in the project.
+- TXT exports produce plain text.
+- Markdown exports preserve markdown text.
+- HTML exports produce browser-readable output.
+- ODT exports produce a document file suitable for word processors.
+- Plain-text mode can be used for prose that should not be parsed as markdown.
+- Page breaks before Heading 1 are supported for HTML and ODT exports.
 
 Export heading rules:
 
@@ -383,6 +455,13 @@ The wiki includes:
 
 This is useful for worldbuilding, public reference material, documentation, or
 project knowledge bases.
+
+Wiki output is generated into the configured wiki folder. It is derived output,
+not the canonical project source. The canonical data remains the project
+components, images, and settings.
+
+Deltos can build a primary wiki and a secondary-language wiki. The secondary
+wiki uses secondary component text and titles when available.
 
 ## Git Integration
 

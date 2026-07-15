@@ -11,6 +11,6 @@
         </Border>
 
         <forms:TextEditorForm Name="Editor"
-                              Title="Temp Text" />
+                              Title="Temp" />
     </DockPanel>
 </UserControl>

@@ -121,7 +121,7 @@ static public partial class AppHost
         ShowSideBarForm<Forms.GlobalSearchForm>(nameof(Forms.GlobalSearchForm), "Search");
         ShowSideBarForm<Forms.QuickViewForm>(nameof(Forms.QuickViewForm), "Quick View");
         ShowSideBarForm<Forms.NoteListForm>(nameof(Forms.NoteListForm), "Notes");
-        ShowSideBarForm<Forms.TempFileForm>(nameof(Forms.TempFileForm), "Temp Text");
+        ShowSideBarForm<Forms.TempFileForm>(nameof(Forms.TempFileForm), "Temp");
         ShowSideBarForm<Forms.DocumentListForm>(nameof(Forms.DocumentListForm), "Documents");
     }
     /// <summary>
@@ -141,7 +141,7 @@ static public partial class AppHost
         if (LinkItem.Item is Document || LinkItem.Item is Folder || LinkItem.Item is TextFile)
             return ShowContentForm<Forms.TextFileForm>(LinkItem.Item.Id, LinkItem.Item.DisplayTitle, LinkItem.Item);
         if (LinkItem.Place == LinkPlace.TempFile)
-            return ShowSideBarForm<Forms.TempFileForm>(nameof(Forms.TempFileForm), "Temp Text");
+            return ShowSideBarForm<Forms.TempFileForm>(nameof(Forms.TempFileForm), "Temp");
 
         return null;
     }
@@ -171,7 +171,7 @@ static public partial class AppHost
         }
         else if (LinkItem.Place == LinkPlace.TempFile)
         {
-            ShowSideBarForm<Forms.TempFileForm>(nameof(Forms.TempFileForm), "Temp Text");
+            ShowSideBarForm<Forms.TempFileForm>(nameof(Forms.TempFileForm), "Temp");
         }
     }
     /// <summary>
