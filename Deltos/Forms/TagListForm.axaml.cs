@@ -27,6 +27,7 @@ public partial class TagListForm: AppForm
         fToolBar = new();
         fToolBar.Panel = pnlToolBar;
 
+        fToolBar.AddButton("table_edit.png", "Edit", async () => await EditTag());
         fToolBar.AddButton("table_delete.png", "Delete", async () => await DeleteTag());
         fToolBar.AddSeparator();
         fToolBar.AddButton("page_edit.png", "Edit Component Text", EditComponentText);
@@ -40,7 +41,14 @@ public partial class TagListForm: AppForm
     void LoadTags()
     {
         string SelectedTagText = SelectedTag;
-
+        LoadTags(SelectedTagText);
+    }
+    /// <summary>
+    /// Reloads the tag list.
+    /// </summary>
+    /// <param name="SelectedTagText">The tag text to select after loading.</param>
+    void LoadTags(string SelectedTagText)
+    {
         fLoading = true;
         try
         {
@@ -259,6 +267,75 @@ public partial class TagListForm: AppForm
         }
     }
     /// <summary>
+    /// Edits the selected tag in all components.
+    /// </summary>
+    async Task EditTag()
+    {
+        Project Project = AppHost.CurrentProject;
+        string Tag = SelectedTag;
+        if (Project == null || string.IsNullOrWhiteSpace(Tag))
+            return;
+
+        InputBoxData BoxData = await InputBox.ShowModal("Tag", Tag, this);
+        if (BoxData == null || !BoxData.Result)
+            return;
+
+        string NewTag = BoxData.Value?.Trim();
+        if (string.IsNullOrWhiteSpace(NewTag) || string.Equals(NewTag, Tag, StringComparison.Ordinal))
+            return;
+
+        if (!AppHost.IsValidFileName(NewTag, false))
+        {
+            await Tripous.Desktop.MessageBox.Error($"Invalid tag: {NewTag}", this);
+            return;
+        }
+
+        if (Project.GetTagList().Any(Item => Item.IsSameText(NewTag) && !Item.IsSameText(Tag)))
+        {
+            await Tripous.Desktop.MessageBox.Error($"Tag already exists: {NewTag}", this);
+            return;
+        }
+
+        try
+        {
+            int Count = 0;
+            foreach (Component Component in Project.GetComponentList().Where(Component => Component.ContainsTag(Tag)))
+            {
+                Component.TagList = RenameTag(Component.TagList, Tag, NewTag);
+                Component.Save();
+                Count++;
+            }
+
+            LoadTags(NewTag);
+            RefreshComponentListForm();
+            LogBox.AppendLine($"Tag renamed: {Tag} -> {NewTag} ({Count} components updated)");
+        }
+        catch (Exception e)
+        {
+            await Tripous.Desktop.MessageBox.Error(e, this);
+        }
+    }
+    /// <summary>
+    /// Renames a tag in a tag list.
+    /// </summary>
+    /// <param name="List">The tag list.</param>
+    /// <param name="OldTag">The old tag.</param>
+    /// <param name="NewTag">The new tag.</param>
+    /// <returns>The updated tag list.</returns>
+    List<string> RenameTag(List<string> List, string OldTag, string NewTag)
+    {
+        List<string> Result = new();
+
+        foreach (string Item in List ?? new List<string>())
+        {
+            string Value = Item.IsSameText(OldTag) ? NewTag : Item;
+            if (!Result.Any(Existing => Existing.IsSameText(Value)))
+                Result.Add(Value);
+        }
+
+        return Result;
+    }
+    /// <summary>
     /// Opens the selected component text for editing.
     /// </summary>
     void EditComponentText()
@@ -352,6 +429,15 @@ public partial class TagListForm: AppForm
     public TagListForm()
     {
         InitializeComponent();
+    }
+
+    // ● public
+    /// <summary>
+    /// Refreshes the tag list.
+    /// </summary>
+    public void RefreshTags()
+    {
+        LoadTags();
     }
 
     // ● properties

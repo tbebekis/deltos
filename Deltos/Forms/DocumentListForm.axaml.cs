@@ -209,6 +209,22 @@ public partial class DocumentListForm: AppForm
 
     // ● create commands
     /// <summary>
+    /// Shows the item title dialog.
+    /// </summary>
+    /// <param name="Caption">The dialog caption.</param>
+    /// <param name="Title">The primary title.</param>
+    /// <param name="Title2">The secondary title.</param>
+    /// <returns>The entered title data, if accepted; otherwise null.</returns>
+    async Task<ItemTitleDialogData> ShowTitleDialog(string Caption, string Title, string Title2)
+    {
+        ItemTitleDialogData Data = new ItemTitleDialogData { Caption = Caption, Title = Title, Title2 = Title2 };
+        DialogInfo Info = await DialogWindow.ShowModal<ItemTitleDialog>(Data, this);
+        if (!Info.Result)
+            return null;
+
+        return Info.ResultData as ItemTitleDialogData;
+    }
+    /// <summary>
     /// Creates a new document.
     /// </summary>
     async Task NewDocument()
@@ -219,17 +235,11 @@ public partial class DocumentListForm: AppForm
             return;
         }
 
-        InputBoxData BoxData = await InputBox.ShowModal("Document title", string.Empty, this);
-        if (!BoxData.Result)
+        ItemTitleDialogData TitleData = await ShowTitleDialog("Document title", string.Empty, string.Empty);
+        if (TitleData == null)
             return;
 
-        string Title = BoxData.Value?.Trim();
-        if (!AppHost.IsValidFileName(Title, false))
-        {
-            await Tripous.Desktop.MessageBox.Error($"Invalid document title: {Title}", this);
-            return;
-        }
-
+        string Title = TitleData.Title;
         DialogInfo Info = await DialogWindow.ShowModal<DocumentStructureDialog>(null, this);
         if (!Info.Result)
             return;
@@ -242,6 +252,8 @@ public partial class DocumentListForm: AppForm
             Document Document = Structure == null
                 ? AppHost.CurrentProject.AddDocument(Title)
                 : AppHost.CurrentProject.AddDocument(Title, Structure);
+            Document.Title2 = TitleData.Title2;
+            Document.SaveMetadata();
 
             CreateProjectTree();
             SelectTreeItem(Document);
@@ -268,22 +280,18 @@ public partial class DocumentListForm: AppForm
         if (ParentItem == null)
             return;
 
-        InputBoxData BoxData = await InputBox.ShowModal($"{LevelTitle} title", string.Empty, this);
-        if (!BoxData.Result)
+        ItemTitleDialogData TitleData = await ShowTitleDialog($"{LevelTitle} title", string.Empty, string.Empty);
+        if (TitleData == null)
             return;
 
-        string Title = BoxData.Value?.Trim();
-        if (!AppHost.IsValidFileName(Title, false))
-        {
-            await Tripous.Desktop.MessageBox.Error($"Invalid {LevelTitle} title: {Title}", this);
-            return;
-        }
-
+        string Title = TitleData.Title;
         try
         {
             AppHost.ShowPleaseWait($"Creating {LevelTitle}...", this.GetOwnerWindow());
 
             Folder Folder = ParentItem.AddFolder(Title, LevelTitle);
+            Folder.Title2 = TitleData.Title2;
+            Folder.SaveMetadata();
             CreateProjectTree();
             SelectTreeItem(Folder);
             ShowSelectedItem(Folder);
@@ -308,22 +316,18 @@ public partial class DocumentListForm: AppForm
         if (ParentItem == null)
             return;
 
-        InputBoxData BoxData = await InputBox.ShowModal("Text title", string.Empty, this);
-        if (!BoxData.Result)
+        ItemTitleDialogData TitleData = await ShowTitleDialog("Text title", string.Empty, string.Empty);
+        if (TitleData == null)
             return;
 
-        string Title = BoxData.Value?.Trim();
-        if (!AppHost.IsValidFileName(Title, false))
-        {
-            await Tripous.Desktop.MessageBox.Error($"Invalid text title: {Title}", this);
-            return;
-        }
-
+        string Title = TitleData.Title;
         try
         {
             AppHost.ShowPleaseWait("Creating text...", this.GetOwnerWindow());
 
             TextFile File = ParentItem.AddTextFile(Title);
+            File.Title2 = TitleData.Title2;
+            File.SaveMetadata();
             CreateProjectTree();
             SelectTreeItem(File);
             ShowSelectedItem(File);
@@ -695,25 +699,24 @@ public partial class DocumentListForm: AppForm
             return;
         }
 
-        InputBoxData BoxData = await InputBox.ShowModal("Title", Item.Title, this);
-        if (!BoxData.Result)
+        ItemTitleDialogData TitleData = await ShowTitleDialog("Title", Item.Title, Item.Title2);
+        if (TitleData == null)
             return;
 
-        string Title = BoxData.Value?.Trim();
-        if (string.Equals(Title, Item.Title, StringComparison.Ordinal))
+        string Title = TitleData.Title;
+        string Title2 = TitleData.Title2;
+        if (string.Equals(Title, Item.Title, StringComparison.Ordinal) && string.Equals(Title2, Item.Title2, StringComparison.Ordinal))
             return;
-
-        if (!AppHost.IsValidFileName(Title, false))
-        {
-            await Tripous.Desktop.MessageBox.Error($"Invalid title: {Title}", this);
-            return;
-        }
 
         try
         {
             AppHost.ShowPleaseWait("Renaming item...", this.GetOwnerWindow());
 
-            Item.Rename(Title);
+            if (!string.Equals(Title, Item.Title, StringComparison.Ordinal))
+                Item.Rename(Title);
+
+            Item.Title2 = Title2;
+            Item.SaveMetadata();
             AppHost.NotifyItemTitleChanged(Item);
             CreateProjectTree();
             SelectTreeItem(Item);

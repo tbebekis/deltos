@@ -202,9 +202,17 @@ public class Component: BaseItem
     /// </summary>
     static public string Text2FileName => "Text2.md";
     /// <summary>
+    /// Gets the default component category.
+    /// </summary>
+    static public string DefaultCategory => "No Category";
+    /// <summary>
     /// Gets the component display title.
     /// </summary>
     public override string DisplayTitle => Title;
+    /// <summary>
+    /// Gets the secondary component display title.
+    /// </summary>
+    public override string DisplayTitle2 => Title2OrTitle;
     /// <summary>
     /// Gets the file-system storage name of the component folder.
     /// </summary>
@@ -261,7 +269,7 @@ public class Component: BaseItem
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                fCategory = string.Empty;
+                fCategory = DefaultCategory;
                 return;
             }
 

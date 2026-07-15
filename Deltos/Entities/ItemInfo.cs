@@ -18,6 +18,10 @@ public class ItemInfo
     /// </summary>
     protected string fTitle = string.Empty;
     /// <summary>
+    /// Field for the Title2 property.
+    /// </summary>
+    protected string fTitle2 = string.Empty;
+    /// <summary>
     /// Field for the Category property.
     /// </summary>
     protected string fCategory = string.Empty;
@@ -58,6 +62,14 @@ public class ItemInfo
     {
         get => fTitle;
         set => fTitle = value ?? string.Empty;
+    }
+    /// <summary>
+    /// Gets or sets the secondary title of the owning project item.
+    /// </summary>
+    public string Title2
+    {
+        get => fTitle2;
+        set => fTitle2 = value ?? string.Empty;
     }
     /// <summary>
     /// Gets or sets the type of the owning item.

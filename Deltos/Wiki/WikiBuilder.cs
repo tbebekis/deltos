@@ -191,7 +191,7 @@ static public class WikiBuilder
 
             WikiComponentInfo Item = new WikiComponentInfo();
             Item.Component = Component;
-            Item.Title = Component.Title;
+            Item.Title = Info.UseSecondaryText ? Component.Title2OrTitle : Component.Title;
             Item.Category = Component.Category;
             Item.Text = Text ?? string.Empty;
             Item.AliasList.AddRange(Component.AliasList);

@@ -64,7 +64,11 @@ public enum ExportFormat
     /// <summary>
     /// OpenDocument text format.
     /// </summary>
-    Odt = 4
+    Odt = 4,
+    /// <summary>
+    /// Markdown format.
+    /// </summary>
+    Markdown = 8
 }
 
 /// <summary>
@@ -112,6 +116,7 @@ public class ExportOptions
         FolderTitle = ExportTitleOptions.None;
         TextFileTitle = ExportTitleOptions.None;
         TreatTextFilesAsPlainText = true;
+        PageBreakBeforeHeading1 = false;
     }
 
     // ● properties
@@ -139,4 +144,8 @@ public class ExportOptions
     /// Gets or sets a value indicating whether text files are exported as plain text instead of markdown.
     /// </summary>
     public bool TreatTextFilesAsPlainText { get; set; } = true;
+    /// <summary>
+    /// Gets or sets a value indicating whether Heading 1 starts on a new page in HTML and ODT exports.
+    /// </summary>
+    public bool PageBreakBeforeHeading1 { get; set; }
 }

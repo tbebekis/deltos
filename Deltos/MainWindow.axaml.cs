@@ -25,6 +25,7 @@ public partial class MainWindow : Window
         fSideBarHandler = new AppFormPagerHandler(pagerSideBar);
         fContentHandler = new AppFormPagerHandler(pagerContent);
         fContentHandler.CanUserReorderTabs = true;
+        fContentHandler.IsTabHeaderContextMenuVisible = true;
         AppHost.InitializeUi(fSideBarHandler, fContentHandler);
 
         fSideBarWidth = MainPanel.ColumnDefinitions[0].Width;
@@ -124,9 +125,9 @@ public partial class MainWindow : Window
             return;
 
         string Title = Data.Value.Trim();
-        if (!AppHost.IsValidFileName(Title, false))
+        if (string.IsNullOrWhiteSpace(Title))
         {
-            await Tripous.Desktop.MessageBox.Error($"Invalid project title: {Title}", this);
+            await Tripous.Desktop.MessageBox.Error("Project title cannot be empty.", this);
             return;
         }
 
@@ -163,6 +164,14 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(ProjectPath))
             return;
 
+        await OpenProject(ProjectPath);
+    }
+    /// <summary>
+    /// Opens a project using the specified project path.
+    /// </summary>
+    /// <param name="ProjectPath">The project path.</param>
+    async Task OpenProject(string ProjectPath)
+    {
         try
         {
             AppHost.ShowPleaseWait("Opening project...", this);
@@ -182,6 +191,60 @@ public partial class MainWindow : Window
         {
             AppHost.HidePleaseWait();
         }
+    }
+    /// <summary>
+    /// Shows recent projects and opens the selected project.
+    /// </summary>
+    async Task ShowRecentProjects()
+    {
+        if (AppHost.Settings == null)
+            return;
+
+        RecentProjectsDialogData Data = new RecentProjectsDialogData();
+        Data.RecentProjects.AddRange(AppHost.Settings.RecentProjects);
+
+        DialogInfo Info = await DialogWindow.ShowModal<RecentProjectsDialog>(Data, this);
+        if (!Info.Result)
+            return;
+
+        RecentProjectsDialogData Result = Info.ResultData as RecentProjectsDialogData;
+        if (Result == null)
+            return;
+
+        AppHost.Settings.RecentProjects = Result.RecentProjects ?? new List<string>();
+        AppHost.Settings.Save();
+
+        if (string.IsNullOrWhiteSpace(Result.SelectedProjectPath))
+            return;
+
+        if (IsSameProjectPath(Result.SelectedProjectPath, AppHost.CurrentProject?.ProjectPath))
+            return;
+
+        await OpenProject(Result.SelectedProjectPath);
+    }
+    /// <summary>
+    /// Returns true if two project paths point to the same folder.
+    /// </summary>
+    /// <param name="A">The first project path.</param>
+    /// <param name="B">The second project path.</param>
+    /// <returns>True if the paths are the same; otherwise false.</returns>
+    bool IsSameProjectPath(string A, string B)
+    {
+        if (string.IsNullOrWhiteSpace(A) || string.IsNullOrWhiteSpace(B))
+            return false;
+
+        try
+        {
+            A = System.IO.Path.GetFullPath(A.Trim());
+            B = System.IO.Path.GetFullPath(B.Trim());
+        }
+        catch
+        {
+            A = A.Trim();
+            B = B.Trim();
+        }
+
+        return A.IsSameText(B);
     }
     /// <summary>
     /// Shows the current project folder in the file explorer.
@@ -586,6 +649,7 @@ public partial class MainWindow : Window
 
         AddToolBarButton("application_add.png", "New Project", "NewProject");
         AddToolBarButton("application_go.png", "Open Project", "OpenProject");
+        AddToolBarButton("folder_vertical_open.png", "Recent Projects", "RecentProjects");
         AddToolBarButton("folder_go.png", "Show Project Folder", "ShowProjectFolder");
         AddToolBarButton("folder_vertical_document.png", "Add Image", "AddImage");
 
@@ -598,7 +662,7 @@ public partial class MainWindow : Window
 
         AddToolBarButton("layout_sidebar.png", "Show/Hide SideBar", "ToggleSideBar");
         AddToolBarButton("error_log.png", "Show/Hide Log", "ToggleLog");
-        AddToolBarButton("textfield_clear.png", "Clear Log", "ClearLog");
+        AddToolBarButton("draw_eraser.png", "Clear Log", "ClearLog");
 
         AddToolBarSeparator();
 
@@ -668,6 +732,9 @@ public partial class MainWindow : Window
                 break;
             case "OpenProject":
                 await OpenProject();
+                break;
+            case "RecentProjects":
+                await ShowRecentProjects();
                 break;
             case "ShowProjectFolder":
                 await ShowProjectFolder();

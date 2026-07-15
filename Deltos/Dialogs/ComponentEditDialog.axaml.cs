@@ -299,6 +299,7 @@ public partial class ComponentEditDialog: DialogWindow
         Project Project = AppHost.CurrentProject;
 
         edtTitle.Text = Component.Title;
+        edtTitle2.Text = Component.Title2;
         edtAliases.Text = Component.Aliases;
 
         fCategories = Project?.GetCategoryList() ?? new List<string>();
@@ -324,9 +325,9 @@ public partial class ComponentEditDialog: DialogWindow
         Project Project = AppHost.CurrentProject;
         string Title = edtTitle.Text?.Trim();
 
-        if (!AppHost.IsValidFileName(Title, false))
+        if (string.IsNullOrWhiteSpace(Title))
         {
-            await Tripous.Desktop.MessageBox.Error($"Invalid component title: {Title}", this);
+            await Tripous.Desktop.MessageBox.Error("Component title cannot be empty.", this);
             return;
         }
 
@@ -336,15 +337,27 @@ public partial class ComponentEditDialog: DialogWindow
             return;
         }
 
+        string EncodedTitle;
+        try
+        {
+            EncodedTitle = BaseItem.EncodeTitle(Title);
+        }
+        catch (Exception e)
+        {
+            await Tripous.Desktop.MessageBox.Error(e.Message, this);
+            return;
+        }
+
         int Count = Project?.CountComponentTitle(Title) ?? 0;
-        int MaxCount = !fData.IsInsert && Title.IsSameText(fData.OriginalTitle) ? 1 : 0;
+        int MaxCount = !fData.IsInsert && EncodedTitle.IsSameText(BaseItem.EncodeTitle(fData.OriginalTitle)) ? 1 : 0;
         if (Count > MaxCount)
         {
-            await Tripous.Desktop.MessageBox.Error($"Component already exists: {Title}", this);
+            await Tripous.Desktop.MessageBox.Error($"Component storage title already exists: {Title}", this);
             return;
         }
 
         Component.Title = Title;
+        Component.Title2 = edtTitle2.Text?.Trim() ?? string.Empty;
         Component.Category = lboCategories.SelectedItem as string;
         Component.Aliases = edtAliases.Text?.Trim();
         Component.TagList = fSelectedTags.OrderBy(Item => Item).ToList();

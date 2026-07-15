@@ -95,9 +95,12 @@ static public partial class AppHost
     {
         CurrentProject = Project;
 
-        if (SaveSettings && Settings != null && Project != null)
+        if (Settings != null && Project != null)
         {
-            Settings.LastProjectFolderPath = Project.ProjectPath;
+            if (SaveSettings)
+                Settings.LastProjectFolderPath = Project.ProjectPath;
+
+            Settings.AddRecentProject(Project.ProjectPath);
             Settings.Save();
         }
 

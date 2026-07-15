@@ -214,8 +214,8 @@ public class Project: BaseItem
             for (int OtherIndex = Index + 1; OtherIndex < Items.Count; OtherIndex++)
             {
                 Component OtherItem = Items[OtherIndex];
-                if (Item.Title.IsSameText(OtherItem.Title))
-                    throw new InvalidOperationException($"Duplicate component title {Item.Title} in folder: {ComponentsFolderPath}");
+                if (EncodeTitle(Item.Title).IsSameText(EncodeTitle(OtherItem.Title)))
+                    throw new InvalidOperationException($"Duplicate component storage title {Item.Title} in folder: {ComponentsFolderPath}");
 
                 if (Item.Id.IsSameText(OtherItem.Id))
                     throw new InvalidOperationException($"Duplicate component id {Item.Id} in folder: {ComponentsFolderPath}");
@@ -575,7 +575,8 @@ public class Project: BaseItem
     /// <returns>The component count.</returns>
     public int CountComponentTitle(string Title)
     {
-        return Components.Count(Item => Item.Title.IsSameText(Title));
+        string EncodedTitle = EncodeTitle(Title);
+        return Components.Count(Item => EncodeTitle(Item.Title).IsSameText(EncodedTitle));
     }
     /// <summary>
     /// Returns the sorted project category list.
@@ -583,12 +584,17 @@ public class Project: BaseItem
     /// <returns>The sorted category list.</returns>
     public List<string> GetCategoryList()
     {
-        return Components
+        List<string> Result = Components
             .Select(Item => Item.Category)
             .Where(Item => !string.IsNullOrWhiteSpace(Item))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(Item => Item)
             .ToList();
+
+        if (!Result.Any(Item => Item.IsSameText(Component.DefaultCategory)))
+            Result.Insert(0, Component.DefaultCategory);
+
+        return Result;
     }
     /// <summary>
     /// Returns the sorted project tag list.

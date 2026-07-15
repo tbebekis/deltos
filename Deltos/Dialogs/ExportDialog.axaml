@@ -47,6 +47,8 @@
                                   Content="HTML" />
                         <CheckBox Name="chOdt"
                                   Content="ODT" />
+                        <CheckBox Name="chMarkdown"
+                                  Content="Markdown" />
                     </StackPanel>
                 </GroupBox>
             </Grid>
@@ -90,6 +92,8 @@
                             Spacing="6">
                     <CheckBox Name="chTreatTextFilesAsPlainText"
                               Content="Treat TextFiles as Plain Text (not Markdown)" />
+                    <CheckBox Name="chPageBreakBeforeHeading1"
+                              Content="Page Break Before Heading 1" />
                 </StackPanel>
             </GroupBox>
         </Grid>

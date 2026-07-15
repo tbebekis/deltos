@@ -358,6 +358,21 @@ public partial class GlobalSearchForm: AppForm
         InitializeComponent();
     }
 
+    // ● public
+    /// <summary>
+    /// Executes a search for a term.
+    /// </summary>
+    /// <param name="Term">The search term.</param>
+    /// <param name="WholeWord">True for whole-word search.</param>
+    public async Task SearchForTerm(string Term, bool WholeWord)
+    {
+        if (string.IsNullOrWhiteSpace(Term))
+            return;
+
+        edtTerm.Text = WholeWord ? $"\"{Term.Trim()}\"" : Term.Trim();
+        await Search();
+    }
+
     // ● properties
     /// <summary>
     /// Gets the selected link item.

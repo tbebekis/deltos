@@ -83,11 +83,11 @@ public partial class TextFileForm: AppForm
         tabText.IsVisible = true;
         tabDraft.IsVisible = true;
 
-        EditorText.Title = fBaseTitle;
+        EditorText.Title = TextFile.DisplayTitle;
         EditorText.EditorText = TextFile.Text;
         EditorText.FilePath = TextFile.TextFilePath;
 
-        EditorText2.Title = fBaseTitle;
+        EditorText2.Title = TextFile.DisplayTitle2;
         EditorText2.EditorText = TextFile.Text2;
         EditorText2.FilePath = TextFile.Text2FilePath;
 
@@ -205,7 +205,7 @@ public partial class TextFileForm: AppForm
             EditorText.Title = fBaseTitle;
             EditorText.FilePath = TextFile.TextFilePath;
 
-            EditorText2.Title = fBaseTitle;
+            EditorText2.Title = TextFile.DisplayTitle2;
             EditorText2.FilePath = TextFile.Text2FilePath;
 
             EditorSynopsis.Title = fBaseTitle;

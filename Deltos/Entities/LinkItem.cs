@@ -82,7 +82,13 @@ public class LinkItem
     /// </summary>
     public string Title
     {
-        get => Item != null ? Item.DisplayTitle : fTitle;
+        get
+        {
+            if (Item == null)
+                return fTitle;
+
+            return Place == LinkPlace.Text2 ? Item.DisplayTitle2 : Item.DisplayTitle;
+        }
         set => fTitle = value ?? string.Empty;
     }
     /// <summary>

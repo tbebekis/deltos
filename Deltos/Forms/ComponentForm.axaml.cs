@@ -64,7 +64,7 @@ public partial class ComponentForm: AppForm
             EditorText.EditorText = Component.Text;
             EditorText.FilePath = Component.TextFilePath;
 
-            EditorText2.Title = Component.Title;
+            EditorText2.Title = Component.DisplayTitle2;
             EditorText2.EditorText = Component.Text2;
             EditorText2.FilePath = Component.Text2FilePath;
 
@@ -210,7 +210,7 @@ public partial class ComponentForm: AppForm
         fBaseTitle = Component.Title;
         EditorText.Title = Component.Title;
         EditorText.FilePath = Component.TextFilePath;
-        EditorText2.Title = Component.Title;
+        EditorText2.Title = Component.DisplayTitle2;
         EditorText2.FilePath = Component.Text2FilePath;
         AdjustTitle();
     }

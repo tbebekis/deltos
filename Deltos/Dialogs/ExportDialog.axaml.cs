@@ -51,6 +51,7 @@ public partial class ExportDialog: DialogWindow
         chTxt.IsChecked = fOptions.Format.HasFlag(ExportFormat.Txt);
         chHtml.IsChecked = fOptions.Format.HasFlag(ExportFormat.Html);
         chOdt.IsChecked = fOptions.Format.HasFlag(ExportFormat.Odt);
+        chMarkdown.IsChecked = fOptions.Format.HasFlag(ExportFormat.Markdown);
 
         chFolderBullet.IsChecked = fOptions.FolderTitle.HasFlag(ExportTitleOptions.Bullet);
         chFolderNumber.IsChecked = fOptions.FolderTitle.HasFlag(ExportTitleOptions.Number);
@@ -63,6 +64,7 @@ public partial class ExportDialog: DialogWindow
         chTextFileTitle.IsChecked = fOptions.TextFileTitle.HasFlag(ExportTitleOptions.Title);
 
         chTreatTextFilesAsPlainText.IsChecked = fOptions.TreatTextFilesAsPlainText;
+        chPageBreakBeforeHeading1.IsChecked = fOptions.PageBreakBeforeHeading1;
     }
     /// <summary>
     /// Saves controls into options.
@@ -88,6 +90,8 @@ public partial class ExportDialog: DialogWindow
             fOptions.Format |= ExportFormat.Html;
         if (chOdt.IsChecked == true)
             fOptions.Format |= ExportFormat.Odt;
+        if (chMarkdown.IsChecked == true)
+            fOptions.Format |= ExportFormat.Markdown;
 
         if (chFolderBullet.IsChecked == true)
             fOptions.FolderTitle |= ExportTitleOptions.Bullet;
@@ -108,6 +112,7 @@ public partial class ExportDialog: DialogWindow
             fOptions.TextFileTitle |= ExportTitleOptions.Title;
 
         fOptions.TreatTextFilesAsPlainText = chTreatTextFilesAsPlainText.IsChecked == true;
+        fOptions.PageBreakBeforeHeading1 = chPageBreakBeforeHeading1.IsChecked == true;
 
         if (fOptions.Language == ExportLanguage.None)
         {

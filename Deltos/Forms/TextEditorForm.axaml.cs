@@ -105,6 +105,7 @@ public partial class TextEditorForm: UserControl
         edtText.TextChanged += Editor_TextChanged;
         edtText.TextArea.Caret.PositionChanged += Caret_PositionChanged;
         edtText.KeyDown += Editor_KeyDown;
+        edtText.TextArea.AddHandler(InputElement.PointerReleasedEvent, Editor_PointerReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
 
         edtText.IsModified = false;
         SetHighlightMode(HighlightMode.Markdown);
@@ -186,6 +187,21 @@ public partial class TextEditorForm: UserControl
             Args.Handled = true;
             SearchForTerm();
         }
+        else if (Args.Key == Key.G)
+        {
+            Args.Handled = true;
+            _ = SearchForTerm(true);
+        }
+        else if (Args.Key == Key.B)
+        {
+            Args.Handled = true;
+            ToggleMarkdownMarker("**");
+        }
+        else if (Args.Key == Key.I)
+        {
+            Args.Handled = true;
+            ToggleMarkdownMarker("*");
+        }
         else if (Args.Key == Key.Add || Args.Key == Key.OemPlus)
         {
             Args.Handled = true;
@@ -201,6 +217,23 @@ public partial class TextEditorForm: UserControl
             Args.Handled = true;
             ResetFontSize();
         }
+    }
+    /// <summary>
+    /// Handles editor pointer release.
+    /// </summary>
+    /// <param name="Sender">The event sender.</param>
+    /// <param name="Args">The pointer event arguments.</param>
+    void Editor_PointerReleased(object Sender, PointerReleasedEventArgs Args)
+    {
+        if (!Args.KeyModifiers.HasFlag(KeyModifiers.Control))
+            return;
+
+        PointerPoint Point = Args.GetCurrentPoint(edtText);
+        if (Point.Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonReleased)
+            return;
+
+        Args.Handled = true;
+        _ = SearchForTerm(true);
     }
     /// <summary>
     /// Returns the word at the current caret offset.
@@ -228,6 +261,90 @@ public partial class TextEditorForm: UserControl
             End++;
 
         return Text.Substring(Start, End - Start + 1);
+    }
+    /// <summary>
+    /// Gets the word span at the current caret offset.
+    /// </summary>
+    /// <param name="Start">The word start offset.</param>
+    /// <param name="Length">The word length.</param>
+    /// <returns>True if a word span is found; otherwise false.</returns>
+    bool TryGetWordSpanAtCaret(out int Start, out int Length)
+    {
+        Start = 0;
+        Length = 0;
+
+        string Text = EditorText;
+        if (string.IsNullOrWhiteSpace(Text))
+            return false;
+
+        int Offset = Math.Clamp(edtText.CaretOffset, 0, Text.Length);
+        if (Offset == Text.Length && Offset > 0)
+            Offset--;
+
+        if (Offset < 0 || Offset >= Text.Length)
+            return false;
+
+        if (!IsWordChar(Text[Offset]) && Offset > 0 && IsWordChar(Text[Offset - 1]))
+            Offset--;
+
+        if (!IsWordChar(Text[Offset]))
+            return false;
+
+        int WordStart = Offset;
+        while (WordStart > 0 && IsWordChar(Text[WordStart - 1]))
+            WordStart--;
+
+        int WordEnd = Offset;
+        while (WordEnd < Text.Length - 1 && IsWordChar(Text[WordEnd + 1]))
+            WordEnd++;
+
+        Start = WordStart;
+        Length = WordEnd - WordStart + 1;
+        return Length > 0;
+    }
+    /// <summary>
+    /// Toggles a markdown marker around the selection or current word.
+    /// </summary>
+    /// <param name="Marker">The markdown marker.</param>
+    void ToggleMarkdownMarker(string Marker)
+    {
+        if (TextEditor.IsReadOnly || string.IsNullOrEmpty(Marker))
+            return;
+
+        int Start = TextEditor.SelectionStart;
+        int Length = TextEditor.SelectionLength;
+        if (Length <= 0 && !TryGetWordSpanAtCaret(out Start, out Length))
+            return;
+
+        ToggleMarkdownMarker(Start, Length, Marker);
+    }
+    /// <summary>
+    /// Toggles a markdown marker around a text span.
+    /// </summary>
+    /// <param name="Start">The text span start offset.</param>
+    /// <param name="Length">The text span length.</param>
+    /// <param name="Marker">The markdown marker.</param>
+    void ToggleMarkdownMarker(int Start, int Length, string Marker)
+    {
+        string Text = EditorText;
+        int MarkerLength = Marker.Length;
+        bool HasBefore = Start >= MarkerLength && Text.Substring(Start - MarkerLength, MarkerLength) == Marker;
+        bool HasAfter = Start + Length + MarkerLength <= Text.Length && Text.Substring(Start + Length, MarkerLength) == Marker;
+
+        if (HasBefore && HasAfter)
+        {
+            TextEditor.Document.Remove(Start + Length, MarkerLength);
+            TextEditor.Document.Remove(Start - MarkerLength, MarkerLength);
+            TextEditor.Select(Start - MarkerLength, Length);
+            TextEditor.CaretOffset = Start - MarkerLength + Length;
+        }
+        else
+        {
+            TextEditor.Document.Insert(Start + Length, Marker);
+            TextEditor.Document.Insert(Start, Marker);
+            TextEditor.Select(Start + MarkerLength, Length);
+            TextEditor.CaretOffset = Start + MarkerLength + Length;
+        }
     }
     /// <summary>
     /// Returns true if a character is part of a searchable word.
@@ -385,11 +502,25 @@ public partial class TextEditorForm: UserControl
     /// <summary>
     /// Requests a global search for the word at the caret.
     /// </summary>
-    public void SearchForTerm()
+    public async void SearchForTerm()
+    {
+        await SearchForTerm(false);
+    }
+    /// <summary>
+    /// Requests a global search for the word at the caret.
+    /// </summary>
+    /// <param name="WholeWord">True for whole-word search.</param>
+    public async Task SearchForTerm(bool WholeWord)
     {
         string Term = GetWordAtCaret();
-        if (Term.Length > 2)
-            SearchForTermRequested?.Invoke(this, new TextEditorTermEventArgs(Term));
+        if (Term.Length <= 2)
+            return;
+
+        SearchForTermRequested?.Invoke(this, new TextEditorTermEventArgs(Term, WholeWord));
+
+        GlobalSearchForm Form = AppHost.ShowSideBarForm<GlobalSearchForm>(nameof(GlobalSearchForm), "Search");
+        if (Form != null)
+            await Form.SearchForTerm(Term, WholeWord);
     }
     /// <summary>
     /// Requests showing the edited file in the file manager.
@@ -687,8 +818,18 @@ public class TextEditorTermEventArgs: EventArgs
     /// </summary>
     /// <param name="Term">The search term.</param>
     public TextEditorTermEventArgs(string Term)
+        : this(Term, false)
+    {
+    }
+    /// <summary>
+    /// Initializes a new instance of the TextEditorTermEventArgs class.
+    /// </summary>
+    /// <param name="Term">The search term.</param>
+    /// <param name="WholeWord">True for whole-word search.</param>
+    public TextEditorTermEventArgs(string Term, bool WholeWord)
     {
         this.Term = Term ?? string.Empty;
+        this.WholeWord = WholeWord;
     }
 
     // ● properties
@@ -696,4 +837,8 @@ public class TextEditorTermEventArgs: EventArgs
     /// Gets the search term.
     /// </summary>
     public string Term { get; }
+    /// <summary>
+    /// Gets a value indicating whether the search is whole-word.
+    /// </summary>
+    public bool WholeWord { get; }
 }

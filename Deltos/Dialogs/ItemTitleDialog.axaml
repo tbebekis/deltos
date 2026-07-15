@@ -1,0 +1,47 @@
+<desktop:DialogWindow xmlns="https://github.com/avaloniaui"
+                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                      xmlns:desktop="clr-namespace:Tripous.Desktop;assembly=Tripous.Desktop"
+                      x:Class="Deltos.ItemTitleDialog"
+                      Title="Title"
+                      Width="560"
+                      Height="210"
+                      MinWidth="520"
+                      MinHeight="200"
+                      CanResize="False"
+                      WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="*,Auto"
+          Margin="12"
+          RowSpacing="12">
+        <Grid RowDefinitions="Auto,Auto"
+              ColumnDefinitions="Auto,*"
+              ColumnSpacing="8"
+              RowSpacing="8">
+            <TextBlock Text="Title"
+                       VerticalAlignment="Center" />
+            <TextBox Name="edtTitle"
+                     Grid.Column="1" />
+            <TextBlock Text="Title 2"
+                       Grid.Row="1"
+                       VerticalAlignment="Center" />
+            <TextBox Name="edtTitle2"
+                     Grid.Row="1"
+                     Grid.Column="1" />
+        </Grid>
+
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Name="btnOK"
+                    Width="90"
+                    Content="OK"
+                    IsDefault="True"
+                    Click="OK_Click" />
+            <Button Name="btnCancel"
+                    Width="90"
+                    Content="Cancel"
+                    IsCancel="True"
+                    Click="Cancel_Click" />
+        </StackPanel>
+    </Grid>
+</desktop:DialogWindow>

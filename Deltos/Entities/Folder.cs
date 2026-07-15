@@ -728,6 +728,20 @@ public class Folder: BaseItem
         }
     }
     /// <summary>
+    /// Gets the secondary folder display title.
+    /// </summary>
+    public override string DisplayTitle2
+    {
+        get
+        {
+            string Result = base.DisplayTitle2;
+            if (Document?.Structure?.IsLeaf == true)
+                return Result;
+
+            return string.IsNullOrWhiteSpace(LevelTitle) ? Result : $"{LevelTitle} - {Result}";
+        }
+    }
+    /// <summary>
     /// Gets the file-system folder path of the folder.
     /// </summary>
     [JsonIgnore]

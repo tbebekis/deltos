@@ -31,6 +31,8 @@ public partial class ComponentListForm: AppForm
         fToolBar.AddButton("table_edit.png", "Edit", async () => await EditComponentInfo());
         fToolBar.AddButton("table_delete.png", "Delete", async () => await DeleteComponent());
         fToolBar.AddSeparator();
+        fToolBar.AddButton("folder_edit.png", "Manage Categories", async () => await ManageCategories());
+        fToolBar.AddSeparator();
         fToolBar.AddButton("page_edit.png", "Edit Text", EditComponentText);
         fToolBar.AddButton("html.png", "HTML Preview", PreviewComponentText);
         fToolBar.AddButton("wishlist_add.png", "Add to Quick View", QuickViewComponent);
@@ -284,8 +286,38 @@ public partial class ComponentListForm: AppForm
     {
         Component Result = new Component();
         Result.Title = "New Component";
-        Result.Category = "No Category";
+        Result.Category = Component.DefaultCategory;
         return Result;
+    }
+    /// <summary>
+    /// Creates category management dialog data.
+    /// </summary>
+    /// <param name="Project">The project.</param>
+    /// <returns>The dialog data.</returns>
+    CategoryManageDialogData CreateCategoryManageData(Project Project)
+    {
+        CategoryManageDialogData Result = new CategoryManageDialogData();
+        Result.DefaultCategory = Component.DefaultCategory;
+
+        foreach (string Category in Project.GetCategoryList())
+            Result.Categories.Add(new CategoryManageItem { OriginalName = Category, CategoryName = Category });
+
+        return Result;
+    }
+    /// <summary>
+    /// Returns the category replacement for a category.
+    /// </summary>
+    /// <param name="Category">The category.</param>
+    /// <param name="Data">The category management data.</param>
+    /// <returns>The replacement category.</returns>
+    string GetManagedCategory(string Category, CategoryManageDialogData Data)
+    {
+        string SourceCategory = string.IsNullOrWhiteSpace(Category) ? Component.DefaultCategory : Category.Trim();
+        CategoryManageItem Item = Data.Categories.FirstOrDefault(Item => Item.OriginalName.IsSameText(SourceCategory));
+        if (Item == null)
+            return SourceCategory;
+
+        return Item.Deleted ? Data.DefaultCategory : Item.CategoryName;
     }
     /// <summary>
     /// Creates a metadata copy of a component.
@@ -296,6 +328,7 @@ public partial class ComponentListForm: AppForm
     {
         Component Result = new Component();
         Result.Title = Source.Title;
+        Result.Title2 = Source.Title2;
         Result.Category = Source.Category;
         Result.Aliases = Source.Aliases;
         Result.Tags = Source.Tags;
@@ -324,6 +357,7 @@ public partial class ComponentListForm: AppForm
             Project.AddComponent(Component);
             LoadComponents(Component.Category ?? string.Empty, Component.Id);
             ShowComponent(Component);
+            RefreshTagListForm();
             LogBox.AppendLine($"Component created: {Component.Title}");
         }
         catch (Exception e)
@@ -351,14 +385,16 @@ public partial class ComponentListForm: AppForm
             if (!Component.Title.IsSameText(EditedComponent.Title))
                 Component.Rename(EditedComponent.Title);
 
+            Component.Title2 = EditedComponent.Title2;
             Component.Category = EditedComponent.Category;
             Component.Tags = EditedComponent.Tags;
             Component.Aliases = EditedComponent.Aliases;
-            Component.Save();
+            Component.SaveMetadata();
 
             LoadComponents(Component.Category ?? string.Empty, Component.Id);
             ShowComponent(Component);
             RefreshOpenComponentForm(Component);
+            RefreshTagListForm();
             LogBox.AppendLine($"Component updated: {Component.Title}");
         }
         catch (Exception e)
@@ -385,7 +421,52 @@ public partial class ComponentListForm: AppForm
             AppHost.CloseContentFormForItem(Component);
             Component.Delete();
             LoadComponents();
+            RefreshTagListForm();
             LogBox.AppendLine($"Component deleted: {Title}");
+        }
+        catch (Exception e)
+        {
+            await Tripous.Desktop.MessageBox.Error(e, this);
+        }
+    }
+    /// <summary>
+    /// Manages component categories.
+    /// </summary>
+    async Task ManageCategories()
+    {
+        Project Project = AppHost.CurrentProject;
+        if (Project == null)
+        {
+            await Tripous.Desktop.MessageBox.Info("No project is open.", this);
+            return;
+        }
+
+        CategoryManageDialogData Data = CreateCategoryManageData(Project);
+        DialogInfo Info = await DialogWindow.ShowModal<CategoryManageDialog>(Data, this);
+        if (!Info.Result)
+            return;
+
+        CategoryManageDialogData Result = Info.ResultData as CategoryManageDialogData;
+        if (Result == null)
+            return;
+
+        try
+        {
+            int Count = 0;
+            foreach (Component Component in Project.GetComponentList())
+            {
+                string NewCategory = GetManagedCategory(Component.Category, Result);
+                if (!Component.Category.IsSameText(NewCategory))
+                {
+                    Component.Category = NewCategory;
+                    Component.Save();
+                    Count++;
+                }
+            }
+
+            LoadComponents();
+            RefreshTagListForm();
+            LogBox.AppendLine($"Categories updated ({Count} components updated)");
         }
         catch (Exception e)
         {
@@ -436,6 +517,14 @@ public partial class ComponentListForm: AppForm
 
         ComponentForm Form = AppHost.ContentHandler.FindAppForm(Component.Id) as ComponentForm;
         Form?.RefreshComponentInfo();
+    }
+    /// <summary>
+    /// Refreshes the tag list form when it is open.
+    /// </summary>
+    void RefreshTagListForm()
+    {
+        TagListForm Form = AppHost.SideBarHandler?.FindAppForm(nameof(TagListForm)) as TagListForm;
+        Form?.RefreshTags();
     }
     /// <summary>
     /// Handles filter text changes.

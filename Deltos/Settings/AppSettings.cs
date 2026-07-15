@@ -8,6 +8,49 @@ namespace Deltos;
 /// </summary>
 public class AppSettings: SettingsBase
 {
+    // ● private
+    /// <summary>
+    /// Normalizes the recent project list.
+    /// </summary>
+    void NormalizeRecentProjects()
+    {
+        List<string> List = new();
+
+        foreach (string ProjectPath in RecentProjects ?? new List<string>())
+        {
+            string NormalizedPath = NormalizeProjectPath(ProjectPath);
+            if (!string.IsNullOrWhiteSpace(NormalizedPath) && !List.Any(x => x.IsSameText(NormalizedPath)))
+                List.Add(NormalizedPath);
+        }
+
+        while (List.Count > 10)
+            List.RemoveAt(List.Count - 1);
+
+        RecentProjects = List;
+    }
+    /// <summary>
+    /// Normalizes a project path.
+    /// </summary>
+    /// <param name="ProjectPath">The project path.</param>
+    /// <returns>The normalized project path.</returns>
+    string NormalizeProjectPath(string ProjectPath)
+    {
+        if (string.IsNullOrWhiteSpace(ProjectPath))
+            return string.Empty;
+
+        string Result = ProjectPath.Trim();
+
+        try
+        {
+            Result = System.IO.Path.GetFullPath(Result);
+        }
+        catch
+        {
+        }
+
+        return Result;
+    }
+
     // ● protected
     /// <summary>
     /// Called before loading settings from disk.
@@ -22,6 +65,7 @@ public class AppSettings: SettingsBase
     protected override void LoadAfter()
     {
         base.LoadAfter();
+        NormalizeRecentProjects();
     }
 
     // ● construction
@@ -48,6 +92,23 @@ public class AppSettings: SettingsBase
         FontSize = Source.FontSize;
         SecondLanguageVisible = Source.SecondLanguageVisible;
     }
+    /// <summary>
+    /// Adds a project path to the recent project list.
+    /// </summary>
+    /// <param name="ProjectPath">The project path.</param>
+    public void AddRecentProject(string ProjectPath)
+    {
+        string NormalizedPath = NormalizeProjectPath(ProjectPath);
+        if (string.IsNullOrWhiteSpace(NormalizedPath))
+            return;
+
+        NormalizeRecentProjects();
+        RecentProjects.RemoveAll(x => x.IsSameText(NormalizedPath));
+        RecentProjects.Insert(0, NormalizedPath);
+
+        while (RecentProjects.Count > 10)
+            RecentProjects.RemoveAt(RecentProjects.Count - 1);
+    }
 
     // ● properties
     /// <summary>
@@ -58,6 +119,10 @@ public class AppSettings: SettingsBase
     /// Gets or sets the last project folder path.
     /// </summary>
     public string LastProjectFolderPath { get; set; } = "___";
+    /// <summary>
+    /// Gets or sets the recent project folder paths.
+    /// </summary>
+    public List<string> RecentProjects { get; set; } = new();
     /// <summary>
     /// Gets or sets a value indicating whether auto-save is enabled.
     /// </summary>

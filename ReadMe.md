@@ -22,9 +22,13 @@ ordinary files and folders.
 ## Features
 
 - Project-based writing workspace.
+- Recent project list for quickly reopening workspaces.
 - File-system-first storage with ordinary folders, markdown files, and JSON
   metadata.
 - Multiple documents inside a single project.
+- Bilingual titles for documents, folders, text files, and components.
+- Item titles are stored in `Info.json` as human-readable text. Storage folder
+  names are generated from sanitized primary titles.
 - Configurable document structures, such as Part, Chapter, Section, Scene.
 - Flat documents for simpler projects.
 - Folder and text-file organization with clear ordering.
@@ -35,17 +39,19 @@ ordinary files and folders.
 - Components for worldbuilding, reference material, characters, places,
   organizations, concepts, and technical entities.
 - Component categories, tags, and aliases.
-- Tag browser and component browser.
+- Tag browser and component browser, with category and tag management.
 - HTML preview for markdown content.
 - Project-wide search across documents, text files, components, notes, and temp
   text.
 - Whole-word project search using quoted terms, such as `"empire"`.
+- Whole-word project search from the editor using Ctrl + left click on a word.
 - Find and replace inside every text editor, with highlighted matches and
   next/previous navigation.
+- Markdown bold and italic shortcuts using Ctrl + B and Ctrl + I.
 - Quick View list for collecting important items and search hits while working.
 - Text metrics for every editor.
 - Auto-save support.
-- Export per document to TXT, HTML, and ODT.
+- Export per document to TXT, Markdown, HTML, and ODT.
 - Plain-text export mode for prose that should not be treated as markdown.
 - Git commit and push integration for project folders.
 - Static wiki generation from components.
@@ -94,6 +100,10 @@ Examples:
 
 Each document may be flat or structured.
 
+Each document has a primary title and an optional secondary-language title. The
+primary title is used in the normal UI, while the secondary title is used for
+secondary-language editor headers and exports when available.
+
 A flat document contains text files directly.
 
 A structured document uses a user-defined hierarchy. For example:
@@ -120,7 +130,8 @@ The structure determines what kind of child item can be created at each level.
 A folder is a structural unit inside a document.
 
 Its display title may be `Part`, `Chapter`, `Section`, or any other level name
-defined by the document structure. Folders may also have synopsis text.
+defined by the document structure. Folders may also have primary and secondary
+titles plus synopsis text.
 
 ### TextFile
 
@@ -128,6 +139,8 @@ A text file is the actual writing unit.
 
 It stores:
 
+- Primary title.
+- Secondary title.
 - Primary text.
 - Secondary language text.
 - Synopsis.
@@ -153,9 +166,10 @@ Components are useful for:
 - Glossary terms.
 - Technical subjects.
 
-Each component has a title, category, tags, aliases, primary text, and secondary
-language text. Categories and tags are derived from the components themselves,
-so there is no separate taxonomy database to maintain.
+Each component has primary and secondary titles, category, tags, aliases,
+primary text, and secondary language text. Categories and tags are derived from
+the components themselves, so there is no separate taxonomy database to
+maintain.
 
 Components can be exported as a static wiki.
 
@@ -230,7 +244,8 @@ There is no opaque database file. The project folder contains readable
 markdown, JSON metadata, images, resources, and generated output.
 
 The item tree is derived from the file system. Ordering is encoded in folder
-and file names using numeric prefixes.
+and file names using numeric prefixes. Human-readable titles are stored in each
+item's `Info.json`.
 
 Example:
 
@@ -243,11 +258,21 @@ Example:
 When Deltos reads an item from disk:
 
 - The numeric prefix becomes the order index.
-- The remaining name becomes the title.
-- Underscores are converted back to spaces for display.
+- The `Info.json` title becomes the display title.
+- If an old item has no title in `Info.json`, Deltos falls back to the decoded
+  folder name.
 
-Each item has an `Info.json` file for metadata. Text content is stored in
-markdown files such as `Text.md`, `Text2.md`, `Synopsis.md`, and `Draft.md`.
+Each item has an `Info.json` file for metadata, including `Title` and `Title2`.
+Titles are human-readable text and may contain characters that are not valid in
+file or folder names.
+
+Storage folder names are generated from the primary title by sanitizing it for
+the file system. If two primary titles produce the same sanitized storage name,
+the second one is rejected. Deltos does not add automatic suffixes such as
+`_2`.
+
+Text content is stored in markdown files such as `Text.md`, `Text2.md`,
+`Synopsis.md`, and `Draft.md`.
 
 ## Document Structure
 
@@ -273,12 +298,39 @@ information and text metrics.
 The editor supports project-wide font settings and optional secondary language
 visibility.
 
+When the secondary language editor is visible, its header uses the secondary
+title when available and falls back to the primary title. Ordered items keep the
+same display numbering in both editor headers.
+
 Text editing includes local find and replace. Matches are highlighted directly
 inside the editor, and the user can move between them without leaving the text.
+
+Editors support quick markdown formatting. Ctrl + B toggles bold text and
+Ctrl + I toggles italic text for the current selection or the word at the
+caret.
 
 Global Search complements local editor search. It finds text across the whole
 project, then opens the matching item in the main content area and highlights
 the term in the correct editor.
+
+Ctrl + left click on a word in an editor sends that word to Global Search as a
+whole-word search.
+
+## Shortcuts
+
+- `Ctrl + S`: Save.
+- `Ctrl + F`: Find and Replace.
+- `F3`: Next match.
+- `Shift + F3`: Previous match.
+- `Esc`: Clear search highlights.
+- `Ctrl + T`: Search for the word at the caret.
+- `Ctrl + G`: Whole-word Global Search for the word at the caret.
+- `Ctrl + Left Click`: Whole-word Global Search for the clicked word.
+- `Ctrl + B`: Toggle bold.
+- `Ctrl + I`: Toggle italic.
+- `Ctrl + +`: Increase editor font size.
+- `Ctrl + -`: Decrease editor font size.
+- `Ctrl + 0`: Reset editor font size.
 
 ## Export
 
@@ -287,12 +339,33 @@ Deltos exports documents, not the whole project.
 Supported formats:
 
 - TXT.
+- Markdown.
 - HTML.
 - ODT.
 
 The export process can include document headings, folder headings, text-file
 titles, primary language text, secondary language text, and plain-text handling
 for prose that should not be parsed as markdown.
+
+Export heading rules:
+
+- The document title is used as the export file name and is not exported as a
+  heading.
+- Secondary-language exports use the secondary document title as the file name
+  when one is available.
+- Folder and text-file titles use the secondary title in secondary-language
+  exports, falling back to the primary title when the secondary title is empty.
+- If a document has no folders, each text-file title is exported as Heading 1.
+- If a document has folders, folder titles and text-file titles are exported as
+  headings according to their level in the document tree.
+- Markdown headings inside a text file are exported below the text-file title
+  level. The highest heading level used in that text file becomes the first
+  level below the text-file title. For example, inside a Heading 1 text file,
+  `##` becomes Heading 2 and `###` becomes Heading 3.
+- Markdown headings inside text files are still recognized when `Treat
+  TextFiles as Plain Text` is enabled.
+- `Page Break Before Heading 1` starts every Heading 1 after the first one on a
+  new page in HTML and ODT exports.
 
 ## Static Wiki
 

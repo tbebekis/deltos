@@ -18,6 +18,10 @@ public class BaseItem
     /// </summary>
     protected string fTitle = string.Empty;
     /// <summary>
+    /// Field for the Title2 property.
+    /// </summary>
+    protected string fTitle2 = string.Empty;
+    /// <summary>
     /// Field for the OrderIndex property.
     /// </summary>
     protected int fOrderIndex;
@@ -41,7 +45,8 @@ public class BaseItem
     protected virtual void UpdateInfo()
     {
         Info.Id = Id;
-        Info.Title = string.Empty;
+        Info.Title = Title;
+        Info.Title2 = Title2;
         Info.Type = Type;
         Info.Category = string.Empty;
         Info.TagList = string.Empty;
@@ -62,6 +67,11 @@ public class BaseItem
 
         if (!string.IsNullOrWhiteSpace(Info.Id))
             Id = Info.Id;
+
+        if (!string.IsNullOrWhiteSpace(Info.Title))
+            Title = Info.Title;
+
+        Title2 = Info.Title2;
     }
     /// <summary>
     /// Renumbers a list of child items.
@@ -586,6 +596,15 @@ public class BaseItem
     {
     }
     /// <summary>
+    /// Throws an exception if the specified title is empty.
+    /// </summary>
+    /// <param name="Title">The title to check.</param>
+    static protected void CheckTitle(string Title)
+    {
+        if (string.IsNullOrWhiteSpace(Title))
+            throw new InvalidOperationException("Title cannot be empty.");
+    }
+    /// <summary>
     /// Throws an exception if the specified title already exists in a sibling list.
     /// </summary>
     /// <typeparam name="T">The item type.</typeparam>
@@ -593,11 +612,11 @@ public class BaseItem
     /// <param name="Title">The title to check.</param>
     static protected void CheckDuplicateTitle<T>(List<T> Items, string Title) where T: BaseItem
     {
-        string TrimmedTitle = Title == null ? string.Empty : Title.Trim();
+        string EncodedTitle = EncodeTitle(Title);
         foreach (T Item in Items)
         {
-            if (Item.Title.IsSameText(TrimmedTitle))
-                throw new InvalidOperationException($"An item with the same title already exists: {Title}");
+            if (EncodeTitle(Item.Title).IsSameText(EncodedTitle))
+                throw new InvalidOperationException($"An item with the same storage title already exists: {Title}");
         }
     }
     /// <summary>
@@ -609,11 +628,11 @@ public class BaseItem
     /// <param name="IgnoredItem">The item to ignore.</param>
     static protected void CheckDuplicateTitle<T>(List<T> Items, string Title, T IgnoredItem) where T: BaseItem
     {
-        string TrimmedTitle = Title == null ? string.Empty : Title.Trim();
+        string EncodedTitle = EncodeTitle(Title);
         foreach (T Item in Items)
         {
-            if (!ReferenceEquals(Item, IgnoredItem) && Item.Title.IsSameText(TrimmedTitle))
-                throw new InvalidOperationException($"An item with the same title already exists: {Title}");
+            if (!ReferenceEquals(Item, IgnoredItem) && EncodeTitle(Item.Title).IsSameText(EncodedTitle))
+                throw new InvalidOperationException($"An item with the same storage title already exists: {Title}");
         }
     }
     /// <summary>
@@ -625,10 +644,10 @@ public class BaseItem
     /// <returns>True if the title exists; otherwise false.</returns>
     static protected bool ContainsTitle<T>(List<T> Items, string Title) where T: BaseItem
     {
-        string TrimmedTitle = Title == null ? string.Empty : Title.Trim();
+        string EncodedTitle = EncodeTitle(Title);
         foreach (T Item in Items)
         {
-            if (Item.Title.IsSameText(TrimmedTitle))
+            if (EncodeTitle(Item.Title).IsSameText(EncodedTitle))
                 return true;
         }
 
@@ -643,8 +662,20 @@ public class BaseItem
     /// <returns>The file-system title segment.</returns>
     static public string EncodeTitle(string Title)
     {
-        AppHost.CheckValidFileName(Title);
-        return Title.Trim().Replace(' ', '_');
+        CheckTitle(Title);
+        string Result = Title.Trim();
+        foreach (char Char in System.IO.Path.GetInvalidFileNameChars())
+            Result = Result.Replace(Char, '_');
+
+        foreach (char Char in "<>:\"/\\|?*")
+            Result = Result.Replace(Char, '_');
+
+        Result = Result.Replace(' ', '_');
+        Result = Regex.Replace(Result, "_+", "_").Trim('_');
+        if (string.IsNullOrWhiteSpace(Result))
+            throw new InvalidOperationException($"Title cannot produce a valid storage name: {Title}");
+
+        return Result;
     }
     /// <summary>
     /// Converts a file-system title segment to an item title.
@@ -720,7 +751,7 @@ public class BaseItem
         if (Title != Title.Trim())
             return false;
 
-        if (!AppHost.IsValidFileName(Title, false))
+        if (string.IsNullOrWhiteSpace(EncodedTitle))
             return false;
 
         return !string.IsNullOrWhiteSpace(Title);
@@ -952,6 +983,13 @@ public class BaseItem
         SaveInfo();
     }
     /// <summary>
+    /// Saves only the item metadata to persistent storage.
+    /// </summary>
+    public void SaveMetadata()
+    {
+        SaveInfo();
+    }
+    /// <summary>
     /// Loads the item from persistent storage.
     /// </summary>
     public virtual void Load()
@@ -1012,6 +1050,15 @@ public class BaseItem
 
         if (System.IO.Directory.Exists(NewFolderPath))
             SaveInfo();
+    }
+    /// <summary>
+    /// Gets the title for a language.
+    /// </summary>
+    /// <param name="UseSecondary">True to use the secondary title.</param>
+    /// <returns>The title for the language.</returns>
+    public string GetTitle(bool UseSecondary)
+    {
+        return UseSecondary ? Title2OrTitle : Title;
     }
     
     // ● properties
@@ -1164,10 +1211,23 @@ public class BaseItem
         get => fTitle;
         set
         {
-            AppHost.CheckValidFileName(value);
+            CheckTitle(value);
             fTitle = value.Trim();
         }
     }
+    /// <summary>
+    /// Gets or sets the secondary item title.
+    /// </summary>
+    public virtual string Title2
+    {
+        get => fTitle2;
+        set => fTitle2 = value == null ? string.Empty : value.Trim();
+    }
+    /// <summary>
+    /// Gets the secondary item title or falls back to the primary title.
+    /// </summary>
+    [JsonIgnore]
+    public string Title2OrTitle => string.IsNullOrWhiteSpace(Title2) ? Title : Title2;
     /// <summary>
     /// Gets the display title of the item.
     /// </summary>
@@ -1179,6 +1239,20 @@ public class BaseItem
                 return Title;
 
             return GetDisplayTitle(OrderIndex, Title);
+        }
+    }
+    /// <summary>
+    /// Gets the secondary display title of the item.
+    /// </summary>
+    [JsonIgnore]
+    public virtual string DisplayTitle2
+    {
+        get
+        {
+            if (IsProject || OrderIndex <= 0)
+                return Title2OrTitle;
+
+            return GetDisplayTitle(OrderIndex, Title2OrTitle);
         }
     }
     /// <summary>
