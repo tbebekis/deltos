@@ -786,10 +786,10 @@ public class ProjectStorageTests
         }
     }
     /// <summary>
-    /// Tests that child item information does not persist a title field value.
+    /// Tests that child item information persists the current title field value.
     /// </summary>
     [Fact]
-    public void ChildInfoTitleIsClearedBeforePersisting()
+    public void ChildInfoTitleIsUpdatedBeforePersisting()
     {
         string ProjectPath;
         Project Project = CreateProject(out ProjectPath);
@@ -803,7 +803,7 @@ public class ProjectStorageTests
             ItemInfo Info = new ItemInfo();
             Tripous.Json.LoadFromFile(Info, Document.InfoFilePath);
 
-            Assert.Equal(string.Empty, Info.Title);
+            Assert.Equal("Book", Info.Title);
         }
         finally
         {

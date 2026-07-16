@@ -596,13 +596,12 @@ public class BaseItem
     {
     }
     /// <summary>
-    /// Throws an exception if the specified title is empty.
+    /// Throws an exception if the specified title is invalid.
     /// </summary>
     /// <param name="Title">The title to check.</param>
     static protected void CheckTitle(string Title)
     {
-        if (string.IsNullOrWhiteSpace(Title))
-            throw new InvalidOperationException("Title cannot be empty.");
+        AppHost.CheckValidFileName(Title);
     }
     /// <summary>
     /// Throws an exception if the specified title already exists in a sibling list.
@@ -752,6 +751,9 @@ public class BaseItem
             return false;
 
         if (string.IsNullOrWhiteSpace(EncodedTitle))
+            return false;
+
+        if (!AppHost.IsValidFileName(Title, false))
             return false;
 
         return !string.IsNullOrWhiteSpace(Title);

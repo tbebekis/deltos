@@ -31,6 +31,8 @@ renaming, exporting, or generating large project outputs.
 ## Features
 
 - Project-based writing workspace.
+- Sample project creation with ready-made flat, chapter, or part/chapter
+  structure.
 - Recent project list for quickly reopening workspaces.
 - File-system-first storage with ordinary folders, markdown files, and JSON
   metadata.
@@ -243,7 +245,7 @@ desk or task tray for the current writing session.
 
 ## Typical Workflow
 
-1. Create or open a project.
+1. Create, open, or generate a sample project.
 2. Create a document.
 3. Choose the document structure.
 4. Add folders and text files.

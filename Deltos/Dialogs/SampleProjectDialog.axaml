@@ -1,0 +1,43 @@
+<desktop:DialogWindow xmlns="https://github.com/avaloniaui"
+                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                      xmlns:desktop="clr-namespace:Tripous.Desktop;assembly=Tripous.Desktop"
+                      x:Class="Deltos.SampleProjectDialog"
+                      Title="Create Sample Project"
+                      Width="620"
+                      Height="360"
+                      MinWidth="560"
+                      MinHeight="320"
+                      CanResize="False"
+                      WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="Auto,*,Auto"
+          Margin="16"
+          RowSpacing="12">
+        <TextBlock Text="Choose a sample project structure."
+                   TextWrapping="Wrap" />
+
+        <Border Grid.Row="1"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                BorderThickness="1"
+                Padding="8">
+            <ListBox Name="lboChoices"
+                     SelectionMode="Single"
+                     DoubleTapped="ChoicesDoubleTapped" />
+        </Border>
+
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button Name="btnOK"
+                    Width="90"
+                    Content="OK"
+                    IsDefault="True"
+                    Click="OK_Click" />
+            <Button Name="btnCancel"
+                    Width="90"
+                    Content="Cancel"
+                    IsCancel="True"
+                    Click="Cancel_Click" />
+        </StackPanel>
+    </Grid>
+</desktop:DialogWindow>

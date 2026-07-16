@@ -10,6 +10,8 @@ public partial class DocumentListForm: AppForm
 {
     // ● private fields
     Tripous.Desktop.ToolBar fToolBar;
+    Button fMoveUpButton;
+    Button fMoveDownButton;
     /// <summary>
     /// Field for the New command menu.
     /// </summary>
@@ -35,8 +37,21 @@ public partial class DocumentListForm: AppForm
         fToolBar.AddSeparator();
         fToolBar.AddButton("arrow_out.png", "Expand All", () => tvProject.ExpandAll(Flag: true));
         fToolBar.AddButton("arrow_in.png", "Collapse All", () => tvProject.ExpandAll(Flag: false));
-        fToolBar.AddButton("arrow_up.png", "Up", async () => await MoveSelectedItem(true));
-        fToolBar.AddButton("arrow_down.png", "Down", async () => await MoveSelectedItem(false));
+        fMoveUpButton = fToolBar.AddButton("arrow_up.png", "Up", async () => await MoveSelectedItem(true));
+        fMoveDownButton = fToolBar.AddButton("arrow_down.png", "Down", async () => await MoveSelectedItem(false));
+        UpdateMoveButtons();
+    }
+    /// <summary>
+    /// Updates the move button enabled state.
+    /// </summary>
+    void UpdateMoveButtons()
+    {
+        BaseItem Item = GetSelectedBaseItem();
+        if (fMoveUpButton != null)
+            fMoveUpButton.IsEnabled = CanMoveSelectedItem(Item, true);
+
+        if (fMoveDownButton != null)
+            fMoveDownButton.IsEnabled = CanMoveSelectedItem(Item, false);
     }
 
     // ● new menu
@@ -247,6 +262,7 @@ public partial class DocumentListForm: AppForm
         try
         {
             AppHost.ShowPleaseWait("Creating document...", this.GetOwnerWindow());
+            await Task.Yield();
 
             FolderItem Structure = Info.ResultData as FolderItem;
             Document Document = Structure == null
@@ -288,6 +304,7 @@ public partial class DocumentListForm: AppForm
         try
         {
             AppHost.ShowPleaseWait($"Creating {LevelTitle}...", this.GetOwnerWindow());
+            await Task.Yield();
 
             Folder Folder = ParentItem.AddFolder(Title, LevelTitle);
             Folder.Title2 = TitleData.Title2;
@@ -324,6 +341,7 @@ public partial class DocumentListForm: AppForm
         try
         {
             AppHost.ShowPleaseWait("Creating text...", this.GetOwnerWindow());
+            await Task.Yield();
 
             TextFile File = ParentItem.AddTextFile(Title);
             File.Title2 = TitleData.Title2;
@@ -459,6 +477,7 @@ public partial class DocumentListForm: AppForm
         try
         {
             AppHost.ShowPleaseWait("Exporting document...", this.GetOwnerWindow());
+            await Task.Yield();
 
             string ExportFolderPath = new DocumentExporter(Document, Options).Execute();
             LogBox.AppendLine($"Document exported: {ExportFolderPath}");
@@ -549,6 +568,7 @@ public partial class DocumentListForm: AppForm
         try
         {
             AppHost.ShowPleaseWait("Changing parent...", this.GetOwnerWindow());
+            await Task.Yield();
 
             if (!Item.ChangeParent(TargetParent))
                 return;
@@ -583,6 +603,7 @@ public partial class DocumentListForm: AppForm
         try
         {
             AppHost.ShowPleaseWait("Moving item...", this.GetOwnerWindow());
+            await Task.Yield();
 
             if (!MoveItemInParent(Item, Up))
                 return;
@@ -603,84 +624,24 @@ public partial class DocumentListForm: AppForm
         }
     }
     /// <summary>
-    /// Returns true if an item can move inside its immediate parent.
+    /// Returns true if an item can move in the specified direction.
     /// </summary>
     /// <param name="Item">The item to check.</param>
     /// <param name="Up">True to move up; false to move down.</param>
     /// <returns>True if the item can move; otherwise false.</returns>
     bool CanMoveSelectedItem(BaseItem Item, bool Up)
     {
-        if (Item == null)
-            return false;
-
-        int Count = GetSameParentSiblingCount(Item);
-        if (Count <= 1)
-            return false;
-
-        return Up ? Item.OrderIndex > 1 : Item.OrderIndex < Count;
+        return Item != null && Item.CanMove(Up);
     }
     /// <summary>
-    /// Returns the same-parent sibling count for an item.
-    /// </summary>
-    /// <param name="Item">The item.</param>
-    /// <returns>The sibling count.</returns>
-    int GetSameParentSiblingCount(BaseItem Item)
-    {
-        if (Item is Document Document && Document.Parent is Project ProjectItem)
-            return ProjectItem.Documents.Count;
-
-        if (Item is Folder Folder)
-        {
-            if (Folder.Parent is Document ParentDocument)
-                return ParentDocument.Folders.Count;
-
-            if (Folder.Parent is Folder ParentFolder)
-                return ParentFolder.Folders.Count;
-        }
-
-        if (Item is TextFile TextFile)
-        {
-            if (TextFile.Parent is Document ParentDocument)
-                return ParentDocument.Files.Count;
-
-            if (TextFile.Parent is Folder ParentFolder)
-                return ParentFolder.Files.Count;
-        }
-
-        return 0;
-    }
-    /// <summary>
-    /// Moves an item inside its immediate parent.
+    /// Moves an item in the specified direction.
     /// </summary>
     /// <param name="Item">The item to move.</param>
     /// <param name="Up">True to move up; false to move down.</param>
     /// <returns>True if the item is moved; otherwise false.</returns>
     bool MoveItemInParent(BaseItem Item, bool Up)
     {
-        int NewOrderIndex = Up ? Item.OrderIndex - 1 : Item.OrderIndex + 1;
-
-        if (Item is Document Document && Document.Parent is Project ProjectItem)
-            return ProjectItem.MoveDocument(Document, NewOrderIndex);
-
-        if (Item is Folder Folder)
-        {
-            if (Folder.Parent is Document ParentDocument)
-                return ParentDocument.MoveFolder(Folder, NewOrderIndex);
-
-            if (Folder.Parent is Folder ParentFolder)
-                return ParentFolder.MoveFolder(Folder, NewOrderIndex);
-        }
-
-        if (Item is TextFile TextFile)
-        {
-            if (TextFile.Parent is Document ParentDocument)
-                return ParentDocument.MoveTextFile(TextFile, NewOrderIndex);
-
-            if (TextFile.Parent is Folder ParentFolder)
-                return ParentFolder.MoveTextFile(TextFile, NewOrderIndex);
-        }
-
-        return false;
+        return Item != null && Item.Move(Up);
     }
 
     // ● edit commands
@@ -711,6 +672,7 @@ public partial class DocumentListForm: AppForm
         try
         {
             AppHost.ShowPleaseWait("Renaming item...", this.GetOwnerWindow());
+            await Task.Yield();
 
             if (!string.Equals(Title, Item.Title, StringComparison.Ordinal))
                 Item.Rename(Title);
@@ -754,6 +716,7 @@ public partial class DocumentListForm: AppForm
         try
         {
             AppHost.ShowPleaseWait("Deleting item...", this.GetOwnerWindow());
+            await Task.Yield();
 
             string DeletedTitle = Item.DisplayTitle;
             AppHost.CloseContentFormForItem(Item);
@@ -885,6 +848,7 @@ public partial class DocumentListForm: AppForm
             lblTextTitle.Text = "Text";
             Editor.EditorText = string.Empty;
             Editor.FilePath = string.Empty;
+            UpdateMoveButtons();
             return;
         }
 
@@ -894,6 +858,7 @@ public partial class DocumentListForm: AppForm
             AddDocumentNode(tvProject, Document);
 
         RenderMetrics(Project);
+        UpdateMoveButtons();
     }
     /// <summary>
     /// Adds a document node.
@@ -1223,6 +1188,10 @@ public partial class DocumentListForm: AppForm
     {
         if (tvProject.SelectedItem is TreeViewItem Node)
             ShowSelectedItem(Node.Tag as BaseItem);
+        else
+            ShowNoSelectedItem();
+
+        UpdateMoveButtons();
     }
     /// <summary>
     /// Handles tree pointer press events.

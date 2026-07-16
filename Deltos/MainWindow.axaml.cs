@@ -138,11 +138,50 @@ public partial class MainWindow : Window
         try
         {
             AppHost.ShowPleaseWait("Creating project...", this);
+            await Task.Yield();
 
             Project Project = AppHost.CreateProject(ParentFolderPath, Title);
 
             UpdateProjectStatus($"Project created: {Project.Title}");
             LogBox.AppendLine($"Project created: {Project.ProjectPath}");
+        }
+        catch (Exception e)
+        {
+            LogBox.AppendLine(e);
+            AppHost.HidePleaseWait();
+            await Tripous.Desktop.MessageBox.Error(e, this);
+        }
+        finally
+        {
+            AppHost.HidePleaseWait();
+        }
+    }
+    /// <summary>
+    /// Creates a generated sample project using UI prompts.
+    /// </summary>
+    async Task CreateSampleProject()
+    {
+        DialogInfo Info = await DialogWindow.ShowModal<SampleProjectDialog>(null, this);
+        if (!Info.Result)
+            return;
+
+        SampleProjectChoice Choice = Info.ResultData as SampleProjectChoice;
+        if (Choice == null)
+            return;
+
+        string ParentFolderPath = await SelectProjectParentFolder();
+        if (string.IsNullOrWhiteSpace(ParentFolderPath))
+            return;
+
+        try
+        {
+            AppHost.ShowPleaseWait("Creating sample project...", this);
+            await Task.Yield();
+
+            Project Project = AppHost.CreateSampleProject(ParentFolderPath, Choice.Kind);
+
+            UpdateProjectStatus($"Sample project created: {Project.Title}");
+            LogBox.AppendLine($"Sample project created: {Project.ProjectPath}");
         }
         catch (Exception e)
         {
@@ -175,6 +214,7 @@ public partial class MainWindow : Window
         try
         {
             AppHost.ShowPleaseWait("Opening project...", this);
+            await Task.Yield();
 
             Project Project = AppHost.OpenProject(ProjectPath);
 
@@ -363,6 +403,7 @@ public partial class MainWindow : Window
         try
         {
             AppHost.ShowPleaseWait("Checking git repository...", this);
+            await Task.Yield();
             LogBox.AppendLine("Commit to git started.");
 
             GitCli Git = CreateProjectGitCli();
@@ -411,6 +452,7 @@ public partial class MainWindow : Window
         try
         {
             AppHost.ShowPleaseWait("Committing to git...", this);
+            await Task.Yield();
 
             GitCli Git = CreateProjectGitCli();
             if (Git.CommitIfNeeded(CommitMessage))
@@ -454,6 +496,7 @@ public partial class MainWindow : Window
         try
         {
             AppHost.ShowPleaseWait("Checking git repository...", this);
+            await Task.Yield();
             LogBox.AppendLine("Push to remote git repository started.");
 
             Git.CheckGitInstalled();
@@ -487,6 +530,7 @@ public partial class MainWindow : Window
                 }
 
                 AppHost.ShowPleaseWait("Adding git remote...", this);
+                await Task.Yield();
                 Git.AddRemote(Settings.Git.RemoteName, Settings.Git.RemoteUrl);
                 LogBox.AppendLine($"Git remote added: {Settings.Git.RemoteName}");
             }
@@ -505,6 +549,7 @@ public partial class MainWindow : Window
         try
         {
             AppHost.ShowPleaseWait("Pushing to remote git repository...", this);
+            await Task.Yield();
 
             CliResult Result = Git.Push();
             LogBox.AppendLine("Pushing to remote git repository succeeded.");
@@ -620,6 +665,7 @@ public partial class MainWindow : Window
             try
             {
                 AppHost.ShowPleaseWait("Opening project...", this);
+                await Task.Yield();
                 Project Project = AppHost.OpenProject(ProjectPath, false);
                 UpdateProjectStatus($"Project opened: {Project.Title}");
             }
@@ -648,6 +694,7 @@ public partial class MainWindow : Window
         fToolBar.Panel = pnlToolBar;
 
         AddToolBarButton("application_add.png", "New Project", "NewProject");
+        AddToolBarButton("application_add.png", "Create Sample Project", "CreateSampleProject");
         AddToolBarButton("application_go.png", "Open Project", "OpenProject");
         AddToolBarButton("folder_vertical_open.png", "Recent Projects", "RecentProjects");
         AddToolBarButton("folder_go.png", "Show Project Folder", "ShowProjectFolder");
@@ -729,6 +776,9 @@ public partial class MainWindow : Window
         {
             case "NewProject":
                 await CreateNewProject();
+                break;
+            case "CreateSampleProject":
+                await CreateSampleProject();
                 break;
             case "OpenProject":
                 await OpenProject();
