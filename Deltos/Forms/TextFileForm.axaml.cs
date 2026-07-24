@@ -52,6 +52,7 @@ public partial class TextFileForm: AppForm
                 {
                     Editor.EditorText = string.Empty;
                     Editor.FilePath = string.Empty;
+                    Editor.PreviewId = string.Empty;
                     Editor.ReadOnly = true;
                 }
                 return;
@@ -86,18 +87,22 @@ public partial class TextFileForm: AppForm
         EditorText.Title = TextFile.DisplayTitle;
         EditorText.EditorText = TextFile.Text;
         EditorText.FilePath = TextFile.TextFilePath;
+        EditorText.PreviewId = AppHost.GetMarkdownPreviewFormId(TextFile.Id);
 
         EditorText2.Title = TextFile.DisplayTitle2;
         EditorText2.EditorText = TextFile.Text2;
         EditorText2.FilePath = TextFile.Text2FilePath;
+        EditorText2.PreviewId = AppHost.GetMarkdownPreviewFormId(TextFile.Id);
 
         EditorSynopsis.Title = fBaseTitle;
         EditorSynopsis.EditorText = TextFile.Synopsis;
         EditorSynopsis.FilePath = TextFile.SynopsisFilePath;
+        EditorSynopsis.PreviewId = AppHost.GetMarkdownPreviewFormId(TextFile.Id);
 
         EditorDraft.Title = fBaseTitle;
         EditorDraft.EditorText = TextFile.Draft;
         EditorDraft.FilePath = TextFile.DraftFilePath;
+        EditorDraft.PreviewId = AppHost.GetMarkdownPreviewFormId(TextFile.Id);
 
         foreach (TextEditorForm Editor in Editors)
             PrepareEditor(Editor);
@@ -118,6 +123,7 @@ public partial class TextFileForm: AppForm
         EditorSynopsis.Title = Title;
         EditorSynopsis.EditorText = Synopsis;
         EditorSynopsis.FilePath = FilePath;
+        EditorSynopsis.PreviewId = AppHost.GetMarkdownPreviewFormId(Item.Id);
         PrepareEditor(EditorSynopsis);
 
         pager.SelectedItem = tabSynopsis;
@@ -204,25 +210,31 @@ public partial class TextFileForm: AppForm
         {
             EditorText.Title = fBaseTitle;
             EditorText.FilePath = TextFile.TextFilePath;
+            EditorText.PreviewId = AppHost.GetMarkdownPreviewFormId(TextFile.Id);
 
             EditorText2.Title = TextFile.DisplayTitle2;
             EditorText2.FilePath = TextFile.Text2FilePath;
+            EditorText2.PreviewId = AppHost.GetMarkdownPreviewFormId(TextFile.Id);
 
             EditorSynopsis.Title = fBaseTitle;
             EditorSynopsis.FilePath = TextFile.SynopsisFilePath;
+            EditorSynopsis.PreviewId = AppHost.GetMarkdownPreviewFormId(TextFile.Id);
 
             EditorDraft.Title = fBaseTitle;
             EditorDraft.FilePath = TextFile.DraftFilePath;
+            EditorDraft.PreviewId = AppHost.GetMarkdownPreviewFormId(TextFile.Id);
         }
         else if (Item is Document Document)
         {
             EditorSynopsis.Title = $"Document: {Document.Title}";
             EditorSynopsis.FilePath = Document.SynopsisFilePath;
+            EditorSynopsis.PreviewId = AppHost.GetMarkdownPreviewFormId(Document.Id);
         }
         else if (Item is Folder Folder)
         {
             EditorSynopsis.Title = $"{Folder.LevelTitle}: {Folder.Title}";
             EditorSynopsis.FilePath = Folder.SynopsisFilePath;
+            EditorSynopsis.PreviewId = AppHost.GetMarkdownPreviewFormId(Folder.Id);
         }
 
         AdjustTitles();

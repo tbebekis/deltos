@@ -10,6 +10,28 @@ public partial class AboutDialog: DialogWindow
 {
     // ● private
     /// <summary>
+    /// Returns the application assembly version.
+    /// </summary>
+    /// <returns>The application assembly version.</returns>
+    string GetAssemblyVersion()
+    {
+        Assembly Assembly = typeof(AboutDialog).Assembly;
+        string Result = Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(Result))
+        {
+            int Index = Result.IndexOf('+');
+            if (Index > 0)
+                Result = Result.Substring(0, Index);
+        }
+
+        if (string.IsNullOrWhiteSpace(Result))
+            Result = Assembly.GetName().Version?.ToString();
+        if (string.IsNullOrWhiteSpace(Result))
+            Result = "1.0.0";
+
+        return Result;
+    }
+    /// <summary>
     /// Handles the Close button click.
     /// </summary>
     /// <param name="Sender">The event sender.</param>
@@ -50,5 +72,6 @@ public partial class AboutDialog: DialogWindow
     public AboutDialog()
     {
         InitializeComponent();
+        lblVersion.Text = $"Version {GetAssemblyVersion()}";
     }
 }

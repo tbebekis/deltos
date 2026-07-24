@@ -34,3 +34,10 @@
 - Added built-in documentation opened from the main toolbar.
 - Added tests for mixed item storage, migration behavior, movement boundaries,
   change-parent behavior, output metadata persistence, and export metadata.
+- Added release assets and application icon support.
+- Updated startup and about visuals.
+- Added application version display to the About dialog.
+- Added an optional HTML preview button to text editor toolbars.
+- Standardized HTML preview tab identifiers.
+- Improved legacy project conversion feedback with visible please-wait messages,
+  desktop notes, and log entries.

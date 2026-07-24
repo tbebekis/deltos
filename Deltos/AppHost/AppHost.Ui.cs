@@ -232,6 +232,15 @@ static public partial class AppHost
         return TextFile.Text;
     }
     /// <summary>
+    /// Returns the form identifier for a markdown preview tab.
+    /// </summary>
+    /// <param name="ItemId">The previewed item identifier.</param>
+    /// <returns>The markdown preview form identifier.</returns>
+    static public string GetMarkdownPreviewFormId(string ItemId)
+    {
+        return $"HTML-PREVIEW-{ItemId}";
+    }
+    /// <summary>
     /// Shows a markdown preview in the content pager.
     /// </summary>
     /// <param name="FormId">The preview form identifier.</param>

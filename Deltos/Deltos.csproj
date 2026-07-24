@@ -6,6 +6,7 @@
         <Authors>Theodoros Bebekis</Authors>
         <Product>Deltos</Product>
         <Copyright>Copyright (c) 2026 Theodoros Bebekis</Copyright>
+        <ApplicationIcon>Assets\Deltos.ico</ApplicationIcon>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     </PropertyGroup>
@@ -31,7 +32,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <AvaloniaResource Include="Resources\Images\**" />
+      <AvaloniaResource Include="Assets\**" />
       <EmbeddedResource Include="Resources\Documentation\*.*" />
     </ItemGroup>
 

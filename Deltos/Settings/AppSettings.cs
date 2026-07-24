@@ -91,6 +91,7 @@ public class AppSettings: SettingsBase
         FontFamily = Source.FontFamily;
         FontSize = Source.FontSize;
         SecondLanguageVisible = Source.SecondLanguageVisible;
+        ShowMarkdownPreviewButton = Source.ShowMarkdownPreviewButton;
     }
     /// <summary>
     /// Adds a project path to the recent project list.
@@ -143,4 +144,8 @@ public class AppSettings: SettingsBase
     /// Gets or sets a value indicating whether the second language editor is visible.
     /// </summary>
     public bool SecondLanguageVisible { get; set; } = false;
+    /// <summary>
+    /// Gets or sets a value indicating whether text editors show the markdown preview button.
+    /// </summary>
+    public bool ShowMarkdownPreviewButton { get; set; } = true;
 }

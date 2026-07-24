@@ -886,7 +886,7 @@ public partial class DocumentListForm: AppForm
         else if (Item is TextFile File)
             Text = File.Text;
 
-        AppHost.ShowMarkdownPreview($"{Item.Id}.HtmlPreview", Title, Text);
+        AppHost.ShowMarkdownPreview(AppHost.GetMarkdownPreviewFormId(Item.Id), Title, Text);
     }
 
     // ● tree
@@ -1383,24 +1383,28 @@ public partial class DocumentListForm: AppForm
             lblTextTitle.Text = $"Document: {Document.Title}";
             Editor.EditorText = Document.Synopsis;
             Editor.FilePath = Document.SynopsisFilePath;
+            Editor.PreviewId = AppHost.GetMarkdownPreviewFormId(Document.Id);
         }
         else if (Item is Folder Folder)
         {
             lblTextTitle.Text = $"{Folder.LevelTitle}: {Folder.Title}";
             Editor.EditorText = Folder.Synopsis;
             Editor.FilePath = Folder.SynopsisFilePath;
+            Editor.PreviewId = AppHost.GetMarkdownPreviewFormId(Folder.Id);
         }
         else if (Item is TextFile File)
         {
             lblTextTitle.Text = $"TextFile: {File.Title}";
             Editor.EditorText = File.Text;
             Editor.FilePath = File.TextFilePath;
+            Editor.PreviewId = AppHost.GetMarkdownPreviewFormId(File.Id);
         }
         else
         {
             lblTextTitle.Text = Item.DisplayTitle;
             Editor.EditorText = string.Empty;
             Editor.FilePath = string.Empty;
+            Editor.PreviewId = string.Empty;
         }
     }
     /// <summary>
@@ -1411,6 +1415,7 @@ public partial class DocumentListForm: AppForm
         lblTextTitle.Text = "Text";
         Editor.EditorText = string.Empty;
         Editor.FilePath = string.Empty;
+        Editor.PreviewId = string.Empty;
     }
 
     // ● overrides

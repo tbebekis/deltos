@@ -26,50 +26,34 @@ public class StartupWindow: Window
 
     // ● private
     /// <summary>
-    /// Creates the startup logo image.
+    /// Creates the startup image.
     /// </summary>
-    /// <returns>The startup logo image.</returns>
-    Image CreateLogoImage()
+    /// <returns>The startup image.</returns>
+    Image CreateStartupImage()
     {
         Image Result = new Image();
-        Result.Width = 42;
-        Result.Height = 42;
+        Result.Width = 540;
+        Result.Height = 300;
+        Result.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        Result.Margin = new Thickness(0, 14, 0, 22);
         Result.Stretch = Avalonia.Media.Stretch.Uniform;
 
-        Uri Uri = AvaloniaAssets.FindUri("Resources/Images", "Deltos.png");
+        Uri Uri = AvaloniaAssets.FindUri("Assets", "Deltos-Startup.png");
         AvaloniaAssets.SetImage(Result, Uri);
 
         return Result;
     }
     /// <summary>
-    /// Creates the startup window header.
+    /// Creates the startup title.
     /// </summary>
-    /// <returns>The startup window header.</returns>
-    Control CreateHeader()
+    /// <returns>The startup title.</returns>
+    Control CreateTitle()
     {
-        Grid Result = new Grid();
-        Result.ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto");
-        Result.Margin = new Thickness(18, 14, 18, 8);
-
-        Image LogoImage = CreateLogoImage();
-        LogoImage.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
-        Grid.SetColumn(LogoImage, 0);
-        Result.Children.Add(LogoImage);
-
-        TextBlock TitleText = new TextBlock();
-        TitleText.Text = "Deltos";
-        TitleText.FontSize = 24;
-        TitleText.FontWeight = Avalonia.Media.FontWeight.SemiBold;
-        TitleText.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
-        TitleText.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
-        Grid.SetColumn(TitleText, 1);
-        Result.Children.Add(TitleText);
-
-        Border BalanceBox = new Border();
-        BalanceBox.Width = 42;
-        Grid.SetColumn(BalanceBox, 2);
-        Result.Children.Add(BalanceBox);
-
+        TextBlock Result = new TextBlock();
+        Result.Text = "Deltos";
+        Result.FontSize = 34;
+        Result.FontWeight = Avalonia.Media.FontWeight.SemiBold;
+        Result.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
         return Result;
     }
     /// <summary>
@@ -78,39 +62,22 @@ public class StartupWindow: Window
     /// <returns>The startup please-wait panel.</returns>
     Control CreatePleaseWaitPanel()
     {
-        Border Result = new Border();
-        Result.Width = 420;
-        Result.Padding = new Thickness(20);
+        StackPanel Result = new StackPanel();
+        Result.Width = 320;
         Result.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
-        Result.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
-        Result.BorderBrush = Avalonia.Media.Brushes.LightGray;
-        Result.BorderThickness = new Thickness(1);
-        Result.CornerRadius = new CornerRadius(4);
-
-        Grid Panel = new Grid();
-        Panel.RowDefinitions = new RowDefinitions("Auto,8,Auto,20,Auto");
+        Result.Spacing = 12;
 
         TextBlock TitleText = new TextBlock();
-        TitleText.Text = "Please wait...";
+        TitleText.Text = "Starting...";
         TitleText.FontWeight = Avalonia.Media.FontWeight.SemiBold;
-        TitleText.FontSize = 15;
-        Grid.SetRow(TitleText, 0);
-        Panel.Children.Add(TitleText);
-
-        TextBlock Message = new TextBlock();
-        Message.Text = "Initializing application...";
-        Message.TextWrapping = Avalonia.Media.TextWrapping.Wrap;
-        Message.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
-        Grid.SetRow(Message, 2);
-        Panel.Children.Add(Message);
+        TitleText.FontSize = 16;
+        TitleText.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        Result.Children.Add(TitleText);
 
         ProgressBar Progress = new ProgressBar();
         Progress.IsIndeterminate = true;
         Progress.Height = 18;
-        Grid.SetRow(Progress, 4);
-        Panel.Children.Add(Progress);
-
-        Result.Child = Panel;
+        Result.Children.Add(Progress);
 
         return Result;
     }
@@ -121,16 +88,18 @@ public class StartupWindow: Window
     Control CreateContent()
     {
         Grid Result = new Grid();
-        Result.RowDefinitions = new RowDefinitions("Auto,*");
         Result.Background = Avalonia.Media.Brushes.White;
 
-        Control Header = CreateHeader();
-        Grid.SetRow(Header, 0);
-        Result.Children.Add(Header);
+        StackPanel Panel = new StackPanel();
+        Panel.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        Panel.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
+        Panel.Spacing = 0;
 
-        Control PleaseWaitPanel = CreatePleaseWaitPanel();
-        Grid.SetRow(PleaseWaitPanel, 1);
-        Result.Children.Add(PleaseWaitPanel);
+        Panel.Children.Add(CreateTitle());
+        Panel.Children.Add(CreateStartupImage());
+        Panel.Children.Add(CreatePleaseWaitPanel());
+
+        Result.Children.Add(Panel);
 
         return Result;
     }
@@ -152,10 +121,7 @@ public class StartupWindow: Window
     public StartupWindow()
     {
         Title = "Deltos";
-        Width = 560;
-        Height = 300;
-        MinWidth = 560;
-        MinHeight = 300;
+        WindowState = WindowState.Maximized;
         CanResize = false;
         WindowDecorations = WindowDecorations.None;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;

@@ -45,6 +45,7 @@ public partial class TempFileForm: AppForm
             {
                 Editor.EditorText = string.Empty;
                 Editor.FilePath = string.Empty;
+                Editor.PreviewId = string.Empty;
                 Editor.ReadOnly = true;
                 TitleText = "Temp";
                 return;
@@ -52,6 +53,7 @@ public partial class TempFileForm: AppForm
 
             Editor.EditorText = Project.TempFileText;
             Editor.FilePath = Project.TempFilePath;
+            Editor.PreviewId = AppHost.GetMarkdownPreviewFormId("TEMP-TEXT");
             Editor.ReadOnly = false;
             Editor.Modified = false;
             Editor.RegisterHighlighter(Editor.FilePath);
@@ -126,7 +128,7 @@ public partial class TempFileForm: AppForm
     /// </summary>
     void PreviewTempText()
     {
-        AppHost.ShowMarkdownPreview("TempText.HtmlPreview", "HTML Preview: Temp Text", Editor.EditorText);
+        AppHost.ShowMarkdownPreview(AppHost.GetMarkdownPreviewFormId("TEMP-TEXT"), "HTML Preview: Temp Text", Editor.EditorText);
     }
 
     // ● overrides

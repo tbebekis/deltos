@@ -30,6 +30,10 @@ public partial class TextEditorForm: UserControl
     /// </summary>
     private Button fBtnShowFolder;
     /// <summary>
+    /// The markdown preview toolbar button.
+    /// </summary>
+    Button fBtnMarkdownPreview;
+    /// <summary>
     /// The installed search panel.
     /// </summary>
     private AvaloniaEdit.Search.SearchPanel fSearchPanel;
@@ -53,6 +57,10 @@ public partial class TextEditorForm: UserControl
     /// The edited file path.
     /// </summary>
     private string fFilePath = string.Empty;
+    /// <summary>
+    /// The markdown preview form identifier.
+    /// </summary>
+    string fPreviewId = string.Empty;
     /// <summary>
     /// Field for the HighlightMode property.
     /// </summary>
@@ -123,6 +131,7 @@ public partial class TextEditorForm: UserControl
         fBtnSearchForTerm = fToolBar.AddButton("table_tab_search.png", "Search for Term (Ctrl + T)", SearchForTerm);
         fBtnSave = fToolBar.AddButton("disk.png", "Save (Ctrl + S)", SaveText);
         fBtnShowFolder = fToolBar.AddButton("folder_go.png", "Show in folder", ShowFolder);
+        fBtnMarkdownPreview = fToolBar.AddButton("html.png", "HTML Preview", ShowMarkdownPreview);
         UpdateButtonVisibility();
     }
     /// <summary>
@@ -403,6 +412,9 @@ public partial class TextEditorForm: UserControl
 
         if (fBtnShowFolder != null)
             fBtnShowFolder.IsVisible = ShowFolderButtonVisible;
+
+        if (fBtnMarkdownPreview != null)
+            fBtnMarkdownPreview.IsVisible = AppHost.Settings?.ShowMarkdownPreviewButton == true;
     }
 
     // ● public
@@ -530,6 +542,15 @@ public partial class TextEditorForm: UserControl
         ShowFolderRequested?.Invoke(this, EventArgs.Empty);
     }
     /// <summary>
+    /// Shows the current markdown text as an HTML preview tab.
+    /// </summary>
+    public void ShowMarkdownPreview()
+    {
+        string PreviewTitle = string.IsNullOrWhiteSpace(Title) ? "HTML Preview" : $"HTML Preview: {Title}";
+        string PreviewId = string.IsNullOrWhiteSpace(this.PreviewId) ? $"{GetHashCode()}.HtmlPreview" : this.PreviewId;
+        AppHost.ShowMarkdownPreview(PreviewId, PreviewTitle, EditorText);
+    }
+    /// <summary>
     /// Increases the editor font size.
     /// </summary>
     public void IncreaseFontSize()
@@ -561,6 +582,7 @@ public partial class TextEditorForm: UserControl
 
         TextEditor.FontFamily = new FontFamily(Settings.FontFamily);
         EditorFontSize = Settings.FontSize;
+        UpdateButtonVisibility();
     }
     /// <summary>
     /// Sets the syntax highlighter by mode.
@@ -728,6 +750,14 @@ public partial class TextEditorForm: UserControl
             fFilePath = value ?? string.Empty;
             UpdateStatusBar();
         }
+    }
+    /// <summary>
+    /// Gets or sets the markdown preview form identifier.
+    /// </summary>
+    public string PreviewId
+    {
+        get => fPreviewId;
+        set => fPreviewId = value ?? string.Empty;
     }
     /// <summary>
     /// Gets or sets a value indicating whether the status bar is visible.

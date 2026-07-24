@@ -4,9 +4,9 @@
                       x:Class="Deltos.AppSettingsDialog"
                       Title="Settings"
                       Width="440"
-                      Height="320"
+                      Height="350"
                       MinWidth="420"
-                      MinHeight="300"
+                      MinHeight="330"
                       CanResize="False"
                       ShowInTaskbar="False"
                       WindowStartupLocation="CenterOwner">
@@ -14,7 +14,7 @@
           Margin="16"
           RowSpacing="14">
         <Grid ColumnDefinitions="Auto,*"
-              RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
               ColumnSpacing="12"
               RowSpacing="10">
             <CheckBox Name="chkAutoSave"
@@ -52,6 +52,10 @@
                       Grid.Row="4"
                       Grid.ColumnSpan="2"
                       Content="Show second language editor" />
+            <CheckBox Name="chkShowMarkdownPreviewButton"
+                      Grid.Row="5"
+                      Grid.ColumnSpan="2"
+                      Content="Show markdown preview button in text editors" />
         </Grid>
 
         <StackPanel Grid.Row="1"

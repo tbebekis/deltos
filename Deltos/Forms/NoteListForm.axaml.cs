@@ -106,6 +106,7 @@ public partial class NoteListForm: AppForm
         Editor.Title = Note.DisplayTitle;
         Editor.EditorText = Note.Text;
         Editor.FilePath = Note.TextFilePath;
+        Editor.PreviewId = AppHost.GetMarkdownPreviewFormId(Note.Id);
         Editor.ReadOnly = true;
         Editor.Modified = false;
         Editor.RegisterHighlighter(Editor.FilePath);
@@ -119,6 +120,7 @@ public partial class NoteListForm: AppForm
         Editor.Title = "Note";
         Editor.EditorText = string.Empty;
         Editor.FilePath = string.Empty;
+        Editor.PreviewId = string.Empty;
         Editor.ReadOnly = true;
         Editor.Modified = false;
     }
@@ -238,7 +240,7 @@ public partial class NoteListForm: AppForm
         if (Note == null)
             return;
 
-        AppHost.ShowMarkdownPreview($"{Note.Id}.HtmlPreview", $"HTML Preview: {Note.DisplayTitle}", Note.Text);
+        AppHost.ShowMarkdownPreview(AppHost.GetMarkdownPreviewFormId(Note.Id), $"HTML Preview: {Note.DisplayTitle}", Note.Text);
     }
     /// <summary>
     /// Adds the selected note to QuickView.

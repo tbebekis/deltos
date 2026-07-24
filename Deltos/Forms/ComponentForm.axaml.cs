@@ -52,6 +52,7 @@ public partial class ComponentForm: AppForm
                 {
                     Editor.EditorText = string.Empty;
                     Editor.FilePath = string.Empty;
+                    Editor.PreviewId = string.Empty;
                     Editor.ReadOnly = true;
                 }
                 return;
@@ -63,10 +64,12 @@ public partial class ComponentForm: AppForm
             EditorText.Title = Component.Title;
             EditorText.EditorText = Component.Text;
             EditorText.FilePath = Component.TextFilePath;
+            EditorText.PreviewId = AppHost.GetMarkdownPreviewFormId(Component.Id);
 
             EditorText2.Title = Component.DisplayTitle2;
             EditorText2.EditorText = Component.Text2;
             EditorText2.FilePath = Component.Text2FilePath;
+            EditorText2.PreviewId = AppHost.GetMarkdownPreviewFormId(Component.Id);
 
             foreach (TextEditorForm Editor in Editors)
             {
@@ -210,8 +213,10 @@ public partial class ComponentForm: AppForm
         fBaseTitle = Component.Title;
         EditorText.Title = Component.Title;
         EditorText.FilePath = Component.TextFilePath;
+        EditorText.PreviewId = AppHost.GetMarkdownPreviewFormId(Component.Id);
         EditorText2.Title = Component.DisplayTitle2;
         EditorText2.FilePath = Component.Text2FilePath;
+        EditorText2.PreviewId = AppHost.GetMarkdownPreviewFormId(Component.Id);
         AdjustTitle();
     }
     /// <summary>

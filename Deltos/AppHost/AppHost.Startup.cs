@@ -56,13 +56,13 @@ static public partial class AppHost
     /// Returns the active owner window for owned dialogs.
     /// </summary>
     /// <returns>The active owner window, or null.</returns>
-    static Window GetDialogOwner()
+    static public Window GetDialogOwner()
     {
-        if (MainWindow != null && MainWindow.IsVisible)
-            return MainWindow;
-
         if (StartupWindow != null && StartupWindow.IsVisible)
             return StartupWindow;
+
+        if (MainWindow != null && MainWindow.IsVisible)
+            return MainWindow;
 
         return AvaloniaDesktop?.MainWindow;
     }

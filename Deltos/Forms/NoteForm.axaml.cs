@@ -38,6 +38,7 @@ public partial class NoteForm: AppForm
                 Editor.Title = fBaseTitle;
                 Editor.EditorText = string.Empty;
                 Editor.FilePath = string.Empty;
+                Editor.PreviewId = string.Empty;
                 Editor.ReadOnly = true;
                 return;
             }
@@ -47,6 +48,7 @@ public partial class NoteForm: AppForm
             Editor.Title = fBaseTitle;
             Editor.EditorText = Note.Text;
             Editor.FilePath = Note.TextFilePath;
+            Editor.PreviewId = AppHost.GetMarkdownPreviewFormId(Note.Id);
             Editor.ReadOnly = false;
             Editor.Modified = false;
             Editor.RegisterHighlighter(Editor.FilePath);
@@ -167,6 +169,7 @@ public partial class NoteForm: AppForm
         fBaseTitle = Note.DisplayTitle;
         Editor.Title = fBaseTitle;
         Editor.FilePath = Note.TextFilePath;
+        Editor.PreviewId = AppHost.GetMarkdownPreviewFormId(Note.Id);
         AdjustTitle();
     }
     /// <summary>

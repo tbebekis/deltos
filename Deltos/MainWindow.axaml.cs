@@ -336,14 +336,18 @@ public partial class MainWindow : Window
     {
         if (Manifest.StorageVersion > ProjectManifest.CurrentStorageVersion)
         {
-            await Tripous.Desktop.MessageBox.Error($"Unsupported project storage version {Manifest.StorageVersion}.", this);
+            await Tripous.Desktop.MessageBox.Error($"Unsupported project storage version {Manifest.StorageVersion}.", AppHost.GetDialogOwner());
             return false;
         }
 
         if (Manifest.StorageVersion != 0)
             return true;
 
-        bool Confirmed = await Tripous.Desktop.MessageBox.YesNo("This project uses an older storage format. Convert it to the current format?", this);
+        string ProjectTitle = System.IO.Path.GetFileName(NormalizeFolderPath(ProjectPath));
+        string Message = $"Project '{ProjectTitle}' uses an older storage format.{Environment.NewLine}{Environment.NewLine}"
+            + $"Path:{Environment.NewLine}{ProjectPath}{Environment.NewLine}{Environment.NewLine}"
+            + "Deltos must convert this project before opening it. A full backup will be created first.";
+        bool Confirmed = await Tripous.Desktop.MessageBox.YesNo(Message, AppHost.GetDialogOwner());
         if (!Confirmed)
         {
             LogBox.AppendLine($"Legacy project open cancelled: {ProjectPath}");
@@ -360,17 +364,28 @@ public partial class MainWindow : Window
         string ProjectParentFolderPath = System.IO.Path.GetDirectoryName(NormalizeFolderPath(ProjectPath));
         if (IsSameOrChildFolderPath(BackupParentFolderPath, ProjectParentFolderPath) || IsSameFolderPath(BackupParentFolderPath, ProjectPath))
         {
-            await Tripous.Desktop.MessageBox.Error("The backup folder must be outside the existing project's parent folder.", this);
+            await Tripous.Desktop.MessageBox.Error("The backup folder must be outside the existing project's parent folder.", AppHost.GetDialogOwner());
             LogBox.AppendLine($"Legacy project open cancelled because backup folder is not external: {BackupParentFolderPath}");
             return false;
         }
 
         string BackupFolderPath = GetLegacyProjectBackupFolderPath(ProjectPath, BackupParentFolderPath);
-        AppHost.ShowPleaseWait("Backing up project...", this);
-        await Task.Yield();
-        CopyFolder(ProjectPath, BackupFolderPath);
-        AppHost.HidePleaseWait();
+        LogBox.AppendLine($"Creating legacy project backup: {BackupFolderPath}");
+        Ui.InfoNote("Backing up legacy project...");
+
+        AppHost.ShowPleaseWait("Backing up project...");
+        try
+        {
+            await Task.Delay(50);
+            await Task.Run(() => CopyFolder(ProjectPath, BackupFolderPath));
+        }
+        finally
+        {
+            AppHost.HidePleaseWait();
+        }
+
         LogBox.AppendLine($"Legacy project backup created: {BackupFolderPath}");
+        Ui.SuccessNote("Legacy project backup created.");
 
         return true;
     }
@@ -397,24 +412,38 @@ public partial class MainWindow : Window
 
             bool ConvertProject = Manifest.StorageVersion == 0;
 
-            AppHost.ShowPleaseWait(ConvertProject ? "Converting project..." : "Opening project...", this);
-            await Task.Yield();
+            string WaitMessage = ConvertProject ? "Converting project..." : "Opening project...";
+            LogBox.AppendLine($"{WaitMessage} {ProjectPath}");
+            Ui.InfoNote(WaitMessage);
 
-            Project Project = AppHost.OpenProject(ProjectPath, SaveSettings);
+            AppHost.ShowPleaseWait(WaitMessage);
+            await Task.Delay(50);
+
+            AppHost.CloseProject();
+            Project Project = await Task.Run(() =>
+            {
+                Project Result = Project.Open(ProjectPath);
+                if (ConvertProject)
+                    Result.Save();
+                return Result;
+            });
+
+            AppHost.SetCurrentProject(Project, SaveSettings);
             if (ConvertProject)
             {
-                Project.Save();
                 LogBox.AppendLine($"Project converted to storage version {ProjectManifest.CurrentStorageVersion}: {Project.ProjectPath}");
+                Ui.SuccessNote("Project converted.");
             }
 
             UpdateProjectStatus($"Project opened: {Project.Title}");
             LogBox.AppendLine($"Project opened: {Project.ProjectPath}");
+            Ui.SuccessNote("Project opened.");
         }
         catch (Exception e)
         {
             LogBox.AppendLine(e);
             AppHost.HidePleaseWait();
-            await Tripous.Desktop.MessageBox.Error(e, this);
+            await Tripous.Desktop.MessageBox.Error(e, AppHost.GetDialogOwner());
         }
         finally
         {
@@ -891,14 +920,14 @@ public partial class MainWindow : Window
 
         AddToolBarSeparator();
 
-        AddToolBarButton("setting_tools.png", "Settings", "Settings");
+        AddToolBarButton("setting_tools.png", "Application Settings", "Settings");
         AddToolBarButton("setting_tools.png", "Project Settings", "ProjectSettings");
 
         AddToolBarSeparator();
 
         AddToolBarButton("layout_sidebar.png", "Show/Hide SideBar", "ToggleSideBar");
         AddToolBarButton("error_log.png", "Show/Hide Log", "ToggleLog");
-        AddToolBarButton("draw_eraser.png", "Clear Log", "ClearLog");
+        AddToolBarButton("bin.png", "Clear Log", "ClearLog");
 
         AddToolBarSeparator();
 

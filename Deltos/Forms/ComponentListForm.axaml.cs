@@ -493,7 +493,7 @@ public partial class ComponentListForm: AppForm
         if (Component == null)
             return;
 
-        AppHost.ShowMarkdownPreview($"{Component.Id}.HtmlPreview", $"HTML Preview: {Component.Title}", Component.Text);
+        AppHost.ShowMarkdownPreview(AppHost.GetMarkdownPreviewFormId(Component.Id), $"HTML Preview: {Component.Title}", Component.Text);
     }
     /// <summary>
     /// Adds the selected component to QuickView.

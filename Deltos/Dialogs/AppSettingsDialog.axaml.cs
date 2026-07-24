@@ -53,6 +53,7 @@ public partial class AppSettingsDialog: DialogWindow
         Result.FontFamily = Source.FontFamily;
         Result.FontSize = Source.FontSize;
         Result.SecondLanguageVisible = Source.SecondLanguageVisible;
+        Result.ShowMarkdownPreviewButton = Source.ShowMarkdownPreviewButton;
         return Result;
     }
     /// <summary>
@@ -65,6 +66,7 @@ public partial class AppSettingsDialog: DialogWindow
         edtFontFamily.Text = fSettings.FontFamily;
         edtFontSize.Value = fSettings.FontSize;
         chkSecondLanguageVisible.IsChecked = fSettings.SecondLanguageVisible;
+        chkShowMarkdownPreviewButton.IsChecked = fSettings.ShowMarkdownPreviewButton;
     }
     /// <summary>
     /// Saves controls into settings.
@@ -76,6 +78,7 @@ public partial class AppSettingsDialog: DialogWindow
         fSettings.FontFamily = string.IsNullOrWhiteSpace(edtFontFamily.Text) ? "Liberation Mono, Cascadia Code, Consolas, Monospace" : edtFontFamily.Text.Trim();
         fSettings.FontSize = Math.Clamp((int)(edtFontSize.Value ?? 13), 8, 32);
         fSettings.SecondLanguageVisible = chkSecondLanguageVisible.IsChecked == true;
+        fSettings.ShowMarkdownPreviewButton = chkShowMarkdownPreviewButton.IsChecked == true;
     }
 
     // ● protected
