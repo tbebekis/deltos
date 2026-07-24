@@ -37,6 +37,10 @@ public class ItemInfo
     /// Field for the LevelTitle property.
     /// </summary>
     protected string fLevelTitle = string.Empty;
+    /// <summary>
+    /// Field for the CustomNumbering property.
+    /// </summary>
+    protected string fCustomNumbering = string.Empty;
 
     // ● construction
     /// <summary>
@@ -110,5 +114,29 @@ public class ItemInfo
     {
         get => fLevelTitle;
         set => fLevelTitle = value ?? string.Empty;
+    }
+    /// <summary>
+    /// Gets or sets a value indicating whether the item title is included in output.
+    /// </summary>
+    public bool IncludeTitleInOutput { get; set; } = true;
+    /// <summary>
+    /// Gets or sets a value indicating whether output should add a page break before this item.
+    /// </summary>
+    public bool PageBreakBefore { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether this item is included in the table of contents.
+    /// </summary>
+    public bool IncludeInToc { get; set; } = true;
+    /// <summary>
+    /// Gets or sets the item numbering behavior.
+    /// </summary>
+    public ItemNumbering Numbering { get; set; } = ItemNumbering.Automatic;
+    /// <summary>
+    /// Gets or sets custom numbering text.
+    /// </summary>
+    public string CustomNumbering
+    {
+        get => fCustomNumbering;
+        set => fCustomNumbering = value ?? string.Empty;
     }
 }

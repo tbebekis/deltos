@@ -8,6 +8,7 @@
                       MinWidth="420"
                       MinHeight="300"
                       CanResize="False"
+                      ShowInTaskbar="False"
                       WindowStartupLocation="CenterOwner">
     <Grid RowDefinitions="*,Auto"
           Margin="16"

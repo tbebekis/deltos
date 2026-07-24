@@ -66,25 +66,25 @@ public class TextFile: BaseItem
     {
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
-            CheckDuplicateTitle(DocumentItem.Files, NewTitle, this);
+            CheckDuplicateTitle(DocumentItem.Items, NewTitle, this);
 
         Folder FolderItem = Parent as Folder;
         if (FolderItem != null)
-            CheckDuplicateTitle(FolderItem.Files, NewTitle, this);
+            CheckDuplicateTitle(FolderItem.Items, NewTitle, this);
     }
     /// <summary>
     /// Returns the source text files list.
     /// </summary>
     /// <returns>The source text files list.</returns>
-    protected virtual List<TextFile> GetSourceTextFiles()
+    protected virtual List<BaseItem> GetSourceItems()
     {
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
-            return DocumentItem.Files;
+            return DocumentItem.Items;
 
         Folder FolderItem = Parent as Folder;
         if (FolderItem != null)
-            return FolderItem.Files;
+            return FolderItem.Items;
 
         return null;
     }
@@ -160,30 +160,11 @@ public class TextFile: BaseItem
     {
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
-        {
-            if (!DocumentItem.CanContainTextFiles)
-                return false;
-
-            return CanMoveItem(DocumentItem.Files, this, Up);
-        }
+            return CanMoveItem(DocumentItem.Items, this, Up);
 
         Folder FolderItem = Parent as Folder;
         if (FolderItem != null)
-        {
-            if (!FolderItem.CanContainTextFiles)
-                return false;
-
-            if (CanMoveItem(FolderItem.Files, this, Up))
-                return true;
-
-            BaseItem TargetContainer = GetAdjacentTextFileMoveContainer(Document, FolderItem, Up);
-            Document TargetDocument = TargetContainer as Document;
-            if (TargetDocument != null)
-                return CanAddItem(TargetDocument.Files) && !ContainsTitle(TargetDocument.Files, Title);
-
-            Folder TargetFolder = TargetContainer as Folder;
-            return TargetFolder != null && CanAddItem(TargetFolder.Files) && !ContainsTitle(TargetFolder.Files, Title);
-        }
+            return CanMoveItem(FolderItem.Items, this, Up);
 
         return false;
     }
@@ -200,10 +181,7 @@ public class TextFile: BaseItem
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
         {
-            if (!DocumentItem.CanContainTextFiles)
-                return false;
-
-            bool Result = MoveItem(DocumentItem.Files, this, Up);
+            bool Result = MoveItem(DocumentItem.Items, this, Up);
             if (Result)
                 DocumentItem.UpdateReferences(DocumentItem.Parent);
 
@@ -213,26 +191,7 @@ public class TextFile: BaseItem
         Folder FolderItem = Parent as Folder;
         if (FolderItem != null)
         {
-            if (!FolderItem.CanContainTextFiles)
-                return false;
-
-            bool Result = false;
-            if (CanMoveItem(FolderItem.Files, this, Up))
-            {
-                Result = MoveItem(FolderItem.Files, this, Up);
-            }
-            else
-            {
-                BaseItem TargetContainer = GetAdjacentTextFileMoveContainer(Document, FolderItem, Up);
-                Document TargetDocument = TargetContainer as Document;
-                if (TargetDocument != null)
-                    Result = MoveItem(FolderItem.Files, TargetDocument.Files, this, TargetDocument, Up);
-
-                Folder TargetFolder = TargetContainer as Folder;
-                if (TargetFolder != null)
-                    Result = MoveItem(FolderItem.Files, TargetFolder.Files, this, TargetFolder, Up);
-            }
-
+            bool Result = MoveItem(FolderItem.Items, this, Up);
             if (Result)
                 FolderItem.UpdateReferences(FolderItem.Parent);
 
@@ -248,17 +207,24 @@ public class TextFile: BaseItem
     /// <returns>True if the text file can change parent; otherwise false.</returns>
     public override bool CanChangeParent(BaseItem TargetParent)
     {
+        if (!(TargetParent is Document) && !(TargetParent is Folder))
+            return false;
+
+        if (ReferenceEquals(Parent, TargetParent))
+            return false;
+
+        if (Project == null || !ReferenceEquals(Project, TargetParent.Project))
+            return false;
+
+        if (!TargetParent.CanAddTextFile)
+            return false;
+
+        Document TargetDocument = TargetParent as Document;
+        if (TargetDocument != null)
+            return !ContainsTitle(TargetDocument.Items, Title);
+
         Folder TargetFolder = TargetParent as Folder;
-        if (TargetFolder == null || ReferenceEquals(Parent, TargetFolder))
-            return false;
-
-        if (Project == null || !ReferenceEquals(Project, TargetFolder.Project))
-            return false;
-
-        if (!TargetFolder.CanAddTextFile)
-            return false;
-
-        return !ContainsTitle(TargetFolder.Files, Title);
+        return !ContainsTitle(TargetFolder.Items, Title);
     }
     /// <summary>
     /// Changes the text file parent.
@@ -270,14 +236,15 @@ public class TextFile: BaseItem
         if (!CanChangeParent(TargetParent))
             return false;
 
-        Folder TargetFolder = TargetParent as Folder;
         BaseItem SourceParent = Parent;
-        List<TextFile> SourceItems = GetSourceTextFiles();
-        bool Result = MoveItem(SourceItems, TargetFolder.Files, this, TargetFolder);
+        List<BaseItem> SourceItems = GetSourceItems();
+        Document TargetDocument = TargetParent as Document;
+        List<BaseItem> TargetItems = TargetDocument != null ? TargetDocument.Items : ((Folder)TargetParent).Items;
+        bool Result = MoveItem(SourceItems, TargetItems, this, TargetParent);
         if (Result)
         {
             SourceParent.UpdateReferences(SourceParent.Parent);
-            TargetFolder.UpdateReferences(TargetFolder.Parent);
+            TargetParent.UpdateReferences(TargetParent.Parent);
         }
 
         return Result;
@@ -324,13 +291,16 @@ public class TextFile: BaseItem
     {
         get
         {
+            if (!string.IsNullOrWhiteSpace(fStorageFolderPathOverride))
+                return fStorageFolderPathOverride;
+
             Document DocumentItem = Parent as Document;
             if (DocumentItem != null)
-                return System.IO.Path.Combine(DocumentItem.TextFilesFolderPath, StorageName);
+                return System.IO.Path.Combine(DocumentItem.ItemsFolderPath, StorageName);
 
             Folder FolderItem = Parent as Folder;
             if (FolderItem != null)
-                return System.IO.Path.Combine(FolderItem.TextFilesFolderPath, StorageName);
+                return System.IO.Path.Combine(FolderItem.ItemsFolderPath, StorageName);
 
             return base.FolderPath;
         }

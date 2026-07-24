@@ -371,11 +371,8 @@ public class DocumentExporter
         Builder.AppendLine(GetExportTitle(fDocument, UseSecondary));
         Builder.AppendLine();
 
-        foreach (Folder Folder in fDocument.Folders.OrderBy(Item => Item.OrderIndex))
-            AppendFolderText(Builder, Folder, UseSecondary);
-
-        foreach (TextFile File in fDocument.Files.OrderBy(Item => Item.OrderIndex))
-            AppendTextFileText(Builder, File, UseSecondary);
+        foreach (BaseItem Item in fDocument.GetChildItems())
+            AppendItemText(Builder, Item, UseSecondary);
 
         return Builder.ToString();
     }
@@ -394,10 +391,26 @@ public class DocumentExporter
             Builder.AppendLine();
         }
 
-        foreach (Folder ChildFolder in Folder.Folders.OrderBy(Item => Item.OrderIndex))
-            AppendFolderText(Builder, ChildFolder, UseSecondary);
+        foreach (BaseItem Item in Folder.GetChildItems())
+            AppendItemText(Builder, Item, UseSecondary);
+    }
+    /// <summary>
+    /// Appends item plain text.
+    /// </summary>
+    /// <param name="Builder">The string builder.</param>
+    /// <param name="Item">The item.</param>
+    /// <param name="UseSecondary">True to use secondary text.</param>
+    void AppendItemText(StringBuilder Builder, BaseItem Item, bool UseSecondary)
+    {
+        Folder Folder = Item as Folder;
+        if (Folder != null)
+        {
+            AppendFolderText(Builder, Folder, UseSecondary);
+            return;
+        }
 
-        foreach (TextFile File in Folder.Files.OrderBy(Item => Item.OrderIndex))
+        TextFile File = Item as TextFile;
+        if (File != null)
             AppendTextFileText(Builder, File, UseSecondary);
     }
     /// <summary>
@@ -428,11 +441,8 @@ public class DocumentExporter
         StringBuilder Builder = new StringBuilder();
         int RootLevel = 1;
 
-        foreach (Folder Folder in fDocument.Folders.OrderBy(Item => Item.OrderIndex))
-            AppendFolderMarkdown(Builder, Folder, UseSecondary, RootLevel);
-
-        foreach (TextFile File in fDocument.Files.OrderBy(Item => Item.OrderIndex))
-            AppendTextFileMarkdown(Builder, File, UseSecondary, RootLevel);
+        foreach (BaseItem Item in fDocument.GetChildItems())
+            AppendItemMarkdown(Builder, Item, UseSecondary, RootLevel);
 
         return Builder.ToString();
     }
@@ -452,11 +462,28 @@ public class DocumentExporter
             Builder.AppendLine();
         }
 
-        foreach (Folder ChildFolder in Folder.Folders.OrderBy(Item => Item.OrderIndex))
-            AppendFolderMarkdown(Builder, ChildFolder, UseSecondary, Math.Min(6, Level + 1));
+        foreach (BaseItem Item in Folder.GetChildItems())
+            AppendItemMarkdown(Builder, Item, UseSecondary, Math.Min(6, Level + 1));
+    }
+    /// <summary>
+    /// Appends item markdown.
+    /// </summary>
+    /// <param name="Builder">The string builder.</param>
+    /// <param name="Item">The item.</param>
+    /// <param name="UseSecondary">True to use secondary text.</param>
+    /// <param name="Level">The heading level.</param>
+    void AppendItemMarkdown(StringBuilder Builder, BaseItem Item, bool UseSecondary, int Level)
+    {
+        Folder Folder = Item as Folder;
+        if (Folder != null)
+        {
+            AppendFolderMarkdown(Builder, Folder, UseSecondary, Level);
+            return;
+        }
 
-        foreach (TextFile File in Folder.Files.OrderBy(Item => Item.OrderIndex))
-            AppendTextFileMarkdown(Builder, File, UseSecondary, Math.Min(6, Level + 1));
+        TextFile File = Item as TextFile;
+        if (File != null)
+            AppendTextFileMarkdown(Builder, File, UseSecondary, Level);
     }
     /// <summary>
     /// Appends text file markdown.
@@ -526,11 +553,8 @@ public class DocumentExporter
         if (!string.IsNullOrWhiteSpace(fDocument.Synopsis))
             Builder.AppendLine(fDocument.Synopsis.Trim());
 
-        foreach (Folder Folder in fDocument.Folders.OrderBy(Item => Item.OrderIndex))
-            AppendFolderSynopsis(Builder, Folder);
-
-        foreach (TextFile File in fDocument.Files.OrderBy(Item => Item.OrderIndex))
-            AppendTextFileSynopsis(Builder, File);
+        foreach (BaseItem Item in fDocument.GetChildItems())
+            AppendItemSynopsis(Builder, Item);
 
         return Builder.ToString();
     }
@@ -546,10 +570,25 @@ public class DocumentExporter
         if (!string.IsNullOrWhiteSpace(Folder.Synopsis))
             Builder.AppendLine(Folder.Synopsis.Trim());
 
-        foreach (Folder ChildFolder in Folder.Folders.OrderBy(Item => Item.OrderIndex))
-            AppendFolderSynopsis(Builder, ChildFolder);
+        foreach (BaseItem Item in Folder.GetChildItems())
+            AppendItemSynopsis(Builder, Item);
+    }
+    /// <summary>
+    /// Appends item synopsis.
+    /// </summary>
+    /// <param name="Builder">The string builder.</param>
+    /// <param name="Item">The item.</param>
+    void AppendItemSynopsis(StringBuilder Builder, BaseItem Item)
+    {
+        Folder Folder = Item as Folder;
+        if (Folder != null)
+        {
+            AppendFolderSynopsis(Builder, Folder);
+            return;
+        }
 
-        foreach (TextFile File in Folder.Files.OrderBy(Item => Item.OrderIndex))
+        TextFile File = Item as TextFile;
+        if (File != null)
             AppendTextFileSynopsis(Builder, File);
     }
     /// <summary>
@@ -580,11 +619,8 @@ public class DocumentExporter
             Builder.AppendLine();
         }
 
-        foreach (Folder Folder in fDocument.Folders.OrderBy(Item => Item.OrderIndex))
-            AppendFolderSynopsisMarkdown(Builder, Folder, 2);
-
-        foreach (TextFile File in fDocument.Files.OrderBy(Item => Item.OrderIndex))
-            AppendTextFileSynopsisMarkdown(Builder, File, 2);
+        foreach (BaseItem Item in fDocument.GetChildItems())
+            AppendItemSynopsisMarkdown(Builder, Item, 2);
 
         return Builder.ToString();
     }
@@ -605,11 +641,27 @@ public class DocumentExporter
             Builder.AppendLine();
         }
 
-        foreach (Folder ChildFolder in Folder.Folders.OrderBy(Item => Item.OrderIndex))
-            AppendFolderSynopsisMarkdown(Builder, ChildFolder, Math.Min(6, Level + 1));
+        foreach (BaseItem Item in Folder.GetChildItems())
+            AppendItemSynopsisMarkdown(Builder, Item, Math.Min(6, Level + 1));
+    }
+    /// <summary>
+    /// Appends item synopsis markdown.
+    /// </summary>
+    /// <param name="Builder">The string builder.</param>
+    /// <param name="Item">The item.</param>
+    /// <param name="Level">The heading level.</param>
+    void AppendItemSynopsisMarkdown(StringBuilder Builder, BaseItem Item, int Level)
+    {
+        Folder Folder = Item as Folder;
+        if (Folder != null)
+        {
+            AppendFolderSynopsisMarkdown(Builder, Folder, Level);
+            return;
+        }
 
-        foreach (TextFile File in Folder.Files.OrderBy(Item => Item.OrderIndex))
-            AppendTextFileSynopsisMarkdown(Builder, File, Math.Min(6, Level + 1));
+        TextFile File = Item as TextFile;
+        if (File != null)
+            AppendTextFileSynopsisMarkdown(Builder, File, Level);
     }
     /// <summary>
     /// Appends text file synopsis markdown.
@@ -641,12 +693,8 @@ public class DocumentExporter
         int Heading1Count = 0;
 
         int RootLevel = 1;
-        int RootTextFileLevel = 1;
-        foreach (Folder Folder in fDocument.Folders.OrderBy(Item => Item.OrderIndex))
-            AppendFolderHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, Folder, UseSecondary, RootLevel, UseOdtHeadingLevels);
-
-        foreach (TextFile File in fDocument.Files.OrderBy(Item => Item.OrderIndex))
-            AppendTextFileHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, File, UseSecondary, RootTextFileLevel);
+        foreach (BaseItem Item in fDocument.GetChildItems())
+            AppendItemHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, Item, UseSecondary, RootLevel, UseOdtHeadingLevels);
 
         return WrapHtml(GetExportTitle(fDocument, UseSecondary), TocBuilder.ToString(), Builder.ToString(), IncludeToc, UseBlackHeadings);
     }
@@ -674,12 +722,33 @@ public class DocumentExporter
                 Heading1Count++;
         }
 
-        foreach (Folder ChildFolder in Folder.Folders.OrderBy(Item => Item.OrderIndex))
-            AppendFolderHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, ChildFolder, UseSecondary, Math.Min(6, Level + 1), UseOdtHeadingLevels);
-
         int TextFileLevel = Math.Min(6, Level + 1);
-        foreach (TextFile File in Folder.Files.OrderBy(Item => Item.OrderIndex))
-            AppendTextFileHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, File, UseSecondary, TextFileLevel);
+        foreach (BaseItem Item in Folder.GetChildItems())
+            AppendItemHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, Item, UseSecondary, TextFileLevel, UseOdtHeadingLevels);
+    }
+    /// <summary>
+    /// Appends item HTML.
+    /// </summary>
+    /// <param name="Builder">The string builder.</param>
+    /// <param name="TocBuilder">The table of contents builder.</param>
+    /// <param name="AnchorIndex">The next anchor index.</param>
+    /// <param name="Heading1Count">The Heading 1 count.</param>
+    /// <param name="Item">The item.</param>
+    /// <param name="UseSecondary">True to use secondary text.</param>
+    /// <param name="Level">The heading level.</param>
+    /// <param name="UseOdtHeadingLevels">True to use ODT heading levels.</param>
+    void AppendItemHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, ref int Heading1Count, BaseItem Item, bool UseSecondary, int Level, bool UseOdtHeadingLevels)
+    {
+        Folder Folder = Item as Folder;
+        if (Folder != null)
+        {
+            AppendFolderHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, Folder, UseSecondary, Level, UseOdtHeadingLevels);
+            return;
+        }
+
+        TextFile File = Item as TextFile;
+        if (File != null)
+            AppendTextFileHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, File, UseSecondary, Level);
     }
     /// <summary>
     /// Appends text file HTML.

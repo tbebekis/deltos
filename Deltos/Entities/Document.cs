@@ -8,6 +8,30 @@ namespace Deltos;
 /// </summary>
 public class Document: BaseItem
 {
+    /// <summary>
+    /// Describes an item position in document tree order.
+    /// </summary>
+    class MoveEntry
+    {
+        // ● properties
+        /// <summary>
+        /// Gets or sets the item.
+        /// </summary>
+        public BaseItem Item { get; set; }
+        /// <summary>
+        /// Gets or sets the parent item.
+        /// </summary>
+        public BaseItem Parent { get; set; }
+        /// <summary>
+        /// Gets or sets the parent item list.
+        /// </summary>
+        public List<BaseItem> Items { get; set; }
+        /// <summary>
+        /// Gets or sets the item index in its parent list.
+        /// </summary>
+        public int Index { get; set; }
+    }
+
     // ● protected
     /// <summary>
     /// Field for the Synopsis property.
@@ -17,6 +41,10 @@ public class Document: BaseItem
     /// Field for the Structure property.
     /// </summary>
     protected FolderItem fStructure = new();
+    /// <summary>
+    /// Field for the Items property.
+    /// </summary>
+    protected List<BaseItem> fItems = new();
     /// <summary>
     /// Field for the Folders property.
     /// </summary>
@@ -54,6 +82,24 @@ public class Document: BaseItem
                 Containers.Add(Folder);
 
             AddMoveContainers(Containers, Folder.Folders, Level);
+        }
+    }
+    /// <summary>
+    /// Adds move entries recursively in visible document tree order.
+    /// </summary>
+    /// <param name="Result">The move entries.</param>
+    /// <param name="ParentItem">The parent item.</param>
+    /// <param name="Items">The parent item list.</param>
+    static void AddMoveEntries(List<MoveEntry> Result, BaseItem ParentItem, List<BaseItem> Items)
+    {
+        for (int Index = 0; Index < Items.Count; Index++)
+        {
+            BaseItem Item = Items[Index];
+            Result.Add(new MoveEntry { Item = Item, Parent = ParentItem, Items = Items, Index = Index });
+
+            Folder Folder = Item as Folder;
+            if (Folder != null)
+                AddMoveEntries(Result, Folder, Folder.Items);
         }
     }
 
@@ -109,11 +155,19 @@ public class Document: BaseItem
     /// </summary>
     protected virtual void CheckContentModel()
     {
-        if (HasFolderStructure && Files.Count > 0)
-            throw new InvalidOperationException("A structured document cannot contain document-level text files.");
-
-        if (!HasFolderStructure && Folders.Count > 0)
-            throw new InvalidOperationException("A flat document cannot contain folders.");
+        foreach (BaseItem Item in Items)
+        {
+            if (!(Item is Folder) && !(Item is TextFile))
+                throw new InvalidOperationException($"Invalid document child item type: {Item.Type}.");
+        }
+    }
+    /// <summary>
+    /// Returns the default child folder level title.
+    /// </summary>
+    /// <returns>The default child folder level title.</returns>
+    protected virtual string GetDefaultFolderLevelTitle()
+    {
+        return string.IsNullOrWhiteSpace(Structure?.Title) ? Folder.DefaultLevelTitle : Structure.Title;
     }
 
     // ● internal
@@ -124,7 +178,7 @@ public class Document: BaseItem
     /// <returns>True if the folder is removed; otherwise false.</returns>
     internal bool DetachFolder(Folder Folder)
     {
-        bool Result = Folders.Remove(Folder);
+        bool Result = Items.Remove(Folder);
         if (Result)
         {
             Folder.ClearReferences();
@@ -141,7 +195,7 @@ public class Document: BaseItem
     /// <returns>True if the text file is removed; otherwise false.</returns>
     internal bool DetachTextFile(TextFile File)
     {
-        bool Result = Files.Remove(File);
+        bool Result = Items.Remove(File);
         if (Result)
         {
             File.ClearReferences();
@@ -164,13 +218,13 @@ public class Document: BaseItem
         if (!CanAddFolder)
             throw new InvalidOperationException("The document has no folder structure.");
 
-        CheckCanAddItem(Folders);
-        CheckDuplicateTitle(Folders, Title);
+        CheckCanAddItem(Items);
+        CheckDuplicateTitle(Items, Title);
 
         Folder Result = new Folder();
         Result.Title = Title;
-        Result.LevelTitle = string.IsNullOrWhiteSpace(LevelTitle) ? Structure.Title : LevelTitle;
-        Folders.Add(Result);
+        Result.LevelTitle = string.IsNullOrWhiteSpace(LevelTitle) ? GetDefaultFolderLevelTitle() : LevelTitle;
+        Items.Add(Result);
         Result.UpdateReferences(this);
         RenumberChildren();
         SaveItemIfStorageReady(Result);
@@ -186,12 +240,12 @@ public class Document: BaseItem
         if (!CanAddTextFile)
             throw new InvalidOperationException("This document cannot contain text files.");
 
-        CheckCanAddItem(Files);
-        CheckDuplicateTitle(Files, Title);
+        CheckCanAddItem(Items);
+        CheckDuplicateTitle(Items, Title);
 
         TextFile Result = new TextFile();
         Result.Title = Title;
-        Files.Add(Result);
+        Items.Add(Result);
         Result.UpdateReferences(this);
         RenumberChildren();
         SaveItemIfStorageReady(Result);
@@ -257,7 +311,7 @@ public class Document: BaseItem
         Folder Folder = Item as Folder;
         if (Folder != null)
         {
-            if (!Folders.Contains(Folder))
+            if (!Items.Contains(Folder))
                 return false;
 
             Folder.Delete();
@@ -267,7 +321,7 @@ public class Document: BaseItem
         TextFile File = Item as TextFile;
         if (File != null)
         {
-            if (!Files.Contains(File))
+            if (!Items.Contains(File))
                 return false;
 
             File.Delete();
@@ -287,7 +341,7 @@ public class Document: BaseItem
         if (!CanContainFolders)
             throw new InvalidOperationException("This document cannot contain folders.");
 
-        bool Result = MoveItem(Folders, Folder, NewOrderIndex);
+        bool Result = MoveItem(Items, Folder, NewOrderIndex);
         if (Result)
             UpdateReferences(Parent);
 
@@ -304,7 +358,7 @@ public class Document: BaseItem
         if (!CanContainTextFiles)
             throw new InvalidOperationException("This document cannot contain text files.");
 
-        bool Result = MoveItem(Files, File, NewOrderIndex);
+        bool Result = MoveItem(Items, File, NewOrderIndex);
         if (Result)
             UpdateReferences(Parent);
 
@@ -348,17 +402,219 @@ public class Document: BaseItem
     public List<BaseItem> GetTextFileMoveContainers()
     {
         List<BaseItem> Result = new();
-        if (CanContainTextFiles)
-            Result.Add(this);
-
-        foreach (BaseItem Container in GetMoveContainers())
-        {
-            Folder Folder = Container as Folder;
-            if (Folder != null && Folder.CanContainTextFiles)
-                Result.Add(Folder);
-        }
+        Result.AddRange(GetMoveContainers());
 
         return Result;
+    }
+    /// <summary>
+    /// Returns true if a document item can move in visible tree order.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <returns>True if the item can move; otherwise false.</returns>
+    public bool CanMoveDocumentItem(BaseItem Item, bool Up)
+    {
+        return GetDocumentMoveTarget(Item, Up, out _, out _, out _);
+    }
+    /// <summary>
+    /// Moves a document item in visible tree order.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <returns>True if the item is moved; otherwise false.</returns>
+    public bool MoveDocumentItem(BaseItem Item, bool Up)
+    {
+        if (!GetDocumentMoveTarget(Item, Up, out MoveEntry SourceEntry, out BaseItem TargetParent, out int TargetIndex))
+            return false;
+
+        List<BaseItem> TargetItems = GetContainerItems(TargetParent);
+        bool Result = MoveItem(SourceEntry.Items, TargetItems, Item, TargetParent, TargetIndex);
+        if (Result)
+            UpdateReferences(Parent);
+
+        return Result;
+    }
+    /// <summary>
+    /// Returns the document move target for an item.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <param name="Up">True for upward movement; false for downward movement.</param>
+    /// <param name="SourceEntry">The source entry.</param>
+    /// <param name="TargetParent">The target parent.</param>
+    /// <param name="TargetIndex">The target index.</param>
+    /// <returns>True if a target is found; otherwise false.</returns>
+    bool GetDocumentMoveTarget(BaseItem Item, bool Up, out MoveEntry SourceEntry, out BaseItem TargetParent, out int TargetIndex)
+    {
+        SourceEntry = null;
+        TargetParent = null;
+        TargetIndex = -1;
+        if (Item == null || !ReferenceEquals(Item.Document, this))
+            return false;
+
+        List<MoveEntry> Entries = GetMoveEntries();
+        int SourceIndex = Entries.FindIndex(Entry => ReferenceEquals(Entry.Item, Item));
+        if (SourceIndex < 0)
+            return false;
+
+        SourceEntry = Entries[SourceIndex];
+        MoveEntry TargetEntry = Up ? GetPreviousMoveEntry(Entries, SourceIndex) : GetNextMoveEntry(Entries, SourceIndex, Item);
+        if (TargetEntry == null)
+        {
+            if (Up || !(SourceEntry.Parent is Folder))
+                return false;
+
+            MoveEntry ParentEntry = FindMoveEntry(Entries, SourceEntry.Parent);
+            if (ParentEntry == null)
+                return false;
+
+            TargetParent = ParentEntry.Parent;
+            TargetIndex = ParentEntry.Index + 1;
+        }
+        else if (Up && ReferenceEquals(TargetEntry.Item, SourceEntry.Parent))
+        {
+            MoveEntry ParentEntry = FindMoveEntry(Entries, SourceEntry.Parent);
+            if (ParentEntry == null)
+                return false;
+
+            TargetParent = ParentEntry.Parent;
+            TargetIndex = ParentEntry.Index;
+        }
+        else if (!Up && SourceEntry.Parent is Folder && !ReferenceEquals(TargetEntry.Parent, SourceEntry.Parent) && !IsDescendantOf(TargetEntry.Item, SourceEntry.Parent))
+        {
+            MoveEntry ParentEntry = FindMoveEntry(Entries, SourceEntry.Parent);
+            if (ParentEntry == null)
+                return false;
+
+            TargetParent = ParentEntry.Parent;
+            TargetIndex = ParentEntry.Index + 1;
+        }
+        else if (Up && GetAncestorChildUnderParent(TargetEntry.Item, SourceEntry.Parent) is Folder PreviousFolder && !ReferenceEquals(PreviousFolder, Item))
+        {
+            TargetParent = PreviousFolder;
+            TargetIndex = PreviousFolder.Items.Count;
+        }
+        else if (!Up && TargetEntry.Item is Folder NextFolder && ReferenceEquals(TargetEntry.Parent, SourceEntry.Parent))
+        {
+            TargetParent = NextFolder;
+            TargetIndex = 0;
+        }
+        else if (ReferenceEquals(SourceEntry.Parent, TargetEntry.Parent))
+        {
+            TargetParent = SourceEntry.Parent;
+            TargetIndex = Up ? TargetEntry.Index : TargetEntry.Index + 1;
+        }
+        else if (TargetEntry.Item is Folder TargetFolder)
+        {
+            TargetParent = TargetFolder;
+            TargetIndex = Up ? TargetFolder.Items.Count : 0;
+        }
+        else
+        {
+            TargetParent = TargetEntry.Parent;
+            TargetIndex = Up ? TargetEntry.Index : TargetEntry.Index + 1;
+        }
+
+        Folder MovingFolder = Item as Folder;
+        Folder ParentFolder = TargetParent as Folder;
+        if (MovingFolder != null && ParentFolder != null && (ReferenceEquals(MovingFolder, ParentFolder) || MovingFolder.ContainsFolder(ParentFolder)))
+            return false;
+
+        List<BaseItem> TargetItems = GetContainerItems(TargetParent);
+        return TargetItems != null && (SourceEntry.Items == TargetItems || CanAddItem(TargetItems)) && (SourceEntry.Items == TargetItems || !ContainsTitle(TargetItems, Item.Title));
+    }
+    /// <summary>
+    /// Finds a move entry by item.
+    /// </summary>
+    /// <param name="Entries">The move entries.</param>
+    /// <param name="Item">The item.</param>
+    /// <returns>The move entry, if any; otherwise null.</returns>
+    MoveEntry FindMoveEntry(List<MoveEntry> Entries, BaseItem Item)
+    {
+        return Entries.FirstOrDefault(Entry => ReferenceEquals(Entry.Item, Item));
+    }
+    /// <summary>
+    /// Returns the ancestor item directly under a parent item.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <param name="ParentItem">The parent item.</param>
+    /// <returns>The direct child ancestor, if found; otherwise null.</returns>
+    BaseItem GetAncestorChildUnderParent(BaseItem Item, BaseItem ParentItem)
+    {
+        BaseItem Result = Item;
+        while (Result != null && Result.Parent != null && !ReferenceEquals(Result.Parent, ParentItem))
+            Result = Result.Parent;
+
+        return Result != null && ReferenceEquals(Result.Parent, ParentItem) ? Result : null;
+    }
+    /// <summary>
+    /// Returns the previous move entry.
+    /// </summary>
+    /// <param name="Entries">The move entries.</param>
+    /// <param name="SourceIndex">The source index.</param>
+    /// <returns>The previous move entry, if any; otherwise null.</returns>
+    MoveEntry GetPreviousMoveEntry(List<MoveEntry> Entries, int SourceIndex)
+    {
+        return SourceIndex > 0 ? Entries[SourceIndex - 1] : null;
+    }
+    /// <summary>
+    /// Returns the next move entry after the item subtree.
+    /// </summary>
+    /// <param name="Entries">The move entries.</param>
+    /// <param name="SourceIndex">The source index.</param>
+    /// <param name="Item">The source item.</param>
+    /// <returns>The next move entry, if any; otherwise null.</returns>
+    MoveEntry GetNextMoveEntry(List<MoveEntry> Entries, int SourceIndex, BaseItem Item)
+    {
+        for (int Index = SourceIndex + 1; Index < Entries.Count; Index++)
+        {
+            if (!IsDescendantOf(Entries[Index].Item, Item))
+                return Entries[Index];
+        }
+
+        return null;
+    }
+    /// <summary>
+    /// Returns the mixed child item list for a container.
+    /// </summary>
+    /// <param name="Container">The container.</param>
+    /// <returns>The mixed child item list.</returns>
+    List<BaseItem> GetContainerItems(BaseItem Container)
+    {
+        Document DocumentItem = Container as Document;
+        if (DocumentItem != null)
+            return DocumentItem.Items;
+
+        Folder Folder = Container as Folder;
+        return Folder?.Items;
+    }
+    /// <summary>
+    /// Returns the move entries.
+    /// </summary>
+    /// <returns>The move entries.</returns>
+    List<MoveEntry> GetMoveEntries()
+    {
+        List<MoveEntry> Result = new();
+        AddMoveEntries(Result, this, Items);
+        return Result;
+    }
+    /// <summary>
+    /// Returns true if an item is a descendant of a possible ancestor.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <param name="PossibleAncestor">The possible ancestor.</param>
+    /// <returns>True if the item is a descendant; otherwise false.</returns>
+    bool IsDescendantOf(BaseItem Item, BaseItem PossibleAncestor)
+    {
+        BaseItem ParentItem = Item?.Parent;
+        while (ParentItem != null)
+        {
+            if (ReferenceEquals(ParentItem, PossibleAncestor))
+                return true;
+
+            ParentItem = ParentItem.Parent;
+        }
+
+        return false;
     }
     /// <summary>
     /// Returns the document child items.
@@ -368,17 +624,8 @@ public class Document: BaseItem
     {
         List<BaseItem> Result = new();
 
-        if (CanContainFolders)
-        {
-            foreach (Folder Folder in Folders)
-                Result.Add(Folder);
-        }
-
-        if (CanContainTextFiles)
-        {
-            foreach (TextFile File in Files)
-                Result.Add(File);
-        }
+        foreach (BaseItem Item in Items)
+            Result.Add(Item);
 
         return Result;
     }
@@ -444,29 +691,14 @@ public class Document: BaseItem
             DeleteStructure();
         }
 
-        if (CanContainFolders)
-        {
-            System.IO.Directory.CreateDirectory(FoldersFolderPath);
-            DeleteStorage(TextFilesFolderPath);
-        }
+        System.IO.Directory.CreateDirectory(ItemsFolderPath);
+        foreach (BaseItem Item in Items)
+            Item.Save();
 
-        if (CanContainTextFiles)
-        {
-            System.IO.Directory.CreateDirectory(TextFilesFolderPath);
-            DeleteStorage(FoldersFolderPath);
-        }
-
-        if (CanContainFolders)
-        {
-            foreach (Folder Folder in Folders)
-                Folder.Save();
-        }
-
-        if (CanContainTextFiles)
-        {
-            foreach (TextFile File in Files)
-                File.Save();
-        }
+        DeleteInternalMoveFolders(ItemsFolderPath);
+        DeleteInternalMoveFolders(FolderPath);
+        DeleteStorage(FoldersFolderPath);
+        DeleteStorage(TextFilesFolderPath);
 
     }
     /// <summary>
@@ -478,16 +710,21 @@ public class Document: BaseItem
         Synopsis = LoadMarkdownFile(SynopsisFilePath);
         LoadStructure();
 
-        Folders = new List<Folder>();
-        Files = new List<TextFile>();
-        if (!CanContainFolders)
+        Items = new List<BaseItem>();
+        if (System.IO.Directory.Exists(ItemsFolderPath))
+        {
+            Items = LoadChildItems(ItemsFolderPath);
             CheckUnusedStorageBucket(FoldersFolderPath);
-
-        if (!CanContainTextFiles)
             CheckUnusedStorageBucket(TextFilesFolderPath);
+        }
+        else
+        {
+            Items.AddRange(LoadItems<Folder>(FoldersFolderPath));
+            Items.AddRange(LoadItems<TextFile>(TextFilesFolderPath));
+            Items.Sort((A, B) => A.OrderIndex.CompareTo(B.OrderIndex));
+            CheckLoadedItems(Items, FolderPath);
+        }
 
-        Folders = CanContainFolders ? LoadItems<Folder>(FoldersFolderPath) : new List<Folder>();
-        Files = CanContainTextFiles ? LoadItems<TextFile>(TextFilesFolderPath) : new List<TextFile>();
         UpdateReferences(Parent);
     }
     /// <summary>
@@ -497,11 +734,8 @@ public class Document: BaseItem
     {
         base.PrepareInfo();
 
-        foreach (Folder Folder in Folders)
-            Folder.PrepareInfo();
-
-        foreach (TextFile File in Files)
-            File.PrepareInfo();
+        foreach (BaseItem Item in Items)
+            Item.PrepareInfo();
 
     }
     /// <summary>
@@ -511,11 +745,8 @@ public class Document: BaseItem
     {
         base.ApplyInfo();
 
-        foreach (Folder Folder in Folders)
-            Folder.ApplyInfo();
-
-        foreach (TextFile File in Files)
-            File.ApplyInfo();
+        foreach (BaseItem Item in Items)
+            Item.ApplyInfo();
 
     }
     /// <summary>
@@ -525,11 +756,7 @@ public class Document: BaseItem
     {
         CheckContentModel();
 
-        if (CanContainFolders)
-            RenumberItems(Folders);
-
-        if (CanContainTextFiles)
-            RenumberItems(Files);
+        RenumberItems(Items);
 
         foreach (Folder Folder in Folders)
             Folder.RenumberChildren();
@@ -543,11 +770,8 @@ public class Document: BaseItem
         base.UpdateReferences(ParentItem);
         Structure?.UpdateReferences(null);
 
-        foreach (Folder Folder in Folders)
-            Folder.UpdateReferences(this);
-
-        foreach (TextFile File in Files)
-            File.UpdateReferences(this);
+        foreach (BaseItem Item in Items)
+            Item.UpdateReferences(this);
 
     }
     /// <summary>
@@ -557,11 +781,8 @@ public class Document: BaseItem
     {
         base.ClearReferences();
 
-        foreach (Folder Folder in Folders)
-            Folder.ClearReferences();
-
-        foreach (TextFile File in Files)
-            File.ClearReferences();
+        foreach (BaseItem Item in Items)
+            Item.ClearReferences();
 
     }
     
@@ -574,6 +795,10 @@ public class Document: BaseItem
     /// Gets the document structure file name.
     /// </summary>
     static public string StructureFileName => "Structure.json";
+    /// <summary>
+    /// Gets the mixed child items bucket folder name.
+    /// </summary>
+    static public string ItemsFolderName => "Items";
     /// <summary>
     /// Gets the folders bucket folder name.
     /// </summary>
@@ -613,6 +838,11 @@ public class Document: BaseItem
         }
     }
     /// <summary>
+    /// Gets the file-system folder path of the child items bucket.
+    /// </summary>
+    [JsonIgnore]
+    public string ItemsFolderPath => System.IO.Path.Combine(FolderPath, ItemsFolderName);
+    /// <summary>
     /// Gets the file-system folder path of the child folders bucket.
     /// </summary>
     [JsonIgnore]
@@ -645,45 +875,64 @@ public class Document: BaseItem
     /// Gets a value indicating whether a folder structure can be set.
     /// </summary>
     [JsonIgnore]
-    public override bool CanSetStructure => Files.Count == 0 && Folders.Count == 0;
+    public override bool CanSetStructure => true;
     /// <summary>
     /// Gets a value indicating whether the folder structure can be cleared.
     /// </summary>
     [JsonIgnore]
-    public override bool CanClearStructure => HasFolderStructure && Folders.Count == 0;
+    public override bool CanClearStructure => HasFolderStructure;
     /// <summary>
     /// Gets a value indicating whether this document can contain root folders.
     /// </summary>
     [JsonIgnore]
-    public override bool CanContainFolders => HasFolderStructure && Files.Count == 0;
+    public override bool CanContainFolders => true;
     /// <summary>
     /// Gets a value indicating whether this document can contain text files.
     /// </summary>
     [JsonIgnore]
-    public override bool CanContainTextFiles => !HasFolderStructure && Folders.Count == 0;
+    public override bool CanContainTextFiles => true;
     /// Gets a value indicating whether a root folder can be added.
     /// </summary>
     [JsonIgnore]
-    public override bool CanAddFolder => CanContainFolders && CanAddItem(Folders);
+    public override bool CanAddFolder => CanContainFolders && CanAddItem(Items);
     /// <summary>
     /// Gets a value indicating whether a text file can be added.
     /// </summary>
     [JsonIgnore]
-    public override bool CanAddTextFile => CanContainTextFiles && CanAddItem(Files);
+    public override bool CanAddTextFile => CanContainTextFiles && CanAddItem(Items);
+    /// <summary>
+    /// Gets or sets the document child items.
+    /// </summary>
+    public List<BaseItem> Items
+    {
+        get => fItems;
+        set => fItems = value ?? new List<BaseItem>();
+    }
+    /// <summary>
     /// Gets or sets the document folders.
     /// </summary>
     public List<Folder> Folders
     {
-        get => fFolders;
-        set => fFolders = value ?? new List<Folder>();
+        get => Items.OfType<Folder>().ToList();
+        set
+        {
+            Items.RemoveAll(Item => Item is Folder);
+            if (value != null)
+                Items.AddRange(value);
+        }
     }
     /// <summary>
     /// Gets or sets the document text files.
     /// </summary>
     public List<TextFile> Files
     {
-        get => fFiles;
-        set => fFiles = value ?? new List<TextFile>();
+        get => Items.OfType<TextFile>().ToList();
+        set
+        {
+            Items.RemoveAll(Item => Item is TextFile);
+            if (value != null)
+                Items.AddRange(value);
+        }
     }
     /// Gets or sets the document synopsis.
     /// </summary>

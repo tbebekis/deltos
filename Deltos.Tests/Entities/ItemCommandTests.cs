@@ -54,7 +54,7 @@ public class ItemCommandTests
         {
             Folder ChildFolder = new Folder();
             ChildFolder.Title = $"Scene {Index + 1}";
-            Folder.Folders.Add(ChildFolder);
+            Folder.Items.Add(ChildFolder);
         }
     }
     /// <summary>
@@ -68,7 +68,7 @@ public class ItemCommandTests
         {
             TextFile TextFile = new TextFile();
             TextFile.Title = $"Text File {Index + 1}";
-            Folder.Files.Add(TextFile);
+            Folder.Items.Add(TextFile);
         }
     }
 
@@ -272,8 +272,8 @@ public class ItemCommandTests
             Assert.True(Moved);
             Assert.Equal(1, Second.OrderIndex);
             Assert.Equal(2, First.OrderIndex);
-            Assert.True(Directory.Exists(Path.Combine(Document.TextFilesFolderPath, "001._Second_Scene")));
-            Assert.True(Directory.Exists(Path.Combine(Document.TextFilesFolderPath, "002._First_Scene")));
+            Assert.True(Directory.Exists(Path.Combine(Document.ItemsFolderPath, "001._Second_Scene")));
+            Assert.True(Directory.Exists(Path.Combine(Document.ItemsFolderPath, "002._First_Scene")));
         }
         finally
         {
@@ -302,8 +302,8 @@ public class ItemCommandTests
             Assert.True(Moved);
             Assert.Equal(1, Second.OrderIndex);
             Assert.Equal(2, First.OrderIndex);
-            Assert.True(Directory.Exists(Path.Combine(Document.FoldersFolderPath, "001._Second_Chapter")));
-            Assert.True(Directory.Exists(Path.Combine(Document.FoldersFolderPath, "002._First_Chapter")));
+            Assert.True(Directory.Exists(Path.Combine(Document.ItemsFolderPath, "001._Second_Chapter")));
+            Assert.True(Directory.Exists(Path.Combine(Document.ItemsFolderPath, "002._First_Chapter")));
         }
         finally
         {
@@ -386,8 +386,8 @@ public class ItemCommandTests
             Assert.True(Moved);
             Assert.Equal(1, Second.OrderIndex);
             Assert.Equal(2, First.OrderIndex);
-            Assert.True(Directory.Exists(Path.Combine(Document.FoldersFolderPath, "001._Second_Chapter")));
-            Assert.True(Directory.Exists(Path.Combine(Document.FoldersFolderPath, "002._First_Chapter")));
+            Assert.True(Directory.Exists(Path.Combine(Document.ItemsFolderPath, "001._Second_Chapter")));
+            Assert.True(Directory.Exists(Path.Combine(Document.ItemsFolderPath, "002._First_Chapter")));
         }
         finally
         {
@@ -416,8 +416,8 @@ public class ItemCommandTests
             Assert.True(Moved);
             Assert.Equal(1, Second.OrderIndex);
             Assert.Equal(2, First.OrderIndex);
-            Assert.True(Directory.Exists(Path.Combine(Chapter.FoldersFolderPath, "001._Second_Scene_Group")));
-            Assert.True(Directory.Exists(Path.Combine(Chapter.FoldersFolderPath, "002._First_Scene_Group")));
+            Assert.True(Directory.Exists(Path.Combine(Chapter.ItemsFolderPath, "001._Second_Scene_Group")));
+            Assert.True(Directory.Exists(Path.Combine(Chapter.ItemsFolderPath, "002._First_Scene_Group")));
         }
         finally
         {
@@ -444,8 +444,8 @@ public class ItemCommandTests
             Assert.True(Moved);
             Assert.Equal(1, Second.OrderIndex);
             Assert.Equal(2, First.OrderIndex);
-            Assert.True(Directory.Exists(Path.Combine(Document.TextFilesFolderPath, "001._Second_Scene")));
-            Assert.True(Directory.Exists(Path.Combine(Document.TextFilesFolderPath, "002._First_Scene")));
+            Assert.True(Directory.Exists(Path.Combine(Document.ItemsFolderPath, "001._Second_Scene")));
+            Assert.True(Directory.Exists(Path.Combine(Document.ItemsFolderPath, "002._First_Scene")));
         }
         finally
         {
@@ -502,8 +502,8 @@ public class ItemCommandTests
             Assert.True(Moved);
             Assert.Equal(1, Second.OrderIndex);
             Assert.Equal(2, First.OrderIndex);
-            Assert.True(Directory.Exists(Path.Combine(Scene.TextFilesFolderPath, "001._Second_Scene")));
-            Assert.True(Directory.Exists(Path.Combine(Scene.TextFilesFolderPath, "002._First_Scene")));
+            Assert.True(Directory.Exists(Path.Combine(Scene.ItemsFolderPath, "001._Second_Scene")));
+            Assert.True(Directory.Exists(Path.Combine(Scene.ItemsFolderPath, "002._First_Scene")));
         }
         finally
         {
@@ -567,10 +567,10 @@ public class ItemCommandTests
         }
     }
     /// <summary>
-    /// Tests that moving a text file to the previous leaf folder updates memory and persistent storage.
+    /// Tests that moving a text file stops at the parent boundary.
     /// </summary>
     [Fact]
-    public void CrossParentTextFileMoveUpdatesPersistentStorage()
+    public void TextFileMoveStopsAtParentBoundary()
     {
         string ProjectPath;
         Project Project = CreateProject(out ProjectPath);
@@ -586,17 +586,18 @@ public class ItemCommandTests
             TextFile Moving = SecondScene.AddTextFile("Moving Scene");
             string OldFolderPath = Moving.FolderPath;
 
-            Assert.True(Moving.CanMove(true));
+            Assert.False(Moving.CanMove(true));
             bool Moved = Moving.Move(true);
 
-            Assert.True(Moved);
-            Assert.False(Directory.Exists(OldFolderPath));
-            Assert.Same(FirstScene, Moving.Folder);
-            Assert.Empty(SecondScene.Files);
+            Assert.False(Moved);
+            Assert.True(Directory.Exists(OldFolderPath));
+            Assert.Same(SecondScene, Moving.Folder);
+            Assert.Single(FirstScene.Files);
+            Assert.Single(SecondScene.Files);
             Assert.Equal(1, Existing.OrderIndex);
-            Assert.Equal(2, Moving.OrderIndex);
-            Assert.True(Directory.Exists(Path.Combine(FirstScene.TextFilesFolderPath, "001._Existing_Scene")));
-            Assert.True(Directory.Exists(Path.Combine(FirstScene.TextFilesFolderPath, "002._Moving_Scene")));
+            Assert.Equal(1, Moving.OrderIndex);
+            Assert.True(Directory.Exists(Path.Combine(FirstScene.ItemsFolderPath, "001._Existing_Scene")));
+            Assert.True(Directory.Exists(Path.Combine(SecondScene.ItemsFolderPath, "001._Moving_Scene")));
         }
         finally
         {
@@ -604,10 +605,10 @@ public class ItemCommandTests
         }
     }
     /// <summary>
-    /// Tests that moving a folder to the previous same-level parent updates memory and persistent storage.
+    /// Tests that moving a folder stops at the parent boundary.
     /// </summary>
     [Fact]
-    public void CrossParentFolderMoveUpdatesPersistentStorage()
+    public void FolderMoveStopsAtParentBoundary()
     {
         string ProjectPath;
         Project Project = CreateProject(out ProjectPath);
@@ -622,17 +623,18 @@ public class ItemCommandTests
             Folder MovingScene = SecondChapter.AddFolder("Moving Scene", string.Empty);
             string OldFolderPath = MovingScene.FolderPath;
 
-            Assert.True(MovingScene.CanMove(true));
+            Assert.False(MovingScene.CanMove(true));
             bool Moved = MovingScene.Move(true);
 
-            Assert.True(Moved);
-            Assert.False(Directory.Exists(OldFolderPath));
-            Assert.Same(FirstChapter, MovingScene.Parent);
-            Assert.Empty(SecondChapter.Folders);
+            Assert.False(Moved);
+            Assert.True(Directory.Exists(OldFolderPath));
+            Assert.Same(SecondChapter, MovingScene.Parent);
+            Assert.Single(FirstChapter.Folders);
+            Assert.Single(SecondChapter.Folders);
             Assert.Equal(1, ExistingScene.OrderIndex);
-            Assert.Equal(2, MovingScene.OrderIndex);
-            Assert.True(Directory.Exists(Path.Combine(FirstChapter.FoldersFolderPath, "001._Existing_Scene")));
-            Assert.True(Directory.Exists(Path.Combine(FirstChapter.FoldersFolderPath, "002._Moving_Scene")));
+            Assert.Equal(1, MovingScene.OrderIndex);
+            Assert.True(Directory.Exists(Path.Combine(FirstChapter.ItemsFolderPath, "001._Existing_Scene")));
+            Assert.True(Directory.Exists(Path.Combine(SecondChapter.ItemsFolderPath, "001._Moving_Scene")));
         }
         finally
         {
@@ -669,8 +671,8 @@ public class ItemCommandTests
             Assert.Empty(SourceScene.Files);
             Assert.Equal(1, Existing.OrderIndex);
             Assert.Equal(2, Moving.OrderIndex);
-            Assert.True(Directory.Exists(Path.Combine(TargetScene.TextFilesFolderPath, "001._Existing_Text")));
-            Assert.True(Directory.Exists(Path.Combine(TargetScene.TextFilesFolderPath, "002._Moving_Text")));
+            Assert.True(Directory.Exists(Path.Combine(TargetScene.ItemsFolderPath, "001._Existing_Text")));
+            Assert.True(Directory.Exists(Path.Combine(TargetScene.ItemsFolderPath, "002._Moving_Text")));
         }
         finally
         {
@@ -703,8 +705,8 @@ public class ItemCommandTests
             Assert.Empty(SourceDocument.Folders);
             Assert.Equal(1, Existing.OrderIndex);
             Assert.Equal(2, Moving.OrderIndex);
-            Assert.True(Directory.Exists(Path.Combine(TargetDocument.FoldersFolderPath, "001._Existing_Chapter")));
-            Assert.True(Directory.Exists(Path.Combine(TargetDocument.FoldersFolderPath, "002._Moving_Chapter")));
+            Assert.True(Directory.Exists(Path.Combine(TargetDocument.ItemsFolderPath, "001._Existing_Chapter")));
+            Assert.True(Directory.Exists(Path.Combine(TargetDocument.ItemsFolderPath, "002._Moving_Chapter")));
         }
         finally
         {
@@ -1067,7 +1069,7 @@ public class ItemCommandTests
             Assert.Single(Document.Folders);
             Assert.Same(Second, Document.Folders[0]);
             Assert.Equal(1, Second.OrderIndex);
-            Assert.True(Directory.Exists(Path.Combine(Document.FoldersFolderPath, "001._Second_Chapter")));
+            Assert.True(Directory.Exists(Path.Combine(Document.ItemsFolderPath, "001._Second_Chapter")));
         }
         finally
         {
@@ -1129,7 +1131,7 @@ public class ItemCommandTests
             Assert.Single(Scene.Files);
             Assert.Same(Second, Scene.Files[0]);
             Assert.Equal(1, Second.OrderIndex);
-            Assert.True(Directory.Exists(Path.Combine(Scene.TextFilesFolderPath, "001._Second_Scene")));
+            Assert.True(Directory.Exists(Path.Combine(Scene.ItemsFolderPath, "001._Second_Scene")));
         }
         finally
         {

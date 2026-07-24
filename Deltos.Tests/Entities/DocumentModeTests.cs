@@ -68,7 +68,7 @@ public class DocumentModeTests
         {
             Folder Folder = new Folder();
             Folder.Title = $"Chapter {Index + 1}";
-            Document.Folders.Add(Folder);
+            Document.Items.Add(Folder);
         }
     }
     /// <summary>
@@ -82,7 +82,7 @@ public class DocumentModeTests
         {
             TextFile TextFile = new TextFile();
             TextFile.Title = $"Scene {Index + 1}";
-            Document.Files.Add(TextFile);
+            Document.Items.Add(TextFile);
         }
     }
 
@@ -147,11 +147,11 @@ public class DocumentModeTests
 
         Assert.False(StructuredDocument.CanAddFolder);
         Assert.Throws<InvalidOperationException>(() => StructuredDocument.AddFolder("Overflow Chapter", string.Empty));
-        Assert.Equal(BaseItem.MaxOrderIndex, StructuredDocument.Folders.Count);
+        Assert.Equal(BaseItem.MaxOrderIndex, StructuredDocument.Items.Count);
 
         Assert.False(FlatDocument.CanAddTextFile);
         Assert.Throws<InvalidOperationException>(() => FlatDocument.AddTextFile("Overflow Scene"));
-        Assert.Equal(BaseItem.MaxOrderIndex, FlatDocument.Files.Count);
+        Assert.Equal(BaseItem.MaxOrderIndex, FlatDocument.Items.Count);
     }
     /// <summary>
     /// Tests that null collection setters are normalized to empty collections.
@@ -221,10 +221,10 @@ public class DocumentModeTests
         Assert.Equal("Scene", Clone.Child.Title);
     }
     /// <summary>
-    /// Tests that a document cannot receive a folder structure while it contains text files.
+    /// Tests that a document can receive a folder structure while it contains text files.
     /// </summary>
     [Fact]
-    public void DocumentWithTextFilesCannotSetStructure()
+    public void DocumentWithTextFilesCanSetStructure()
     {
         string ProjectPath;
         Project Project = CreateProject(out ProjectPath);
@@ -235,8 +235,9 @@ public class DocumentModeTests
             Document.AddTextFile("Opening Scene");
 
             Assert.True(Document.IsFlatDocument);
-            Assert.False(Document.CanSetStructure);
-            Assert.Throws<InvalidOperationException>(() => Document.SetStructure(CreateChapterSceneStructure()));
+            Assert.True(Document.CanSetStructure);
+            Document.SetStructure(CreateChapterSceneStructure());
+            Assert.True(Document.HasFolderStructure);
         }
         finally
         {
@@ -244,10 +245,10 @@ public class DocumentModeTests
         }
     }
     /// <summary>
-    /// Tests that a document cannot change its folder structure while it contains folders.
+    /// Tests that a document can change its folder structure while it contains folders.
     /// </summary>
     [Fact]
-    public void DocumentWithFoldersCannotSetStructure()
+    public void DocumentWithFoldersCanSetStructure()
     {
         string ProjectPath;
         Project Project = CreateProject(out ProjectPath);
@@ -257,8 +258,9 @@ public class DocumentModeTests
             Document Document = Project.AddDocument("Structured Book", CreateChapterSceneStructure());
             Document.AddFolder("Chapter One", string.Empty);
 
-            Assert.False(Document.CanSetStructure);
-            Assert.Throws<InvalidOperationException>(() => Document.SetStructure(CreateChapterSceneStructure()));
+            Assert.True(Document.CanSetStructure);
+            Document.SetStructure(CreateChapterSceneStructure());
+            Assert.True(Document.HasFolderStructure);
         }
         finally
         {
@@ -344,10 +346,10 @@ public class DocumentModeTests
         }
     }
     /// <summary>
-    /// Tests that a structured document cannot be changed to flat while it contains folders.
+    /// Tests that a structured document can be changed to flat while it contains folders.
     /// </summary>
     [Fact]
-    public void StructuredDocumentWithFoldersCannotClearStructure()
+    public void StructuredDocumentWithFoldersCanClearStructure()
     {
         string ProjectPath;
         Project Project = CreateProject(out ProjectPath);
@@ -359,8 +361,9 @@ public class DocumentModeTests
             Document.AddFolder("Chapter One", string.Empty);
 
             Assert.True(Document.HasFolderStructure);
-            Assert.False(Document.CanClearStructure);
-            Assert.Throws<InvalidOperationException>(() => Document.ClearStructure());
+            Assert.True(Document.CanClearStructure);
+            Document.ClearStructure();
+            Assert.True(Document.IsFlatDocument);
         }
         finally
         {
@@ -368,10 +371,10 @@ public class DocumentModeTests
         }
     }
     /// <summary>
-    /// Tests that document add commands respect the active content mode.
+    /// Tests that document add commands allow mixed child items.
     /// </summary>
     [Fact]
-    public void DocumentAddCommandsRespectContentMode()
+    public void DocumentAddCommandsAllowMixedChildItems()
     {
         string ProjectPath;
         Project Project = CreateProject(out ProjectPath);
@@ -380,14 +383,14 @@ public class DocumentModeTests
         {
             Document FlatDocument = Project.AddDocument("Flat Book");
             Assert.True(FlatDocument.CanAddTextFile);
-            Assert.False(FlatDocument.CanAddFolder);
-            Assert.Throws<InvalidOperationException>(() => FlatDocument.AddFolder("Chapter One", string.Empty));
+            Assert.True(FlatDocument.CanAddFolder);
+            FlatDocument.AddFolder("Chapter One", string.Empty);
 
             Document StructuredDocument = Project.AddDocument("Structured Book");
             StructuredDocument.SetStructure(CreateChapterSceneStructure());
             Assert.True(StructuredDocument.CanAddFolder);
-            Assert.False(StructuredDocument.CanAddTextFile);
-            Assert.Throws<InvalidOperationException>(() => StructuredDocument.AddTextFile("Opening Scene"));
+            Assert.True(StructuredDocument.CanAddTextFile);
+            StructuredDocument.AddTextFile("Opening Scene");
         }
         finally
         {
@@ -411,9 +414,10 @@ public class DocumentModeTests
 
             Assert.True(Document.HasFolderStructure);
             Assert.True(Document.CanAddFolder);
-            Assert.False(Document.CanAddTextFile);
+            Assert.True(Document.CanAddTextFile);
             Assert.True(File.Exists(Document.StructureFilePath));
-            Assert.True(Directory.Exists(Document.FoldersFolderPath));
+            Assert.True(Directory.Exists(Document.ItemsFolderPath));
+            Assert.False(Directory.Exists(Document.FoldersFolderPath));
             Assert.False(Directory.Exists(Document.TextFilesFolderPath));
         }
         finally
@@ -502,10 +506,10 @@ public class DocumentModeTests
         }
     }
     /// <summary>
-    /// Tests that setting a document structure immediately updates persistent buckets.
+    /// Tests that setting a document structure keeps the mixed item bucket.
     /// </summary>
     [Fact]
-    public void SetStructureUpdatesPersistentBuckets()
+    public void SetStructureKeepsItemsBucket()
     {
         string ProjectPath;
         Project Project = CreateProject(out ProjectPath);
@@ -513,12 +517,13 @@ public class DocumentModeTests
         try
         {
             Document Document = Project.AddDocument("Structured Book");
-            Assert.True(Directory.Exists(Document.TextFilesFolderPath));
+            Assert.True(Directory.Exists(Document.ItemsFolderPath));
 
             Document.SetStructure(CreateChapterSceneStructure());
 
             Assert.True(File.Exists(Document.StructureFilePath));
-            Assert.True(Directory.Exists(Document.FoldersFolderPath));
+            Assert.True(Directory.Exists(Document.ItemsFolderPath));
+            Assert.False(Directory.Exists(Document.FoldersFolderPath));
             Assert.False(Directory.Exists(Document.TextFilesFolderPath));
         }
         finally
@@ -527,10 +532,10 @@ public class DocumentModeTests
         }
     }
     /// <summary>
-    /// Tests that clearing a document structure immediately updates persistent buckets.
+    /// Tests that clearing a document structure keeps the mixed item bucket.
     /// </summary>
     [Fact]
-    public void ClearStructureUpdatesPersistentBuckets()
+    public void ClearStructureKeepsItemsBucket()
     {
         string ProjectPath;
         Project Project = CreateProject(out ProjectPath);
@@ -539,12 +544,13 @@ public class DocumentModeTests
         {
             Document Document = Project.AddDocument("Structured Book");
             Document.SetStructure(CreateChapterSceneStructure());
-            Assert.True(Directory.Exists(Document.FoldersFolderPath));
+            Assert.True(Directory.Exists(Document.ItemsFolderPath));
 
             Document.ClearStructure();
 
             Assert.False(File.Exists(Document.StructureFilePath));
-            Assert.True(Directory.Exists(Document.TextFilesFolderPath));
+            Assert.True(Directory.Exists(Document.ItemsFolderPath));
+            Assert.False(Directory.Exists(Document.TextFilesFolderPath));
             Assert.False(Directory.Exists(Document.FoldersFolderPath));
         }
         finally
@@ -553,10 +559,10 @@ public class DocumentModeTests
         }
     }
     /// <summary>
-    /// Tests that folder add commands respect leaf and non-leaf levels.
+    /// Tests that folder add commands allow mixed child items.
     /// </summary>
     [Fact]
-    public void FolderAddCommandsRespectStructureLevel()
+    public void FolderAddCommandsAllowMixedChildItems()
     {
         string ProjectPath;
         Project Project = CreateProject(out ProjectPath);
@@ -569,12 +575,12 @@ public class DocumentModeTests
             Folder Scene = Chapter.AddFolder("Scene Group", string.Empty);
 
             Assert.True(Chapter.CanAddFolder);
-            Assert.False(Chapter.CanAddTextFile);
-            Assert.Throws<InvalidOperationException>(() => Chapter.AddTextFile("Opening Scene"));
+            Assert.True(Chapter.CanAddTextFile);
+            Chapter.AddTextFile("Opening Scene");
 
             Assert.True(Scene.CanAddTextFile);
-            Assert.False(Scene.CanAddFolder);
-            Assert.Throws<InvalidOperationException>(() => Scene.AddFolder("Nested Scene", string.Empty));
+            Assert.True(Scene.CanAddFolder);
+            Scene.AddFolder("Nested Scene", string.Empty);
         }
         finally
         {

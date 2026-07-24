@@ -159,6 +159,9 @@ public partial class DocumentListForm: AppForm
             Item = Item.Child;
         }
 
+        if (Result.Count == 0)
+            Result.Add("Folder");
+
         return Result;
     }
     /// <summary>
@@ -187,8 +190,7 @@ public partial class DocumentListForm: AppForm
         if (!(Item is Document || Item is Folder) || Item.CanAddFolder == false)
             return false;
 
-        string ExpectedLevelTitle = GetExpectedChildFolderLevelTitle(Item);
-        return string.Equals(ExpectedLevelTitle, LevelTitle, StringComparison.OrdinalIgnoreCase);
+        return true;
     }
     /// <summary>
     /// Returns the parent item that should receive a new folder.
@@ -200,6 +202,9 @@ public partial class DocumentListForm: AppForm
     {
         if (CanAddFolderLevel(Item, LevelTitle))
             return Item;
+
+        if (Item is TextFile TextFile && CanAddFolderLevel(TextFile.Parent, LevelTitle))
+            return TextFile.Parent;
 
         if (Item is Folder Folder && CanAddFolderLevel(Folder.Parent, LevelTitle))
             return Folder.Parent;
@@ -228,16 +233,58 @@ public partial class DocumentListForm: AppForm
     /// </summary>
     /// <param name="Caption">The dialog caption.</param>
     /// <param name="Title">The primary title.</param>
+    /// <param name="Type">The item type.</param>
     /// <param name="Title2">The secondary title.</param>
     /// <returns>The entered title data, if accepted; otherwise null.</returns>
-    async Task<ItemTitleDialogData> ShowTitleDialog(string Caption, string Title, string Title2)
+    async Task<ItemTitleDialogData> ShowItemDialog(string Caption, ItemType Type, string LevelTitle, string Title, string Title2)
     {
-        ItemTitleDialogData Data = new ItemTitleDialogData { Caption = Caption, Title = Title, Title2 = Title2 };
+        ItemTitleDialogData Data = new ItemTitleDialogData { Caption = Caption, Type = Type, LevelTitle = LevelTitle, Title = Title, Title2 = Title2 };
         DialogInfo Info = await DialogWindow.ShowModal<ItemTitleDialog>(Data, this);
         if (!Info.Result)
             return null;
 
         return Info.ResultData as ItemTitleDialogData;
+    }
+    /// <summary>
+    /// Shows the item dialog initialized from an existing item.
+    /// </summary>
+    /// <param name="Caption">The dialog caption.</param>
+    /// <param name="Item">The item.</param>
+    /// <returns>The entered item data, if accepted; otherwise null.</returns>
+    async Task<ItemTitleDialogData> ShowItemDialog(string Caption, BaseItem Item)
+    {
+        ItemTitleDialogData Data = new ItemTitleDialogData
+        {
+            Caption = Caption,
+            Type = Item.Type,
+            LevelTitle = Item is Folder Folder ? Folder.LevelTitle : string.Empty,
+            Title = Item.Title,
+            Title2 = Item.Title2,
+            IncludeTitleInOutput = Item.IncludeTitleInOutput,
+            PageBreakBefore = Item.PageBreakBefore,
+            IncludeInToc = Item.IncludeInToc,
+            Numbering = Item.Numbering,
+            CustomNumbering = Item.CustomNumbering
+        };
+        DialogInfo Info = await DialogWindow.ShowModal<ItemTitleDialog>(Data, this);
+        if (!Info.Result)
+            return null;
+
+        return Info.ResultData as ItemTitleDialogData;
+    }
+    /// <summary>
+    /// Applies dialog metadata to an item.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <param name="Data">The dialog data.</param>
+    void ApplyItemDialogMetadata(BaseItem Item, ItemTitleDialogData Data)
+    {
+        Item.Title2 = Data.Title2;
+        Item.IncludeTitleInOutput = Data.IncludeTitleInOutput;
+        Item.PageBreakBefore = Data.PageBreakBefore;
+        Item.IncludeInToc = Data.IncludeInToc;
+        Item.Numbering = Data.Numbering;
+        Item.CustomNumbering = Data.CustomNumbering;
     }
     /// <summary>
     /// Creates a new document.
@@ -250,7 +297,7 @@ public partial class DocumentListForm: AppForm
             return;
         }
 
-        ItemTitleDialogData TitleData = await ShowTitleDialog("Document title", string.Empty, string.Empty);
+        ItemTitleDialogData TitleData = await ShowItemDialog("Document", ItemType.Document, string.Empty, string.Empty, string.Empty);
         if (TitleData == null)
             return;
 
@@ -268,7 +315,7 @@ public partial class DocumentListForm: AppForm
             Document Document = Structure == null
                 ? AppHost.CurrentProject.AddDocument(Title)
                 : AppHost.CurrentProject.AddDocument(Title, Structure);
-            Document.Title2 = TitleData.Title2;
+            ApplyItemDialogMetadata(Document, TitleData);
             Document.SaveMetadata();
 
             CreateProjectTree();
@@ -296,7 +343,7 @@ public partial class DocumentListForm: AppForm
         if (ParentItem == null)
             return;
 
-        ItemTitleDialogData TitleData = await ShowTitleDialog($"{LevelTitle} title", string.Empty, string.Empty);
+        ItemTitleDialogData TitleData = await ShowItemDialog(LevelTitle, ItemType.Folder, LevelTitle, string.Empty, string.Empty);
         if (TitleData == null)
             return;
 
@@ -307,7 +354,7 @@ public partial class DocumentListForm: AppForm
             await Task.Yield();
 
             Folder Folder = ParentItem.AddFolder(Title, LevelTitle);
-            Folder.Title2 = TitleData.Title2;
+            ApplyItemDialogMetadata(Folder, TitleData);
             Folder.SaveMetadata();
             CreateProjectTree();
             SelectTreeItem(Folder);
@@ -333,7 +380,7 @@ public partial class DocumentListForm: AppForm
         if (ParentItem == null)
             return;
 
-        ItemTitleDialogData TitleData = await ShowTitleDialog("Text title", string.Empty, string.Empty);
+        ItemTitleDialogData TitleData = await ShowItemDialog("TextFile", ItemType.TextFile, string.Empty, string.Empty, string.Empty);
         if (TitleData == null)
             return;
 
@@ -344,7 +391,7 @@ public partial class DocumentListForm: AppForm
             await Task.Yield();
 
             TextFile File = ParentItem.AddTextFile(Title);
-            File.Title2 = TitleData.Title2;
+            ApplyItemDialogMetadata(File, TitleData);
             File.SaveMetadata();
             CreateProjectTree();
             SelectTreeItem(File);
@@ -660,13 +707,19 @@ public partial class DocumentListForm: AppForm
             return;
         }
 
-        ItemTitleDialogData TitleData = await ShowTitleDialog("Title", Item.Title, Item.Title2);
+        ItemTitleDialogData TitleData = await ShowItemDialog("Item", Item);
         if (TitleData == null)
             return;
 
         string Title = TitleData.Title;
         string Title2 = TitleData.Title2;
-        if (string.Equals(Title, Item.Title, StringComparison.Ordinal) && string.Equals(Title2, Item.Title2, StringComparison.Ordinal))
+        if (string.Equals(Title, Item.Title, StringComparison.Ordinal)
+            && string.Equals(Title2, Item.Title2, StringComparison.Ordinal)
+            && TitleData.IncludeTitleInOutput == Item.IncludeTitleInOutput
+            && TitleData.PageBreakBefore == Item.PageBreakBefore
+            && TitleData.IncludeInToc == Item.IncludeInToc
+            && TitleData.Numbering == Item.Numbering
+            && string.Equals(TitleData.CustomNumbering, Item.CustomNumbering, StringComparison.Ordinal))
             return;
 
         try
@@ -677,7 +730,7 @@ public partial class DocumentListForm: AppForm
             if (!string.Equals(Title, Item.Title, StringComparison.Ordinal))
                 Item.Rename(Title);
 
-            Item.Title2 = Title2;
+            ApplyItemDialogMetadata(Item, TitleData);
             Item.SaveMetadata();
             AppHost.NotifyItemTitleChanged(Item);
             CreateProjectTree();
@@ -870,11 +923,8 @@ public partial class DocumentListForm: AppForm
         TreeViewItem DocumentNode = CreateNode(Document.DisplayTitle, Document);
         ParentNode.Items.Add(DocumentNode);
 
-        foreach (Folder Folder in Document.Folders)
-            AddFolderNode(DocumentNode, Folder);
-
-        foreach (TextFile File in Document.Files)
-            AddTextFileNode(DocumentNode, File);
+        foreach (BaseItem Item in Document.GetChildItems())
+            AddItemNode(DocumentNode, Item);
     }
     /// <summary>
     /// Adds a folder node.
@@ -886,11 +936,26 @@ public partial class DocumentListForm: AppForm
         TreeViewItem FolderNode = CreateNode(Folder.DisplayTitle, Folder);
         ParentNode.Items.Add(FolderNode);
 
-        foreach (Folder ChildFolder in Folder.Folders)
-            AddFolderNode(FolderNode, ChildFolder);
+        foreach (BaseItem Item in Folder.GetChildItems())
+            AddItemNode(FolderNode, Item);
+    }
+    /// <summary>
+    /// Adds an item node.
+    /// </summary>
+    /// <param name="ParentNode">The parent tree node.</param>
+    /// <param name="Item">The item.</param>
+    void AddItemNode(TreeViewItem ParentNode, BaseItem Item)
+    {
+        Folder Folder = Item as Folder;
+        if (Folder != null)
+        {
+            AddFolderNode(ParentNode, Folder);
+            return;
+        }
 
-        foreach (TextFile File in Folder.Files)
-            AddTextFileNode(FolderNode, File);
+        TextFile File = Item as TextFile;
+        if (File != null)
+            AddTextFileNode(ParentNode, File);
     }
     /// <summary>
     /// Adds a text file node.

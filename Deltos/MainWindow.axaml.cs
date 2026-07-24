@@ -114,6 +114,110 @@ public partial class MainWindow : Window
 
         return Folders[0].Path.LocalPath;
     }
+    /// <summary>
+    /// Prompts the user to select the project backup parent folder.
+    /// </summary>
+    /// <returns>The selected backup parent folder path, or an empty string.</returns>
+    async Task<string> SelectProjectBackupParentFolder()
+    {
+        TopLevel TopLevel = TopLevel.GetTopLevel(this);
+        if (TopLevel?.StorageProvider == null)
+            return string.Empty;
+
+        FolderPickerOpenOptions Options = new FolderPickerOpenOptions();
+        Options.Title = "Select Project Backup Folder";
+        Options.AllowMultiple = false;
+
+        IReadOnlyList<IStorageFolder> Folders = await TopLevel.StorageProvider.OpenFolderPickerAsync(Options);
+        if (Folders == null || Folders.Count == 0)
+            return string.Empty;
+
+        return Folders[0].Path.LocalPath;
+    }
+    /// <summary>
+    /// Normalizes a folder path for comparisons.
+    /// </summary>
+    /// <param name="FolderPath">The folder path.</param>
+    /// <returns>The normalized folder path.</returns>
+    static string NormalizeFolderPath(string FolderPath)
+    {
+        if (string.IsNullOrWhiteSpace(FolderPath))
+            return string.Empty;
+
+        return System.IO.Path.GetFullPath(FolderPath.Trim()).TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+    }
+    /// <summary>
+    /// Returns true if two folder paths point to the same folder.
+    /// </summary>
+    /// <param name="A">The first folder path.</param>
+    /// <param name="B">The second folder path.</param>
+    /// <returns>True if both paths point to the same folder; otherwise false.</returns>
+    static bool IsSameFolderPath(string A, string B)
+    {
+        return string.Equals(NormalizeFolderPath(A), NormalizeFolderPath(B), StringComparison.OrdinalIgnoreCase);
+    }
+    /// <summary>
+    /// Returns true if a folder is the same as, or inside, another folder.
+    /// </summary>
+    /// <param name="FolderPath">The folder path to check.</param>
+    /// <param name="ParentFolderPath">The parent folder path.</param>
+    /// <returns>True if the folder is the same as, or inside, the parent folder; otherwise false.</returns>
+    static bool IsSameOrChildFolderPath(string FolderPath, string ParentFolderPath)
+    {
+        string Folder = NormalizeFolderPath(FolderPath);
+        string ParentFolder = NormalizeFolderPath(ParentFolderPath);
+        if (string.IsNullOrWhiteSpace(Folder) || string.IsNullOrWhiteSpace(ParentFolder))
+            return false;
+
+        if (string.Equals(Folder, ParentFolder, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        string Prefix = ParentFolder + System.IO.Path.DirectorySeparatorChar;
+        return Folder.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase);
+    }
+    /// <summary>
+    /// Copies a folder recursively.
+    /// </summary>
+    /// <param name="SourceFolderPath">The source folder path.</param>
+    /// <param name="TargetFolderPath">The target folder path.</param>
+    static void CopyFolder(string SourceFolderPath, string TargetFolderPath)
+    {
+        System.IO.Directory.CreateDirectory(TargetFolderPath);
+
+        foreach (string FilePath in System.IO.Directory.GetFiles(SourceFolderPath))
+        {
+            string TargetFilePath = System.IO.Path.Combine(TargetFolderPath, System.IO.Path.GetFileName(FilePath));
+            System.IO.File.Copy(FilePath, TargetFilePath);
+        }
+
+        foreach (string FolderPath in System.IO.Directory.GetDirectories(SourceFolderPath))
+        {
+            string TargetChildFolderPath = System.IO.Path.Combine(TargetFolderPath, System.IO.Path.GetFileName(FolderPath));
+            CopyFolder(FolderPath, TargetChildFolderPath);
+        }
+    }
+    /// <summary>
+    /// Creates a unique project backup folder path.
+    /// </summary>
+    /// <param name="ProjectPath">The project path.</param>
+    /// <param name="BackupParentFolderPath">The backup parent folder path.</param>
+    /// <returns>The backup folder path.</returns>
+    static string GetLegacyProjectBackupFolderPath(string ProjectPath, string BackupParentFolderPath)
+    {
+        string ProjectFolderName = System.IO.Path.GetFileName(NormalizeFolderPath(ProjectPath));
+        string Timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        string BackupFolderName = $"{ProjectFolderName}-backup-before-v{ProjectManifest.CurrentStorageVersion}-{Timestamp}";
+        string Result = System.IO.Path.Combine(BackupParentFolderPath, BackupFolderName);
+        int Index = 2;
+
+        while (System.IO.Directory.Exists(Result) || System.IO.File.Exists(Result))
+        {
+            Result = System.IO.Path.Combine(BackupParentFolderPath, $"{BackupFolderName}-{Index}");
+            Index++;
+        }
+
+        return Result;
+    }
 
     /// <summary>
     /// Creates a new project using UI prompts.
@@ -206,17 +310,102 @@ public partial class MainWindow : Window
         await OpenProject(ProjectPath);
     }
     /// <summary>
+    /// Opens the last project using UI prompts when conversion is required.
+    /// </summary>
+    async Task OpenLastProject()
+    {
+        if (AppHost.Settings == null || !AppHost.Settings.LoadLastProjectOnStartup)
+            return;
+
+        string ProjectPath = AppHost.Settings.LastProjectFolderPath;
+        if (string.IsNullOrWhiteSpace(ProjectPath) || ProjectPath == "___")
+            return;
+
+        if (!System.IO.Directory.Exists(ProjectPath))
+            return;
+
+        await OpenProject(ProjectPath, false);
+    }
+    /// <summary>
+    /// Confirms whether an older project should be converted.
+    /// </summary>
+    /// <param name="ProjectPath">The project path.</param>
+    /// <param name="Manifest">The project manifest.</param>
+    /// <returns>True if the project may be opened; otherwise false.</returns>
+    async Task<bool> ConfirmProjectStorageVersion(string ProjectPath, ProjectManifest Manifest)
+    {
+        if (Manifest.StorageVersion > ProjectManifest.CurrentStorageVersion)
+        {
+            await Tripous.Desktop.MessageBox.Error($"Unsupported project storage version {Manifest.StorageVersion}.", this);
+            return false;
+        }
+
+        if (Manifest.StorageVersion != 0)
+            return true;
+
+        bool Confirmed = await Tripous.Desktop.MessageBox.YesNo("This project uses an older storage format. Convert it to the current format?", this);
+        if (!Confirmed)
+        {
+            LogBox.AppendLine($"Legacy project open cancelled: {ProjectPath}");
+            return false;
+        }
+
+        string BackupParentFolderPath = await SelectProjectBackupParentFolder();
+        if (string.IsNullOrWhiteSpace(BackupParentFolderPath))
+        {
+            LogBox.AppendLine($"Legacy project open cancelled because no backup folder was selected: {ProjectPath}");
+            return false;
+        }
+
+        string ProjectParentFolderPath = System.IO.Path.GetDirectoryName(NormalizeFolderPath(ProjectPath));
+        if (IsSameOrChildFolderPath(BackupParentFolderPath, ProjectParentFolderPath) || IsSameFolderPath(BackupParentFolderPath, ProjectPath))
+        {
+            await Tripous.Desktop.MessageBox.Error("The backup folder must be outside the existing project's parent folder.", this);
+            LogBox.AppendLine($"Legacy project open cancelled because backup folder is not external: {BackupParentFolderPath}");
+            return false;
+        }
+
+        string BackupFolderPath = GetLegacyProjectBackupFolderPath(ProjectPath, BackupParentFolderPath);
+        AppHost.ShowPleaseWait("Backing up project...", this);
+        await Task.Yield();
+        CopyFolder(ProjectPath, BackupFolderPath);
+        AppHost.HidePleaseWait();
+        LogBox.AppendLine($"Legacy project backup created: {BackupFolderPath}");
+
+        return true;
+    }
+    /// <summary>
     /// Opens a project using the specified project path.
     /// </summary>
     /// <param name="ProjectPath">The project path.</param>
     async Task OpenProject(string ProjectPath)
     {
+        await OpenProject(ProjectPath, true);
+    }
+    /// <summary>
+    /// Opens a project using the specified project path.
+    /// </summary>
+    /// <param name="ProjectPath">The project path.</param>
+    /// <param name="SaveSettings">True to persist the project path as the last project.</param>
+    async Task OpenProject(string ProjectPath, bool SaveSettings)
+    {
         try
         {
-            AppHost.ShowPleaseWait("Opening project...", this);
+            ProjectManifest Manifest = ProjectManifest.Load(ProjectPath);
+            if (!await ConfirmProjectStorageVersion(ProjectPath, Manifest))
+                return;
+
+            bool ConvertProject = Manifest.StorageVersion == 0;
+
+            AppHost.ShowPleaseWait(ConvertProject ? "Converting project..." : "Opening project...", this);
             await Task.Yield();
 
-            Project Project = AppHost.OpenProject(ProjectPath);
+            Project Project = AppHost.OpenProject(ProjectPath, SaveSettings);
+            if (ConvertProject)
+            {
+                Project.Save();
+                LogBox.AppendLine($"Project converted to storage version {ProjectManifest.CurrentStorageVersion}: {Project.ProjectPath}");
+            }
 
             UpdateProjectStatus($"Project opened: {Project.Title}");
             LogBox.AppendLine($"Project opened: {Project.ProjectPath}");
@@ -868,6 +1057,14 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         WindowInitialize();
+    }
+
+    /// <summary>
+    /// Opens startup project state after the main window is ready.
+    /// </summary>
+    public async Task OpenStartupProject()
+    {
+        await OpenLastProject();
     }
 
     // ● properties

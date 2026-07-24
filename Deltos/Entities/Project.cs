@@ -101,6 +101,15 @@ public class Project: BaseItem
             throw new InvalidOperationException($"The project information file does not exist: {InfoFilePath}");
     }
     /// <summary>
+    /// Checks whether the project storage manifest can be opened.
+    /// </summary>
+    protected virtual void CheckProjectManifest()
+    {
+        ProjectManifest Manifest = ProjectManifest.Load(ProjectPath);
+        if (Manifest.StorageVersion > ProjectManifest.CurrentStorageVersion)
+            throw new InvalidOperationException($"Unsupported project storage version {Manifest.StorageVersion}.");
+    }
+    /// <summary>
     /// Checks whether the project storage folder can receive a first project save.
     /// </summary>
     protected virtual void CheckProjectSaveFolder()
@@ -638,6 +647,8 @@ public class Project: BaseItem
         UpdateReferences(null);
         CheckDuplicateItemIds();
         base.Save();
+        ProjectManifest Manifest = new ProjectManifest();
+        Manifest.Save(ProjectPath);
         SaveTempFile();
 
         System.IO.Directory.CreateDirectory(DocumentsFolderPath);
@@ -664,6 +675,7 @@ public class Project: BaseItem
     {
         CheckProjectPath(true);
         CheckProjectInfoFile();
+        CheckProjectManifest();
         UpdateReferences(null);
         base.Load();
         LoadTempFile();

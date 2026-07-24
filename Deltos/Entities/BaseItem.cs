@@ -29,6 +29,30 @@ public class BaseItem
     /// Field for the Info property.
     /// </summary>
     protected ItemInfo fInfo = new();
+    /// <summary>
+    /// Field for the IncludeTitleInOutput property.
+    /// </summary>
+    protected bool fIncludeTitleInOutput = true;
+    /// <summary>
+    /// Field for the PageBreakBefore property.
+    /// </summary>
+    protected bool fPageBreakBefore;
+    /// <summary>
+    /// Field for the IncludeInToc property.
+    /// </summary>
+    protected bool fIncludeInToc = true;
+    /// <summary>
+    /// Field for the Numbering property.
+    /// </summary>
+    protected ItemNumbering fNumbering = ItemNumbering.Automatic;
+    /// <summary>
+    /// Field for the CustomNumbering property.
+    /// </summary>
+    protected string fCustomNumbering = string.Empty;
+    /// <summary>
+    /// Field for the transient storage folder path override.
+    /// </summary>
+    protected string fStorageFolderPathOverride = string.Empty;
     
     // ● construction
     /// <summary>
@@ -53,6 +77,11 @@ public class BaseItem
         Info.AliasList = string.Empty;
         Info.IsFolder = false;
         Info.LevelTitle = string.Empty;
+        Info.IncludeTitleInOutput = IncludeTitleInOutput;
+        Info.PageBreakBefore = PageBreakBefore;
+        Info.IncludeInToc = IncludeInToc;
+        Info.Numbering = Numbering;
+        Info.CustomNumbering = CustomNumbering;
     }
     /// <summary>
     /// Applies the item information after loading it.
@@ -72,6 +101,11 @@ public class BaseItem
             Title = Info.Title;
 
         Title2 = Info.Title2;
+        IncludeTitleInOutput = Info.IncludeTitleInOutput;
+        PageBreakBefore = Info.PageBreakBefore;
+        IncludeInToc = Info.IncludeInToc;
+        Numbering = Info.Numbering;
+        CustomNumbering = Info.CustomNumbering;
     }
     /// <summary>
     /// Renumbers a list of child items.
@@ -181,16 +215,25 @@ public class BaseItem
         if (!IsSamePath(OldFolderPath, NewFolderPath) && System.IO.Directory.Exists(NewFolderPath))
             throw new InvalidOperationException($"Folder already exists: {NewFolderPath}");
 
-        SourceItems.Remove(Item);
+        string StagedFolderPath = StageMoveStorage(OldFolderPath);
+        try
+        {
+            SourceItems.Remove(Item);
 
-        int InsertIndex = Up ? TargetItems.Count : 0;
-        TargetItems.Insert(InsertIndex, Item);
-        Item.UpdateReferences(TargetParent);
+            int InsertIndex = Up ? TargetItems.Count : 0;
+            TargetItems.Insert(InsertIndex, Item);
+            Item.UpdateReferences(TargetParent);
 
-        RenumberItems(SourceItems);
-        RenumberItems(TargetItems);
-        MoveStorage(OldFolderPath, Item.FolderPath);
-        return true;
+            RenumberItems(SourceItems);
+            RenumberItems(TargetItems);
+            MoveStorage(string.IsNullOrWhiteSpace(StagedFolderPath) ? OldFolderPath : StagedFolderPath, Item.FolderPath);
+            return true;
+        }
+        catch
+        {
+            RestoreStagedMoveStorage(StagedFolderPath, OldFolderPath);
+            throw;
+        }
     }
     /// <summary>
     /// Moves an item to the end of another parent sibling list.
@@ -218,14 +261,82 @@ public class BaseItem
         if (!IsSamePath(OldFolderPath, NewFolderPath) && System.IO.Directory.Exists(NewFolderPath))
             throw new InvalidOperationException($"Folder already exists: {NewFolderPath}");
 
-        SourceItems.Remove(Item);
-        TargetItems.Add(Item);
-        Item.UpdateReferences(TargetParent);
+        string StagedFolderPath = StageMoveStorage(OldFolderPath);
+        try
+        {
+            SourceItems.Remove(Item);
+            TargetItems.Add(Item);
+            Item.UpdateReferences(TargetParent);
 
-        RenumberItems(SourceItems);
-        RenumberItems(TargetItems);
-        MoveStorage(OldFolderPath, Item.FolderPath);
-        return true;
+            RenumberItems(SourceItems);
+            RenumberItems(TargetItems);
+            MoveStorage(string.IsNullOrWhiteSpace(StagedFolderPath) ? OldFolderPath : StagedFolderPath, Item.FolderPath);
+            return true;
+        }
+        catch
+        {
+            RestoreStagedMoveStorage(StagedFolderPath, OldFolderPath);
+            throw;
+        }
+    }
+    /// <summary>
+    /// Moves an item to a specified position in another parent sibling list.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="SourceItems">The source sibling items.</param>
+    /// <param name="TargetItems">The target sibling items.</param>
+    /// <param name="Item">The item to move.</param>
+    /// <param name="TargetParent">The target parent item.</param>
+    /// <param name="TargetIndex">The zero-based target index.</param>
+    /// <returns>True if the item is moved; otherwise false.</returns>
+    static protected bool MoveItem<T>(List<T> SourceItems, List<T> TargetItems, T Item, BaseItem TargetParent, int TargetIndex) where T: BaseItem
+    {
+        if (!SourceItems.Contains(Item))
+            throw new InvalidOperationException("The item does not belong to the specified source list.");
+
+        if (TargetIndex < 0 || TargetIndex > TargetItems.Count)
+            throw new ArgumentOutOfRangeException(nameof(TargetIndex));
+
+        if (SourceItems == TargetItems)
+        {
+            int OldIndex = SourceItems.IndexOf(Item);
+            if (OldIndex == TargetIndex || OldIndex + 1 == TargetIndex)
+                return false;
+
+            if (OldIndex < TargetIndex)
+                TargetIndex--;
+
+            SourceItems.RemoveAt(OldIndex);
+            SourceItems.Insert(TargetIndex, Item);
+            RenumberItems(SourceItems);
+            return true;
+        }
+
+        CheckCanAddItem(TargetItems);
+        CheckDuplicateTitle(TargetItems, Item.Title);
+
+        string OldFolderPath = Item.FolderPath;
+        string NewFolderPath = GetTargetFolderPath(Item, TargetParent, TargetIndex + 1);
+        if (!IsSamePath(OldFolderPath, NewFolderPath) && System.IO.Directory.Exists(NewFolderPath))
+            throw new InvalidOperationException($"Folder already exists: {NewFolderPath}");
+
+        string StagedFolderPath = StageMoveStorage(OldFolderPath);
+        try
+        {
+            SourceItems.Remove(Item);
+            TargetItems.Insert(TargetIndex, Item);
+            Item.UpdateReferences(TargetParent);
+
+            RenumberItems(SourceItems);
+            RenumberItems(TargetItems);
+            MoveStorage(string.IsNullOrWhiteSpace(StagedFolderPath) ? OldFolderPath : StagedFolderPath, Item.FolderPath);
+            return true;
+        }
+        catch
+        {
+            RestoreStagedMoveStorage(StagedFolderPath, OldFolderPath);
+            throw;
+        }
     }
     /// <summary>
     /// Returns the target folder path for a cross-parent move.
@@ -250,20 +361,20 @@ public class BaseItem
         if (DocumentParent != null)
         {
             if (Item is Folder)
-                return System.IO.Path.Combine(DocumentParent.FoldersFolderPath, StorageName);
+                return System.IO.Path.Combine(DocumentParent.ItemsFolderPath, StorageName);
 
             if (Item is TextFile)
-                return System.IO.Path.Combine(DocumentParent.TextFilesFolderPath, StorageName);
+                return System.IO.Path.Combine(DocumentParent.ItemsFolderPath, StorageName);
         }
 
         Folder FolderParent = TargetParent as Folder;
         if (FolderParent != null)
         {
             if (Item is Folder)
-                return System.IO.Path.Combine(FolderParent.FoldersFolderPath, StorageName);
+                return System.IO.Path.Combine(FolderParent.ItemsFolderPath, StorageName);
 
             if (Item is TextFile)
-                return System.IO.Path.Combine(FolderParent.TextFilesFolderPath, StorageName);
+                return System.IO.Path.Combine(FolderParent.ItemsFolderPath, StorageName);
         }
 
         return System.IO.Path.Combine(TargetParent.FolderPath, StorageName);
@@ -286,6 +397,61 @@ public class BaseItem
             System.IO.Directory.CreateDirectory(ParentFolder);
 
         System.IO.Directory.Move(OldFolderPath, NewFolderPath);
+    }
+    /// <summary>
+    /// Moves item storage to a temporary folder before cross-parent renumbering.
+    /// </summary>
+    /// <param name="FolderPath">The item folder path.</param>
+    /// <returns>The temporary folder path, if storage was staged; otherwise an empty string.</returns>
+    static protected string StageMoveStorage(string FolderPath)
+    {
+        if (string.IsNullOrWhiteSpace(FolderPath) || !System.IO.Directory.Exists(FolderPath))
+            return string.Empty;
+
+        string ParentFolder = System.IO.Path.GetDirectoryName(FolderPath);
+        if (string.IsNullOrWhiteSpace(ParentFolder))
+            throw new InvalidOperationException($"Invalid folder path: {FolderPath}");
+
+        string StagingFolder = GetMoveStagingFolder(ParentFolder);
+        string TempFolderPath = System.IO.Path.Combine(StagingFolder, $".deltos-move-{System.Guid.NewGuid():N}");
+        System.IO.Directory.Move(FolderPath, TempFolderPath);
+        return TempFolderPath;
+    }
+    /// <summary>
+    /// Restores staged item storage after a failed move.
+    /// </summary>
+    /// <param name="StagedFolderPath">The staged folder path.</param>
+    /// <param name="OriginalFolderPath">The original folder path.</param>
+    static protected void RestoreStagedMoveStorage(string StagedFolderPath, string OriginalFolderPath)
+    {
+        if (string.IsNullOrWhiteSpace(StagedFolderPath) || !System.IO.Directory.Exists(StagedFolderPath))
+            return;
+
+        if (System.IO.Directory.Exists(OriginalFolderPath))
+            return;
+
+        string ParentFolder = System.IO.Path.GetDirectoryName(OriginalFolderPath);
+        if (!string.IsNullOrWhiteSpace(ParentFolder))
+            System.IO.Directory.CreateDirectory(ParentFolder);
+
+        System.IO.Directory.Move(StagedFolderPath, OriginalFolderPath);
+    }
+    /// <summary>
+    /// Returns the move staging folder for an item bucket folder.
+    /// </summary>
+    /// <param name="BucketFolderPath">The item bucket folder path.</param>
+    /// <returns>The move staging folder.</returns>
+    static protected string GetMoveStagingFolder(string BucketFolderPath)
+    {
+        string BucketName = System.IO.Path.GetFileName(BucketFolderPath);
+        if (BucketName.IsSameText("Items") || BucketName.IsSameText("Folders") || BucketName.IsSameText("TextFiles"))
+        {
+            string ContainerFolder = System.IO.Path.GetDirectoryName(BucketFolderPath);
+            if (!string.IsNullOrWhiteSpace(ContainerFolder))
+                return ContainerFolder;
+        }
+
+        return BucketFolderPath;
     }
     /// <summary>
     /// Returns an adjacent container that may contain a folder of the specified level.
@@ -491,7 +657,15 @@ public class BaseItem
                 T Item = new();
                 Item.SetStorageName(StorageName);
                 Item.UpdateReferences(this);
-                Item.Load();
+                Item.SetStorageFolderPathOverride(ItemFolderPath);
+                try
+                {
+                    Item.Load();
+                }
+                finally
+                {
+                    Item.SetStorageFolderPathOverride(string.Empty);
+                }
                 Result.Add(Item);
             }
         }
@@ -499,6 +673,115 @@ public class BaseItem
         Result.Sort((A, B) => A.OrderIndex.CompareTo(B.OrderIndex));
         CheckLoadedItems(Result, FolderPath);
         return Result;
+    }
+    /// <summary>
+    /// Loads mixed folder and text file child items from a folder.
+    /// </summary>
+    /// <param name="FolderPath">The folder path.</param>
+    /// <returns>The loaded child items.</returns>
+    protected List<BaseItem> LoadChildItems(string FolderPath)
+    {
+        List<BaseItem> Result = new();
+
+        if (System.IO.Directory.Exists(FolderPath))
+        {
+            string[] FilePaths = System.IO.Directory.GetFiles(FolderPath);
+            if (FilePaths.Length > 0)
+                throw new InvalidOperationException($"Storage bucket contains files: {FolderPath}");
+
+            List<string> FolderPaths = System.IO.Directory.GetDirectories(FolderPath).ToList();
+            string ContainerFolderPath = System.IO.Path.GetDirectoryName(FolderPath);
+            if (!string.IsNullOrWhiteSpace(ContainerFolderPath) && System.IO.Directory.Exists(ContainerFolderPath))
+            {
+                foreach (string StagedFolderPath in System.IO.Directory.GetDirectories(ContainerFolderPath))
+                {
+                    string FolderName = System.IO.Path.GetFileName(StagedFolderPath);
+                    if (IsInternalMoveFolderName(FolderName))
+                        FolderPaths.Add(StagedFolderPath);
+                }
+            }
+
+            foreach (string ItemFolderPath in FolderPaths)
+            {
+                string StorageName = System.IO.Path.GetFileName(ItemFolderPath);
+                ItemInfo Info = LoadItemInfo(ItemFolderPath);
+                BaseItem Item = CreateChildItem(Info.Type);
+                if (TryParseStorageName(StorageName, out _, out _, out _))
+                {
+                    Item.SetStorageName(StorageName);
+                }
+                else if (IsInternalMoveFolderName(StorageName))
+                {
+                    Item.fOrderIndex = Result.Count + 1;
+                    Item.fTitle = string.IsNullOrWhiteSpace(Info.Title) ? DecodeTitle(StorageName) : Info.Title.Trim();
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Invalid item storage folder name: {ItemFolderPath}");
+                }
+
+                Item.UpdateReferences(this);
+                Item.SetStorageFolderPathOverride(ItemFolderPath);
+                try
+                {
+                    Item.Load();
+                }
+                finally
+                {
+                    Item.SetStorageFolderPathOverride(string.Empty);
+                }
+                Result.Add(Item);
+            }
+        }
+
+        Result.Sort((A, B) => A.OrderIndex.CompareTo(B.OrderIndex));
+        CheckLoadedItems(Result, FolderPath);
+        return Result;
+    }
+    /// <summary>
+    /// Loads item information from an item folder.
+    /// </summary>
+    /// <param name="FolderPath">The item folder path.</param>
+    /// <returns>The loaded item information.</returns>
+    static protected ItemInfo LoadItemInfo(string FolderPath)
+    {
+        string FilePath = System.IO.Path.Combine(FolderPath, InfoFileName);
+        if (!System.IO.File.Exists(FilePath))
+            throw new InvalidOperationException($"The item information file does not exist: {FilePath}");
+
+        ItemInfo Result = new ItemInfo();
+        Json.LoadFromFile(Result, FilePath);
+        if (string.IsNullOrWhiteSpace(Result.Id))
+            throw new InvalidOperationException($"The item information file has no item id: {FilePath}");
+
+        if (Result.Type == ItemType.None)
+            throw new InvalidOperationException($"The item information file has no item type: {FilePath}");
+
+        return Result;
+    }
+    /// <summary>
+    /// Creates a document child item for an item type.
+    /// </summary>
+    /// <param name="Type">The item type.</param>
+    /// <returns>The created child item.</returns>
+    static protected BaseItem CreateChildItem(ItemType Type)
+    {
+        if (Type == ItemType.Folder)
+            return new Folder();
+
+        if (Type == ItemType.TextFile)
+            return new TextFile();
+
+        throw new InvalidOperationException($"Invalid document child item type: {Type}.");
+    }
+    /// <summary>
+    /// Returns true if a folder name is an internal move staging folder name.
+    /// </summary>
+    /// <param name="FolderName">The folder name.</param>
+    /// <returns>True if the folder name is an internal move staging folder name; otherwise false.</returns>
+    static protected bool IsInternalMoveFolderName(string FolderName)
+    {
+        return !string.IsNullOrWhiteSpace(FolderName) && FolderName.StartsWith(".deltos-move-", StringComparison.OrdinalIgnoreCase);
     }
     /// <summary>
     /// Checks loaded items for ambiguous order or duplicate titles.
@@ -539,6 +822,22 @@ public class BaseItem
             System.IO.Directory.Delete(ItemFolderPath, true);
     }
     /// <summary>
+    /// Deletes internal move staging folders from a storage folder.
+    /// </summary>
+    /// <param name="FolderPath">The storage folder path.</param>
+    protected virtual void DeleteInternalMoveFolders(string FolderPath)
+    {
+        if (string.IsNullOrWhiteSpace(FolderPath) || !System.IO.Directory.Exists(FolderPath))
+            return;
+
+        foreach (string ChildFolderPath in System.IO.Directory.GetDirectories(FolderPath))
+        {
+            string FolderName = System.IO.Path.GetFileName(ChildFolderPath);
+            if (IsInternalMoveFolderName(FolderName))
+                DeleteStorage(ChildFolderPath);
+        }
+    }
+    /// <summary>
     /// Checks that an unused storage bucket is empty.
     /// </summary>
     /// <param name="FolderPath">The unused bucket folder path.</param>
@@ -567,6 +866,14 @@ public class BaseItem
     {
         if (CanPersistStorage())
             Item.Save();
+    }
+    /// <summary>
+    /// Sets a transient storage folder path override while loading legacy storage.
+    /// </summary>
+    /// <param name="FolderPath">The storage folder path.</param>
+    protected void SetStorageFolderPathOverride(string FolderPath)
+    {
+        fStorageFolderPathOverride = FolderPath ?? string.Empty;
     }
     /// <summary>
     /// Returns true if an item list can receive another child item.
@@ -1231,16 +1538,53 @@ public class BaseItem
     [JsonIgnore]
     public string Title2OrTitle => string.IsNullOrWhiteSpace(Title2) ? Title : Title2;
     /// <summary>
+    /// Gets or sets a value indicating whether the item title is included in output.
+    /// </summary>
+    public bool IncludeTitleInOutput
+    {
+        get => fIncludeTitleInOutput;
+        set => fIncludeTitleInOutput = value;
+    }
+    /// <summary>
+    /// Gets or sets a value indicating whether output should add a page break before this item.
+    /// </summary>
+    public bool PageBreakBefore
+    {
+        get => fPageBreakBefore;
+        set => fPageBreakBefore = value;
+    }
+    /// <summary>
+    /// Gets or sets a value indicating whether this item is included in the table of contents.
+    /// </summary>
+    public bool IncludeInToc
+    {
+        get => fIncludeInToc;
+        set => fIncludeInToc = value;
+    }
+    /// <summary>
+    /// Gets or sets the item numbering behavior.
+    /// </summary>
+    public ItemNumbering Numbering
+    {
+        get => fNumbering;
+        set => fNumbering = value;
+    }
+    /// <summary>
+    /// Gets or sets custom numbering text.
+    /// </summary>
+    public string CustomNumbering
+    {
+        get => fCustomNumbering;
+        set => fCustomNumbering = value == null ? string.Empty : value.Trim();
+    }
+    /// <summary>
     /// Gets the display title of the item.
     /// </summary>
     public virtual string DisplayTitle
     {
         get
         {
-            if (IsProject || OrderIndex <= 0)
-                return Title;
-
-            return GetDisplayTitle(OrderIndex, Title);
+            return Title;
         }
     }
     /// <summary>
@@ -1251,10 +1595,7 @@ public class BaseItem
     {
         get
         {
-            if (IsProject || OrderIndex <= 0)
-                return Title2OrTitle;
-
-            return GetDisplayTitle(OrderIndex, Title2OrTitle);
+            return Title2OrTitle;
         }
     }
     /// <summary>
@@ -1270,6 +1611,9 @@ public class BaseItem
     {
         get
         {
+            if (!string.IsNullOrWhiteSpace(fStorageFolderPathOverride))
+                return fStorageFolderPathOverride;
+
             if (Parent == null)
                 return string.Empty;
 

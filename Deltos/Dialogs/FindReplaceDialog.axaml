@@ -6,6 +6,7 @@
                       Width="480"
                       Height="230"
                       CanResize="False"
+                      ShowInTaskbar="False"
                       WindowStartupLocation="CenterOwner">
     <Grid RowDefinitions="*,Auto"
           Margin="18"

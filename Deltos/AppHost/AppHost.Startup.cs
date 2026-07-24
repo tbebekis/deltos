@@ -84,12 +84,12 @@ static public partial class AppHost
         {
             InitializeGlobalExceptionHandling();
             Initialize();
-            OpenLastProject();
 
             MainWindow = new MainWindow();
             AvaloniaDesktop.MainWindow = MainWindow;
             Ui.MainWindow = MainWindow;
             MainWindow.Show();
+            await MainWindow.OpenStartupProject();
             ShowSideBarForms();
         }
         catch (Exception e)

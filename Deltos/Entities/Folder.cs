@@ -18,6 +18,10 @@ public class Folder: BaseItem
     /// </summary>
     protected string fLevelTitle = string.Empty;
     /// <summary>
+    /// Field for the Items property.
+    /// </summary>
+    protected List<BaseItem> fItems = new();
+    /// <summary>
     /// Field for the Folders property.
     /// </summary>
     protected List<Folder> fFolders = new();
@@ -70,39 +74,36 @@ public class Folder: BaseItem
     {
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
-            CheckDuplicateTitle(DocumentItem.Folders, NewTitle, this);
+            CheckDuplicateTitle(DocumentItem.Items, NewTitle, this);
 
         Folder FolderItem = Parent as Folder;
         if (FolderItem != null)
-            CheckDuplicateTitle(FolderItem.Folders, NewTitle, this);
+            CheckDuplicateTitle(FolderItem.Items, NewTitle, this);
     }
     /// <summary>
     /// Checks whether the folder content model is valid.
     /// </summary>
     protected virtual void CheckContentModel()
     {
-        if (CanContainFolders && Files.Count > 0)
-            throw new InvalidOperationException("A non-leaf folder cannot contain text files.");
-
-        if (CanContainTextFiles && Folders.Count > 0)
-            throw new InvalidOperationException("A leaf folder cannot contain child folders.");
-
-        if (!CanContainFolders && !CanContainTextFiles && (Folders.Count > 0 || Files.Count > 0))
-            throw new InvalidOperationException("The folder does not match the document structure.");
+        foreach (BaseItem Item in Items)
+        {
+            if (!(Item is Folder) && !(Item is TextFile))
+                throw new InvalidOperationException($"Invalid folder child item type: {Item.Type}.");
+        }
     }
     /// <summary>
     /// Returns the source folders list.
     /// </summary>
     /// <returns>The source folders list.</returns>
-    protected virtual List<Folder> GetSourceFolders()
+    protected virtual List<BaseItem> GetSourceItems()
     {
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
-            return DocumentItem.Folders;
+            return DocumentItem.Items;
 
         Folder FolderItem = Parent as Folder;
         if (FolderItem != null)
-            return FolderItem.Folders;
+            return FolderItem.Items;
 
         return null;
     }
@@ -111,15 +112,15 @@ public class Folder: BaseItem
     /// </summary>
     /// <param name="TargetParent">The target parent item.</param>
     /// <returns>The target folders list.</returns>
-    protected virtual List<Folder> GetTargetFolders(BaseItem TargetParent)
+    protected virtual List<BaseItem> GetTargetItems(BaseItem TargetParent)
     {
         Document DocumentItem = TargetParent as Document;
         if (DocumentItem != null)
-            return DocumentItem.Folders;
+            return DocumentItem.Items;
 
         Folder FolderItem = TargetParent as Folder;
         if (FolderItem != null)
-            return FolderItem.Folders;
+            return FolderItem.Items;
 
         return null;
     }
@@ -173,7 +174,7 @@ public class Folder: BaseItem
     /// <returns>True if this folder can change to the target document parent; otherwise false.</returns>
     protected virtual bool CanChangeToDocument(Document TargetDocument)
     {
-        if (TargetDocument == null || !(Parent is Document) || ReferenceEquals(Parent, TargetDocument))
+        if (TargetDocument == null || ReferenceEquals(Parent, TargetDocument))
             return false;
 
         if (Project == null || !ReferenceEquals(Project, TargetDocument.Project))
@@ -182,13 +183,10 @@ public class Folder: BaseItem
         if (!TargetDocument.CanAddFolder)
             return false;
 
-        if (!string.Equals(TargetDocument.Structure?.Title, LevelTitle, StringComparison.OrdinalIgnoreCase))
+        if (ContainsTitle(TargetDocument.Items, Title))
             return false;
 
-        if (ContainsTitle(TargetDocument.Folders, Title))
-            return false;
-
-        return MatchesTargetStructure(TargetDocument, 0);
+        return true;
     }
     /// <summary>
     /// Returns true if this folder can change to a folder parent.
@@ -197,8 +195,7 @@ public class Folder: BaseItem
     /// <returns>True if this folder can change to the target folder parent; otherwise false.</returns>
     protected virtual bool CanChangeToFolder(Folder TargetFolder)
     {
-        Folder CurrentParentFolder = Parent as Folder;
-        if (TargetFolder == null || CurrentParentFolder == null || ReferenceEquals(Parent, TargetFolder))
+        if (TargetFolder == null || ReferenceEquals(Parent, TargetFolder))
             return false;
 
         if (Project == null || !ReferenceEquals(Project, TargetFolder.Project))
@@ -207,19 +204,22 @@ public class Folder: BaseItem
         if (ReferenceEquals(TargetFolder, this) || ContainsFolder(TargetFolder))
             return false;
 
-        if (!string.Equals(CurrentParentFolder.LevelTitle, TargetFolder.LevelTitle, StringComparison.OrdinalIgnoreCase))
-            return false;
-
         if (!TargetFolder.CanAddFolder)
             return false;
 
-        if (!string.Equals(TargetFolder.StructureItem?.Child?.Title, LevelTitle, StringComparison.OrdinalIgnoreCase))
+        if (ContainsTitle(TargetFolder.Items, Title))
             return false;
 
-        if (ContainsTitle(TargetFolder.Folders, Title))
-            return false;
-
-        return MatchesTargetStructure(TargetFolder.Document, TargetFolder.Level + 1);
+        return true;
+    }
+    /// <summary>
+    /// Returns the default child folder level title.
+    /// </summary>
+    /// <returns>The default child folder level title.</returns>
+    protected virtual string GetDefaultChildFolderLevelTitle()
+    {
+        string Result = StructureItem?.Child?.Title;
+        return string.IsNullOrWhiteSpace(Result) ? DefaultLevelTitle : Result;
     }
 
     // ● internal
@@ -230,7 +230,7 @@ public class Folder: BaseItem
     /// <returns>True if the folder is removed; otherwise false.</returns>
     internal bool DetachFolder(Folder Folder)
     {
-        bool Result = Folders.Remove(Folder);
+        bool Result = Items.Remove(Folder);
         if (Result)
         {
             Folder.ClearReferences();
@@ -247,7 +247,7 @@ public class Folder: BaseItem
     /// <returns>True if the text file is removed; otherwise false.</returns>
     internal bool DetachTextFile(TextFile File)
     {
-        bool Result = Files.Remove(File);
+        bool Result = Items.Remove(File);
         if (Result)
         {
             File.ClearReferences();
@@ -270,14 +270,13 @@ public class Folder: BaseItem
         if (!CanAddFolder)
             throw new InvalidOperationException("This folder cannot contain child folders.");
 
-        FolderItem ChildStructureItem = StructureItem.Child;
-        CheckCanAddItem(Folders);
-        CheckDuplicateTitle(Folders, Title);
+        CheckCanAddItem(Items);
+        CheckDuplicateTitle(Items, Title);
 
         Folder Result = new Folder();
         Result.Title = Title;
-        Result.LevelTitle = string.IsNullOrWhiteSpace(LevelTitle) ? ChildStructureItem.Title : LevelTitle;
-        Folders.Add(Result);
+        Result.LevelTitle = string.IsNullOrWhiteSpace(LevelTitle) ? GetDefaultChildFolderLevelTitle() : LevelTitle;
+        Items.Add(Result);
         Result.UpdateReferences(this);
         RenumberChildren();
         SaveItemIfStorageReady(Result);
@@ -293,12 +292,12 @@ public class Folder: BaseItem
         if (!CanAddTextFile)
             throw new InvalidOperationException("This folder cannot contain text files.");
 
-        CheckCanAddItem(Files);
-        CheckDuplicateTitle(Files, Title);
+        CheckCanAddItem(Items);
+        CheckDuplicateTitle(Items, Title);
 
         TextFile Result = new TextFile();
         Result.Title = Title;
-        Files.Add(Result);
+        Items.Add(Result);
         Result.UpdateReferences(this);
         RenumberChildren();
         SaveItemIfStorageReady(Result);
@@ -332,7 +331,7 @@ public class Folder: BaseItem
         Folder Folder = Item as Folder;
         if (Folder != null)
         {
-            if (!Folders.Contains(Folder))
+            if (!Items.Contains(Folder))
                 return false;
 
             Folder.Delete();
@@ -340,7 +339,7 @@ public class Folder: BaseItem
         }
 
         TextFile File = Item as TextFile;
-        if (File == null || !Files.Contains(File))
+        if (File == null || !Items.Contains(File))
             return false;
 
         File.Delete();
@@ -357,7 +356,7 @@ public class Folder: BaseItem
         if (!CanContainFolders)
             throw new InvalidOperationException("This folder cannot contain child folders.");
 
-        bool Result = MoveItem(Folders, Folder, NewOrderIndex);
+        bool Result = MoveItem(Items, Folder, NewOrderIndex);
         if (Result)
             UpdateReferences(Parent);
 
@@ -374,7 +373,7 @@ public class Folder: BaseItem
         if (!CanContainTextFiles)
             throw new InvalidOperationException("This folder cannot contain text files.");
 
-        bool Result = MoveItem(Files, File, NewOrderIndex);
+        bool Result = MoveItem(Items, File, NewOrderIndex);
         if (Result)
             UpdateReferences(Parent);
 
@@ -403,17 +402,8 @@ public class Folder: BaseItem
     {
         List<BaseItem> Result = new();
 
-        if (CanContainFolders)
-        {
-            foreach (Folder Folder in Folders)
-                Result.Add(Folder);
-        }
-
-        if (CanContainTextFiles)
-        {
-            foreach (TextFile File in Files)
-                Result.Add(File);
-        }
+        foreach (BaseItem Item in Items)
+            Result.Add(Item);
 
         return Result;
     }
@@ -426,33 +416,11 @@ public class Folder: BaseItem
     {
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
-        {
-            if (CanMoveItem(DocumentItem.Folders, this, Up))
-                return true;
-
-            BaseItem TargetContainer = GetAdjacentFolderMoveContainer(Document, Parent, Level, Up, this);
-            Document TargetDocument = TargetContainer as Document;
-            if (TargetDocument != null)
-                return CanAddItem(TargetDocument.Folders) && !ContainsTitle(TargetDocument.Folders, Title);
-
-            Folder TargetFolder = TargetContainer as Folder;
-            return TargetFolder != null && CanAddItem(TargetFolder.Folders) && !ContainsTitle(TargetFolder.Folders, Title);
-        }
+            return CanMoveItem(DocumentItem.Items, this, Up);
 
         Folder FolderItem = Parent as Folder;
         if (FolderItem != null)
-        {
-            if (CanMoveItem(FolderItem.Folders, this, Up))
-                return true;
-
-            BaseItem TargetContainer = GetAdjacentFolderMoveContainer(Document, Parent, Level, Up, this);
-            Document TargetDocument = TargetContainer as Document;
-            if (TargetDocument != null)
-                return CanAddItem(TargetDocument.Folders) && !ContainsTitle(TargetDocument.Folders, Title);
-
-            Folder TargetFolder = TargetContainer as Folder;
-            return TargetFolder != null && CanAddItem(TargetFolder.Folders) && !ContainsTitle(TargetFolder.Folders, Title);
-        }
+            return CanMoveItem(FolderItem.Items, this, Up);
 
         return false;
     }
@@ -469,23 +437,7 @@ public class Folder: BaseItem
         Document DocumentItem = Parent as Document;
         if (DocumentItem != null)
         {
-            bool Result = false;
-            if (CanMoveItem(DocumentItem.Folders, this, Up))
-            {
-                Result = MoveItem(DocumentItem.Folders, this, Up);
-            }
-            else
-            {
-                BaseItem TargetContainer = GetAdjacentFolderMoveContainer(Document, Parent, Level, Up, this);
-                Document TargetDocument = TargetContainer as Document;
-                if (TargetDocument != null)
-                    Result = MoveItem(DocumentItem.Folders, TargetDocument.Folders, this, TargetDocument, Up);
-
-                Folder TargetFolder = TargetContainer as Folder;
-                if (TargetFolder != null)
-                    Result = MoveItem(DocumentItem.Folders, TargetFolder.Folders, this, TargetFolder, Up);
-            }
-
+            bool Result = MoveItem(DocumentItem.Items, this, Up);
             if (Result)
                 DocumentItem.UpdateReferences(DocumentItem.Parent);
 
@@ -495,23 +447,7 @@ public class Folder: BaseItem
         Folder FolderItem = Parent as Folder;
         if (FolderItem != null)
         {
-            bool Result = false;
-            if (CanMoveItem(FolderItem.Folders, this, Up))
-            {
-                Result = MoveItem(FolderItem.Folders, this, Up);
-            }
-            else
-            {
-                BaseItem TargetContainer = GetAdjacentFolderMoveContainer(Document, Parent, Level, Up, this);
-                Document TargetDocument = TargetContainer as Document;
-                if (TargetDocument != null)
-                    Result = MoveItem(FolderItem.Folders, TargetDocument.Folders, this, TargetDocument, Up);
-
-                Folder TargetFolder = TargetContainer as Folder;
-                if (TargetFolder != null)
-                    Result = MoveItem(FolderItem.Folders, TargetFolder.Folders, this, TargetFolder, Up);
-            }
-
+            bool Result = MoveItem(FolderItem.Items, this, Up);
             if (Result)
                 FolderItem.UpdateReferences(FolderItem.Parent);
 
@@ -545,8 +481,8 @@ public class Folder: BaseItem
             return false;
 
         BaseItem SourceParent = Parent;
-        List<Folder> SourceItems = GetSourceFolders();
-        List<Folder> TargetItems = GetTargetFolders(TargetParent);
+        List<BaseItem> SourceItems = GetSourceItems();
+        List<BaseItem> TargetItems = GetTargetItems(TargetParent);
         bool Result = MoveItem(SourceItems, TargetItems, this, TargetParent);
         if (Result)
         {
@@ -586,29 +522,14 @@ public class Folder: BaseItem
         base.Save();
         SaveMarkdownFile(SynopsisFilePath, Synopsis);
 
-        if (CanContainFolders)
-        {
-            System.IO.Directory.CreateDirectory(FoldersFolderPath);
-            DeleteStorage(TextFilesFolderPath);
-        }
+        System.IO.Directory.CreateDirectory(ItemsFolderPath);
+        foreach (BaseItem Item in Items)
+            Item.Save();
 
-        if (CanContainTextFiles)
-        {
-            System.IO.Directory.CreateDirectory(TextFilesFolderPath);
-            DeleteStorage(FoldersFolderPath);
-        }
-
-        if (CanContainFolders)
-        {
-            foreach (Folder Folder in Folders)
-                Folder.Save();
-        }
-
-        if (CanContainTextFiles)
-        {
-            foreach (TextFile File in Files)
-                File.Save();
-        }
+        DeleteInternalMoveFolders(ItemsFolderPath);
+        DeleteInternalMoveFolders(FolderPath);
+        DeleteStorage(FoldersFolderPath);
+        DeleteStorage(TextFilesFolderPath);
     }
     /// <summary>
     /// Loads the folder from persistent storage.
@@ -618,16 +539,21 @@ public class Folder: BaseItem
         base.Load();
         Synopsis = LoadMarkdownFile(SynopsisFilePath);
 
-        Folders = new List<Folder>();
-        Files = new List<TextFile>();
-        if (!CanContainFolders)
+        Items = new List<BaseItem>();
+        if (System.IO.Directory.Exists(ItemsFolderPath))
+        {
+            Items = LoadChildItems(ItemsFolderPath);
             CheckUnusedStorageBucket(FoldersFolderPath);
-
-        if (!CanContainTextFiles)
             CheckUnusedStorageBucket(TextFilesFolderPath);
+        }
+        else
+        {
+            Items.AddRange(LoadItems<Folder>(FoldersFolderPath));
+            Items.AddRange(LoadItems<TextFile>(TextFilesFolderPath));
+            Items.Sort((A, B) => A.OrderIndex.CompareTo(B.OrderIndex));
+            CheckLoadedItems(Items, FolderPath);
+        }
 
-        Folders = CanContainFolders ? LoadItems<Folder>(FoldersFolderPath) : new List<Folder>();
-        Files = CanContainTextFiles ? LoadItems<TextFile>(TextFilesFolderPath) : new List<TextFile>();
         UpdateReferences(Parent);
     }
     /// <summary>
@@ -637,11 +563,8 @@ public class Folder: BaseItem
     {
         base.PrepareInfo();
 
-        foreach (Folder Folder in Folders)
-            Folder.PrepareInfo();
-
-        foreach (TextFile File in Files)
-            File.PrepareInfo();
+        foreach (BaseItem Item in Items)
+            Item.PrepareInfo();
     }
     /// <summary>
     /// Applies persisted item information after loading the folder.
@@ -650,11 +573,8 @@ public class Folder: BaseItem
     {
         base.ApplyInfo();
 
-        foreach (Folder Folder in Folders)
-            Folder.ApplyInfo();
-
-        foreach (TextFile File in Files)
-            File.ApplyInfo();
+        foreach (BaseItem Item in Items)
+            Item.ApplyInfo();
     }
     /// <summary>
     /// Renumbers folder child items.
@@ -663,11 +583,7 @@ public class Folder: BaseItem
     {
         CheckContentModel();
 
-        if (CanContainFolders)
-            RenumberItems(Folders);
-
-        if (CanContainTextFiles)
-            RenumberItems(Files);
+        RenumberItems(Items);
 
         foreach (Folder Folder in Folders)
             Folder.RenumberChildren();
@@ -680,11 +596,8 @@ public class Folder: BaseItem
     {
         base.UpdateReferences(ParentItem);
 
-        foreach (Folder Folder in Folders)
-            Folder.UpdateReferences(this);
-
-        foreach (TextFile File in Files)
-            File.UpdateReferences(this);
+        foreach (BaseItem Item in Items)
+            Item.UpdateReferences(this);
     }
     /// <summary>
     /// Clears runtime references when the folder is detached from its parent.
@@ -693,11 +606,8 @@ public class Folder: BaseItem
     {
         base.ClearReferences();
 
-        foreach (Folder Folder in Folders)
-            Folder.ClearReferences();
-
-        foreach (TextFile File in Files)
-            File.ClearReferences();
+        foreach (BaseItem Item in Items)
+            Item.ClearReferences();
     }
     
     // ● properties
@@ -749,17 +659,28 @@ public class Folder: BaseItem
     {
         get
         {
+            if (!string.IsNullOrWhiteSpace(fStorageFolderPathOverride))
+                return fStorageFolderPathOverride;
+
             Document DocumentItem = Parent as Document;
             if (DocumentItem != null)
-                return System.IO.Path.Combine(DocumentItem.FoldersFolderPath, StorageName);
+                return System.IO.Path.Combine(DocumentItem.ItemsFolderPath, StorageName);
 
             Folder FolderItem = Parent as Folder;
             if (FolderItem != null)
-                return System.IO.Path.Combine(FolderItem.FoldersFolderPath, StorageName);
+                return System.IO.Path.Combine(FolderItem.ItemsFolderPath, StorageName);
 
             return base.FolderPath;
         }
     }
+    /// <summary>
+    /// Gets the default folder level title.
+    /// </summary>
+    static public string DefaultLevelTitle => "Folder";
+    /// <summary>
+    /// Gets the mixed child items bucket folder name.
+    /// </summary>
+    static public string ItemsFolderName => "Items";
     /// <summary>
     /// Gets the folders bucket folder name.
     /// </summary>
@@ -772,6 +693,11 @@ public class Folder: BaseItem
     /// Gets the synopsis text file name.
     /// </summary>
     static public string SynopsisFileName => "Synopsis.md";
+    /// <summary>
+    /// Gets the file-system folder path of the child items bucket.
+    /// </summary>
+    [JsonIgnore]
+    public string ItemsFolderPath => System.IO.Path.Combine(FolderPath, ItemsFolderName);
     /// <summary>
     /// Gets the file-system folder path of the child folders bucket.
     /// </summary>
@@ -844,37 +770,55 @@ public class Folder: BaseItem
     /// Gets a value indicating whether this folder can contain child folders.
     /// </summary>
     [JsonIgnore]
-    public override bool CanContainFolders => StructureItem != null && !StructureItem.IsLeaf && Files.Count == 0;
+    public override bool CanContainFolders => true;
     /// <summary>
     /// Gets a value indicating whether this folder can contain text files.
     /// </summary>
     [JsonIgnore]
-    public override bool CanContainTextFiles => IsLeafLevel && Folders.Count == 0;
+    public override bool CanContainTextFiles => true;
     /// <summary>
     /// Gets a value indicating whether a child folder can be added.
     /// </summary>
     [JsonIgnore]
-    public override bool CanAddFolder => CanContainFolders && CanAddItem(Folders);
+    public override bool CanAddFolder => CanContainFolders && CanAddItem(Items);
     /// <summary>
     /// Gets a value indicating whether a text file can be added.
     /// </summary>
     [JsonIgnore]
-    public override bool CanAddTextFile => CanContainTextFiles && CanAddItem(Files);
+    public override bool CanAddTextFile => CanContainTextFiles && CanAddItem(Items);
+    /// <summary>
+    /// Gets or sets the child items.
+    /// </summary>
+    public List<BaseItem> Items
+    {
+        get => fItems;
+        set => fItems = value ?? new List<BaseItem>();
+    }
     /// <summary>
     /// Gets or sets the child folders.
     /// </summary>
     public List<Folder> Folders
     {
-        get => fFolders;
-        set => fFolders = value ?? new List<Folder>();
+        get => Items.OfType<Folder>().ToList();
+        set
+        {
+            Items.RemoveAll(Item => Item is Folder);
+            if (value != null)
+                Items.AddRange(value);
+        }
     }
     /// <summary>
     /// Gets or sets the child text files.
     /// </summary>
     public List<TextFile> Files
     {
-        get => fFiles;
-        set => fFiles = value ?? new List<TextFile>();
+        get => Items.OfType<TextFile>().ToList();
+        set
+        {
+            Items.RemoveAll(Item => Item is TextFile);
+            if (value != null)
+                Items.AddRange(value);
+        }
     }
     /// <summary>
     /// Gets or sets the folder synopsis.

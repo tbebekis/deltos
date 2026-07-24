@@ -1351,7 +1351,7 @@ public class ProjectStorageTests
             Project.Save();
 
             string DocumentPath = Path.Combine(ProjectPath, Project.DocumentsFolderName, "001._Flat_Book");
-            string FilePath = Path.Combine(DocumentPath, Document.TextFilesFolderName, "001._Opening_Scene");
+            string FilePath = Path.Combine(DocumentPath, Document.ItemsFolderName, "001._Opening_Scene");
             Assert.True(Directory.Exists(FilePath));
             Assert.True(File.Exists(Path.Combine(FilePath, BaseItem.InfoFileName)));
             Assert.True(File.Exists(Path.Combine(FilePath, TextFile.TextFileName)));
@@ -1504,8 +1504,8 @@ public class ProjectStorageTests
             Project.Save();
 
             string DocumentPath = Path.Combine(ProjectPath, Project.DocumentsFolderName, "001._Structured_Book");
-            string ScenePath = Path.Combine(DocumentPath, Document.FoldersFolderName, "001._Chapter_One", Folder.FoldersFolderName, "001._Scene_Group");
-            string FilePath = Path.Combine(ScenePath, Folder.TextFilesFolderName, "001._Opening_Scene");
+            string ScenePath = Path.Combine(DocumentPath, Document.ItemsFolderName, "001._Chapter_One", Folder.ItemsFolderName, "001._Scene_Group");
+            string FilePath = Path.Combine(ScenePath, Folder.ItemsFolderName, "001._Opening_Scene");
             Assert.True(File.Exists(Path.Combine(DocumentPath, Document.StructureFileName)));
             Assert.True(Directory.Exists(FilePath));
             Assert.False(Directory.Exists(Path.Combine(DocumentPath, Document.TextFilesFolderName)));
@@ -1594,6 +1594,40 @@ public class ProjectStorageTests
             Assert.True(Removed);
             Assert.Empty(Document.Files);
             Assert.False(Directory.Exists(FileFolderPath));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that item output metadata is saved and loaded from item information files.
+    /// </summary>
+    [Fact]
+    public void ItemOutputMetadataPersistsInInfoFile()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Book");
+            TextFile TextFileItem = Document.AddTextFile("Opening Scene");
+            TextFileItem.IncludeTitleInOutput = false;
+            TextFileItem.PageBreakBefore = true;
+            TextFileItem.IncludeInToc = false;
+            TextFileItem.Numbering = ItemNumbering.Custom;
+            TextFileItem.CustomNumbering = "A";
+            TextFileItem.SaveMetadata();
+
+            Project LoadedProject = LoadProject(ProjectPath);
+            TextFile LoadedFile = LoadedProject.Documents[0].Files[0];
+
+            Assert.False(LoadedFile.IncludeTitleInOutput);
+            Assert.True(LoadedFile.PageBreakBefore);
+            Assert.False(LoadedFile.IncludeInToc);
+            Assert.Equal(ItemNumbering.Custom, LoadedFile.Numbering);
+            Assert.Equal("A", LoadedFile.CustomNumbering);
         }
         finally
         {

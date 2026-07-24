@@ -59,6 +59,10 @@ static public partial class AppHost
 
         try
         {
+            ProjectManifest Manifest = ProjectManifest.Load(ProjectPath);
+            if (Manifest.StorageVersion == 0)
+                return null;
+
             return OpenProject(ProjectPath, false);
         }
         catch (Exception e)
