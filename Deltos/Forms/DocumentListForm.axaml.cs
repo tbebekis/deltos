@@ -546,15 +546,19 @@ public partial class DocumentListForm: AppForm
     /// </summary>
     /// <param name="Result">The candidate list.</param>
     /// <param name="Item">The item that changes parent.</param>
-    /// <param name="Folders">The folders to check.</param>
-    void AddFolderParentCandidates(List<BaseItem> Result, BaseItem Item, List<Folder> Folders)
+    /// <param name="Items">The child items to check.</param>
+    void AddFolderParentCandidates(List<BaseItem> Result, BaseItem Item, List<BaseItem> Items)
     {
-        foreach (Folder Folder in Folders)
+        foreach (BaseItem ChildItem in Items)
         {
+            Folder Folder = ChildItem as Folder;
+            if (Folder == null)
+                continue;
+
             if (Item.CanChangeParent(Folder))
                 Result.Add(Folder);
 
-            AddFolderParentCandidates(Result, Item, Folder.Folders);
+            AddFolderParentCandidates(Result, Item, Folder.GetChildItems());
         }
     }
     /// <summary>
@@ -574,7 +578,7 @@ public partial class DocumentListForm: AppForm
             if (Item.CanChangeParent(Document))
                 Result.Add(Document);
 
-            AddFolderParentCandidates(Result, Item, Document.Folders);
+            AddFolderParentCandidates(Result, Item, Document.GetChildItems());
         }
 
         return Result;
@@ -1180,11 +1184,7 @@ public partial class DocumentListForm: AppForm
     {
         TextStats Result = new TextStats();
 
-        foreach (TextFile File in Document.Files)
-            Result.Add(TextMetrics.Compute(UseSecondText ? File.Text2 : File.Text));
-
-        foreach (Folder Folder in Document.Folders)
-            Result.Add(GetFolderTextStats(Folder, UseSecondText));
+        AddItemTextStats(Result, Document.GetChildItems(), UseSecondText);
 
         return Result;
     }
@@ -1198,13 +1198,31 @@ public partial class DocumentListForm: AppForm
     {
         TextStats Result = new TextStats();
 
-        foreach (TextFile File in Folder.Files)
-            Result.Add(TextMetrics.Compute(UseSecondText ? File.Text2 : File.Text));
-
-        foreach (Folder ChildFolder in Folder.Folders)
-            Result.Add(GetFolderTextStats(ChildFolder, UseSecondText));
+        AddItemTextStats(Result, Folder.GetChildItems(), UseSecondText);
 
         return Result;
+    }
+    /// <summary>
+    /// Adds item text stats recursively.
+    /// </summary>
+    /// <param name="Stats">The target stats.</param>
+    /// <param name="Items">The child items.</param>
+    /// <param name="UseSecondText">True to use Text2; otherwise false.</param>
+    void AddItemTextStats(TextStats Stats, List<BaseItem> Items, bool UseSecondText)
+    {
+        foreach (BaseItem Item in Items)
+        {
+            TextFile File = Item as TextFile;
+            if (File != null)
+            {
+                Stats.Add(TextMetrics.Compute(UseSecondText ? File.Text2 : File.Text));
+                continue;
+            }
+
+            Folder Folder = Item as Folder;
+            if (Folder != null)
+                AddItemTextStats(Stats, Folder.GetChildItems(), UseSecondText);
+        }
     }
     /// <summary>
     /// Counts all folders in a document.
@@ -1213,7 +1231,7 @@ public partial class DocumentListForm: AppForm
     /// <returns>The folder count.</returns>
     int CountFolders(Document Document)
     {
-        return Document.Folders.Sum(CountFolders);
+        return CountFolders(Document.GetChildItems());
     }
     /// <summary>
     /// Counts all folders in a folder.
@@ -1222,7 +1240,24 @@ public partial class DocumentListForm: AppForm
     /// <returns>The folder count.</returns>
     int CountFolders(Folder Folder)
     {
-        return 1 + Folder.Folders.Sum(CountFolders);
+        return 1 + CountFolders(Folder.GetChildItems());
+    }
+    /// <summary>
+    /// Counts all folders in a child item list.
+    /// </summary>
+    /// <param name="Items">The child items.</param>
+    /// <returns>The folder count.</returns>
+    int CountFolders(List<BaseItem> Items)
+    {
+        int Result = 0;
+        foreach (BaseItem Item in Items)
+        {
+            Folder Folder = Item as Folder;
+            if (Folder != null)
+                Result += CountFolders(Folder);
+        }
+
+        return Result;
     }
     /// <summary>
     /// Counts all text files in a document.
@@ -1231,7 +1266,7 @@ public partial class DocumentListForm: AppForm
     /// <returns>The text file count.</returns>
     int CountTextFiles(Document Document)
     {
-        return Document.Files.Count + Document.Folders.Sum(CountTextFiles);
+        return CountTextFiles(Document.GetChildItems());
     }
     /// <summary>
     /// Counts all text files in a folder.
@@ -1240,7 +1275,30 @@ public partial class DocumentListForm: AppForm
     /// <returns>The text file count.</returns>
     int CountTextFiles(Folder Folder)
     {
-        return Folder.Files.Count + Folder.Folders.Sum(CountTextFiles);
+        return CountTextFiles(Folder.GetChildItems());
+    }
+    /// <summary>
+    /// Counts all text files in a child item list.
+    /// </summary>
+    /// <param name="Items">The child items.</param>
+    /// <returns>The text file count.</returns>
+    int CountTextFiles(List<BaseItem> Items)
+    {
+        int Result = 0;
+        foreach (BaseItem Item in Items)
+        {
+            if (Item is TextFile)
+            {
+                Result++;
+                continue;
+            }
+
+            Folder Folder = Item as Folder;
+            if (Folder != null)
+                Result += CountTextFiles(Folder);
+        }
+
+        return Result;
     }
 
     // ● tree events

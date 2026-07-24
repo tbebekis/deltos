@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Deltos.Forms.DocumentationForm">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Classes="ToolbarContainer">
+            <StackPanel Name="pnlToolBar" Classes="ToolBar" MinHeight="32">
+            </StackPanel>
+        </Border>
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto"
+                      Background="#FFFFFF">
+            <StackPanel Name="MarkdownPreviewPanel"
+                        MaxWidth="1180"
+                        HorizontalAlignment="Left"
+                        Margin="12,16,24,24"
+                        Spacing="6" />
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

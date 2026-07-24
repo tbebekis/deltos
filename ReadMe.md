@@ -32,7 +32,7 @@ renaming, exporting, or generating large project outputs.
 
 - Project-based writing workspace.
 - Sample project creation with ready-made flat, chapter, or part/chapter
-  structure.
+  structure templates.
 - Recent project list for quickly reopening workspaces.
 - File-system-first storage with ordinary folders, markdown files, and JSON
   metadata.
@@ -40,9 +40,15 @@ renaming, exporting, or generating large project outputs.
 - Two-language writing support with primary and secondary titles and text.
 - Item titles are stored in `Info.json` as human-readable text. Storage folder
   names are generated from sanitized primary titles.
-- Configurable document structures, such as Part, Chapter, Section, Scene.
-- Flat documents for simpler projects.
-- Folder and text-file organization with clear ordering.
+- Configurable document structure templates, such as Part, Chapter, Section,
+  Scene.
+- Documents and folders can contain an ordered mix of folders and text files.
+- Folder and text-file organization with clear ordering and same-parent
+  up/down movement.
+- Change Parent support for moving folders and text files between document
+  containers.
+- Item output metadata for export behavior, including title visibility, page
+  breaks, TOC inclusion, and numbering.
 - Markdown editing with primary and secondary language text.
 - Synopsis and draft text areas for documents, folders, and text files.
 - Temp scratchpad.
@@ -61,6 +67,7 @@ renaming, exporting, or generating large project outputs.
 - Markdown bold and italic shortcuts using Ctrl + B and Ctrl + I.
 - Quick View list for collecting important items and search hits while working.
 - Text metrics for every editor.
+- Built-in documentation available from the main toolbar.
 - Auto-save support.
 - Export per document to TXT, Markdown, HTML, and ODT.
 - Plain-text export mode for prose that should not be treated as markdown.
@@ -123,15 +130,13 @@ Examples:
 - A documentation volume.
 - A long essay.
 
-Each document may be flat or structured.
+Each document may contain folders, text files, or both.
 
 Each document has a primary title and an optional secondary-language title. The
 primary title is used in the normal UI, while the secondary title is used for
 secondary-language editor headers and exports when available.
 
-A flat document contains text files directly.
-
-A structured document uses a user-defined hierarchy. For example:
+A document can use a user-defined structure template. For example:
 
 ```text
 Document
@@ -148,15 +153,19 @@ Document
         Section
 ```
 
-The structure determines what kind of child item can be created at each level.
+The structure is a creation aid for folder level names. It does not force text
+files to live only at the last level. A document can contain text files
+directly, and any folder can contain both folders and text files.
 
 ### Folder
 
-A folder is a structural unit inside a document.
+A folder is a structural unit inside a document and is also a container.
 
 Its display title may be `Part`, `Chapter`, `Section`, or any other level name
 defined by the document structure. Folders may also have primary and secondary
 titles plus synopsis text.
+
+Folders can contain an ordered mix of folders and text files.
 
 ### TextFile
 
@@ -291,6 +300,9 @@ Each item has an `Info.json` file for metadata, including `Title` and `Title2`.
 Titles are human-readable text and may contain characters that are not valid in
 file or folder names.
 
+Document storage uses `ProjectManifest.json` to identify the storage contract
+version. Projects without a manifest are treated as legacy projects.
+
 Storage folder names are generated from the primary title by sanitizing it for
 the file system. If two primary titles produce the same sanitized storage name,
 the second one is rejected. Deltos does not add automatic suffixes such as
@@ -299,18 +311,88 @@ the second one is rejected. Deltos does not add automatic suffixes such as
 Text content is stored in markdown files such as `Text.md`, `Text2.md`,
 `Synopsis.md`, and `Draft.md`.
 
+Document and folder child items are stored in a common `Items` folder. The
+child type is read from each child's `Info.json`.
+
+Example:
+
+```text
+Document
+    Items
+        001._Preface
+            Info.json
+            Text.md
+        002._Part_I
+            Info.json
+            Items
+                001._Chapter_One
+                    Info.json
+                    Items
+                        001._Opening_Scene
+                            Info.json
+                            Text.md
+```
+
+The numeric prefixes are storage order only. The UI shows item titles without
+the numeric prefixes.
+
+When a legacy project is opened, Deltos asks whether to convert it to the
+current storage format. If the user agrees, Deltos first asks for an external
+backup folder, creates a full backup copy of the old project there, and only
+then saves the original project in the new format.
+
 ## Document Structure
 
 Document structure is one of the central ideas of Deltos.
 
-The user decides the shape of a document when creating or configuring it. A
-novel might use parts, chapters, and scenes. A manual might use chapters,
-sections, and topics. An essay collection might use only one level.
+The user can choose a structure template when creating or configuring a
+document. A novel might use parts, chapters, and scenes. A manual might use
+chapters, sections, and topics. An essay collection might use only one level.
 
-Deltos uses that structure to keep the tree consistent. A folder level may
-contain the next folder level, or text files when it is the final writing level.
+Deltos uses that structure as a suggested list of folder level names. It helps
+the UI create folders with meaningful level titles, but it does not restrict
+where text files may be placed.
 
-This keeps large works navigable and avoids accidental structural drift.
+This keeps large works navigable without forcing every document into one fixed
+shape.
+
+Example mixed document:
+
+```text
+Document
+    Preface
+    Introduction
+    Part I
+        What Is a Business Application?
+        Types of Business Applications
+            Type 1
+            Type 2
+    Back Matter
+        Glossary
+```
+
+`Up` and `Down` reorder an item inside its current parent. To move an item to a
+different document or folder container, use `Change Parent`.
+
+## Item Metadata
+
+Documents, folders, and text files have shared metadata.
+
+Common metadata:
+
+- Primary title.
+- Secondary title.
+- Include title in output.
+- Page break before.
+- Include in TOC.
+- Numbering: `Automatic`, `None`, or `Custom`.
+- Custom numbering text.
+
+The Add/Edit item dialog edits this metadata. The item type is shown but cannot
+be changed after creation.
+
+The output metadata is persisted in `Info.json` and applied during document
+export.
 
 ## Editing
 
@@ -419,7 +501,15 @@ Output behavior:
 - HTML exports produce browser-readable output.
 - ODT exports produce a document file suitable for word processors.
 - Plain-text mode can be used for prose that should not be parsed as markdown.
-- Page breaks before Heading 1 are supported for HTML and ODT exports.
+- Page breaks are controlled by each item's metadata.
+- Per-item `Include title in output` hides the exported title/heading while
+  keeping the item's text.
+- Per-item `Page break before` starts that item on a new page in HTML and ODT
+  exports, and emits a page-break marker in Markdown and TXT exports.
+- Per-item `Include in TOC` controls HTML table-of-contents entries for the
+  item and markdown headings inside a text file.
+- Per-item `Numbering` controls automatic, hidden, or custom numbering in
+  exported item titles.
 
 Export heading rules:
 
@@ -429,18 +519,14 @@ Export heading rules:
   when one is available.
 - Folder and text-file titles use the secondary title in secondary-language
   exports, falling back to the primary title when the secondary title is empty.
-- If a document has no folders, each text-file title is exported as Heading 1.
-- If a document has folders, folder titles and text-file titles are exported as
-  headings according to their level in the document tree.
+- Folder titles and text-file titles are exported as headings according to
+  their level in the document tree.
 - Markdown headings inside a text file are exported below the text-file title
   level. The highest heading level used in that text file becomes the first
   level below the text-file title. For example, inside a Heading 1 text file,
   `##` becomes Heading 2 and `###` becomes Heading 3.
 - Markdown headings inside text files are still recognized when `Treat
   TextFiles as Plain Text` is enabled.
-- `Page Break Before Heading 1` starts every Heading 1 after the first one on a
-  new page in HTML and ODT exports.
-
 ## Static Wiki
 
 Deltos can generate a static wiki from project components.

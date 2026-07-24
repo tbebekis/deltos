@@ -910,6 +910,7 @@ public partial class MainWindow : Window
 
         AddToolBarSeparator();
 
+        AddToolBarButton("book_open.png", "Documentation", "Documentation");
         AddToolBarButton("information.png", "About Deltos", "About");
         AddToolBarButton("door_out.png", "Exit Application", "Exit");
     }
@@ -1007,6 +1008,10 @@ public partial class MainWindow : Window
                 break;
             case "BuildWiki2":
                 await BuildWiki(true);
+                break;
+            case "Documentation":
+                AppHost.ShowDocumentation();
+                UpdateStatusBar("Documentation opened", lblProjectStatus.Text);
                 break;
             case "About":
                 await DialogWindow.ShowModal<AboutDialog>(null, this);

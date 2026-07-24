@@ -246,6 +246,20 @@ static public partial class AppHost
         Form.PreviewData = Data;
         Form.RefreshPreview();
     }
+    /// <summary>
+    /// Shows the application documentation.
+    /// </summary>
+    /// <returns>The documentation form.</returns>
+    static public Forms.DocumentationForm ShowDocumentation()
+    {
+        Forms.DocumentationFormData Data = new Forms.DocumentationFormData();
+        Data.Title = "Documentation";
+        Data.MarkdownText = Documentation.ReadMainDocument();
+        Forms.DocumentationForm Form = ShowContentForm<Forms.DocumentationForm>(nameof(Forms.DocumentationForm), Data.Title, Data);
+        Form.PreviewData = Data;
+        Form.RefreshPreview();
+        return Form;
+    }
 
     // ● properties
     /// <summary>

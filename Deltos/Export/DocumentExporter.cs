@@ -74,6 +74,18 @@ public class DocumentExporter
     /// <returns>The formatted title.</returns>
     static string FormatTitle(string Word, int OrderIndex, string Title, ExportTitleOptions Options)
     {
+        return FormatTitle(Word, OrderIndex.ToString(CultureInfo.InvariantCulture), Title, Options);
+    }
+    /// <summary>
+    /// Formats a title.
+    /// </summary>
+    /// <param name="Word">The item word.</param>
+    /// <param name="NumberText">The item number text.</param>
+    /// <param name="Title">The item title.</param>
+    /// <param name="Options">The title options.</param>
+    /// <returns>The formatted title.</returns>
+    static string FormatTitle(string Word, string NumberText, string Title, ExportTitleOptions Options)
+    {
         if (Options == ExportTitleOptions.None)
             return string.Empty;
 
@@ -84,12 +96,13 @@ public class DocumentExporter
         if (Options.HasFlag(ExportTitleOptions.Word))
             AppendTitlePart(Builder, Word);
 
-        if (Options.HasFlag(ExportTitleOptions.Number))
-            AppendTitlePart(Builder, OrderIndex.ToString());
+        bool HasNumber = Options.HasFlag(ExportTitleOptions.Number) && !string.IsNullOrWhiteSpace(NumberText);
+        if (HasNumber)
+            AppendTitlePart(Builder, NumberText);
 
         if (Options.HasFlag(ExportTitleOptions.Title))
         {
-            if (Options.HasFlag(ExportTitleOptions.Number))
+            if (HasNumber)
                 Builder.Append($". {Title}");
             else if (Options.HasFlag(ExportTitleOptions.Word))
                 Builder.Append($": {Title}");
@@ -98,6 +111,39 @@ public class DocumentExporter
         }
 
         return Builder.ToString();
+    }
+    /// <summary>
+    /// Formats an item title.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <param name="Word">The item word.</param>
+    /// <param name="Title">The item title.</param>
+    /// <param name="Options">The title options.</param>
+    /// <returns>The formatted item title.</returns>
+    static string FormatItemTitle(BaseItem Item, string Word, string Title, ExportTitleOptions Options)
+    {
+        if (Item == null || !Item.IncludeTitleInOutput)
+            return string.Empty;
+
+        return FormatTitle(Word, GetItemNumberText(Item), Title, Options);
+    }
+    /// <summary>
+    /// Returns the item number text.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <returns>The item number text.</returns>
+    static string GetItemNumberText(BaseItem Item)
+    {
+        if (Item == null)
+            return string.Empty;
+
+        if (Item.Numbering == ItemNumbering.None)
+            return string.Empty;
+
+        if (Item.Numbering == ItemNumbering.Custom)
+            return Item.CustomNumbering;
+
+        return Item.OrderIndex.ToString(CultureInfo.InvariantCulture);
     }
     /// <summary>
     /// Returns an item title for the selected export language.
@@ -196,7 +242,7 @@ public class DocumentExporter
     /// <param name="AnchorIndex">The next anchor index.</param>
     /// <param name="MarkdownText">The markdown text.</param>
     /// <param name="TextFileLevel">The text file heading level.</param>
-    static void AppendMarkdownHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, string MarkdownText, int TextFileLevel)
+    static void AppendMarkdownHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, string MarkdownText, int TextFileLevel, bool IncludeToc)
     {
         if (string.IsNullOrWhiteSpace(MarkdownText))
             return;
@@ -214,7 +260,9 @@ public class DocumentExporter
             {
                 int Level = GetNestedHeadingLevel(TextFileLevel, MarkdownLevel, BaseMarkdownLevel);
                 string AnchorId = CreateAnchorId(AnchorIndex++);
-                AppendTocItem(TocBuilder, Level, AnchorId, HeadingText);
+                if (IncludeToc)
+                    AppendTocItem(TocBuilder, Level, AnchorId, HeadingText);
+
                 TextBuilder.AppendLine(CreateHtmlHeading(Level, AnchorId, HeadingText, false));
             }
             else
@@ -233,7 +281,7 @@ public class DocumentExporter
     /// <param name="AnchorIndex">The next anchor index.</param>
     /// <param name="Text">The plain text.</param>
     /// <param name="TextFileLevel">The text file heading level.</param>
-    static void AppendPlainTextHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, string Text, int TextFileLevel)
+    static void AppendPlainTextHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, string Text, int TextFileLevel, bool IncludeToc)
     {
         if (string.IsNullOrWhiteSpace(Text))
             return;
@@ -254,7 +302,9 @@ public class DocumentExporter
             {
                 int Level = GetNestedHeadingLevel(TextFileLevel, MarkdownLevel, BaseMarkdownLevel);
                 string AnchorId = CreateAnchorId(AnchorIndex++);
-                AppendTocItem(TocBuilder, Level, AnchorId, HeadingText);
+                if (IncludeToc)
+                    AppendTocItem(TocBuilder, Level, AnchorId, HeadingText);
+
                 Builder.AppendLine(CreateHtmlHeading(Level, AnchorId, HeadingText, false));
             }
             else
@@ -295,6 +345,39 @@ public class DocumentExporter
     static void AppendTocItem(StringBuilder Builder, int Level, string AnchorId, string Title)
     {
         Builder.AppendLine($"<a class=\"toc-item toc-level-{Level}\" href=\"#{WebUtility.HtmlEncode(AnchorId)}\">{WebUtility.HtmlEncode(Title)}</a>");
+    }
+    /// <summary>
+    /// Appends a page break marker to a markdown export.
+    /// </summary>
+    /// <param name="Builder">The string builder.</param>
+    static void AppendMarkdownPageBreak(StringBuilder Builder)
+    {
+        Builder.AppendLine("<div style=\"page-break-before: always; break-before: page;\"></div>");
+        Builder.AppendLine();
+    }
+    /// <summary>
+    /// Appends a page break marker to a plain text export.
+    /// </summary>
+    /// <param name="Builder">The string builder.</param>
+    static void AppendTextPageBreak(StringBuilder Builder)
+    {
+        Builder.AppendLine("\f");
+    }
+    /// <summary>
+    /// Formats a synopsis item title.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <param name="Word">The item word.</param>
+    /// <returns>The synopsis item title.</returns>
+    static string FormatSynopsisTitle(BaseItem Item, string Word)
+    {
+        if (Item == null || !Item.IncludeTitleInOutput)
+            return string.Empty;
+
+        string NumberText = GetItemNumberText(Item);
+        return string.IsNullOrWhiteSpace(NumberText)
+            ? $"● {Word}: {Item.Title}"
+            : $"● {Word} {NumberText}: {Item.Title}";
     }
     /// <summary>
     /// Wraps body HTML into a full HTML document.
@@ -384,9 +467,12 @@ public class DocumentExporter
     /// <param name="UseSecondary">True to use secondary text.</param>
     void AppendFolderText(StringBuilder Builder, Folder Folder, bool UseSecondary)
     {
-        string Title = FormatTitle(Folder.LevelTitle, Folder.OrderIndex, GetExportTitle(Folder, UseSecondary), fOptions.FolderTitle);
+        string Title = FormatItemTitle(Folder, Folder.LevelTitle, GetExportTitle(Folder, UseSecondary), fOptions.FolderTitle);
         if (!string.IsNullOrWhiteSpace(Title))
         {
+            if (Folder.PageBreakBefore)
+                AppendTextPageBreak(Builder);
+
             Builder.AppendLine(Title);
             Builder.AppendLine();
         }
@@ -421,9 +507,14 @@ public class DocumentExporter
     /// <param name="UseSecondary">True to use secondary text.</param>
     void AppendTextFileText(StringBuilder Builder, TextFile File, bool UseSecondary)
     {
-        string Title = FormatTitle("TextFile", File.OrderIndex, GetExportTitle(File, UseSecondary), fOptions.TextFileTitle);
+        string Title = FormatItemTitle(File, "TextFile", GetExportTitle(File, UseSecondary), fOptions.TextFileTitle);
         if (!string.IsNullOrWhiteSpace(Title))
+        {
+            if (File.PageBreakBefore)
+                AppendTextPageBreak(Builder);
+
             Builder.AppendLine(Title);
+        }
 
         string Text = UseSecondary ? File.Text2 : File.Text;
         if (!string.IsNullOrWhiteSpace(Text))
@@ -455,15 +546,19 @@ public class DocumentExporter
     /// <param name="Level">The heading level.</param>
     void AppendFolderMarkdown(StringBuilder Builder, Folder Folder, bool UseSecondary, int Level)
     {
-        string Title = FormatTitle(Folder.LevelTitle, Folder.OrderIndex, GetExportTitle(Folder, UseSecondary), fOptions.FolderTitle);
+        string Title = FormatItemTitle(Folder, Folder.LevelTitle, GetExportTitle(Folder, UseSecondary), fOptions.FolderTitle);
         if (!string.IsNullOrWhiteSpace(Title))
         {
+            if (Folder.PageBreakBefore)
+                AppendMarkdownPageBreak(Builder);
+
             Builder.AppendLine($"{GetMarkdownHeading(Level)} {Title}");
             Builder.AppendLine();
         }
 
+        int ChildLevel = string.IsNullOrWhiteSpace(Title) ? Level : Math.Min(6, Level + 1);
         foreach (BaseItem Item in Folder.GetChildItems())
-            AppendItemMarkdown(Builder, Item, UseSecondary, Math.Min(6, Level + 1));
+            AppendItemMarkdown(Builder, Item, UseSecondary, ChildLevel);
     }
     /// <summary>
     /// Appends item markdown.
@@ -494,9 +589,12 @@ public class DocumentExporter
     /// <param name="Level">The heading level.</param>
     void AppendTextFileMarkdown(StringBuilder Builder, TextFile File, bool UseSecondary, int Level)
     {
-        string Title = FormatTitle("TextFile", File.OrderIndex, GetExportTitle(File, UseSecondary), fOptions.TextFileTitle);
+        string Title = FormatItemTitle(File, "TextFile", GetExportTitle(File, UseSecondary), fOptions.TextFileTitle);
         if (!string.IsNullOrWhiteSpace(Title))
         {
+            if (File.PageBreakBefore)
+                AppendMarkdownPageBreak(Builder);
+
             Builder.AppendLine($"{GetMarkdownHeading(Level)} {Title}");
             Builder.AppendLine();
         }
@@ -504,7 +602,8 @@ public class DocumentExporter
         string Text = UseSecondary ? File.Text2 : File.Text;
         if (!string.IsNullOrWhiteSpace(Text))
         {
-            Builder.AppendLine(ShiftMarkdownHeadings(Text.Trim(), Level));
+            int TextFileLevel = string.IsNullOrWhiteSpace(Title) ? Math.Max(1, Level - 1) : Level;
+            Builder.AppendLine(ShiftMarkdownHeadings(Text.Trim(), TextFileLevel));
             Builder.AppendLine();
         }
     }
@@ -566,7 +665,9 @@ public class DocumentExporter
     void AppendFolderSynopsis(StringBuilder Builder, Folder Folder)
     {
         Builder.AppendLine();
-        Builder.AppendLine($"● {Folder.LevelTitle.ToUpperInvariant()} {Folder.OrderIndex}: {Folder.Title}");
+        string Title = FormatSynopsisTitle(Folder, Folder.LevelTitle.ToUpperInvariant());
+        if (!string.IsNullOrWhiteSpace(Title))
+            Builder.AppendLine(Title);
         if (!string.IsNullOrWhiteSpace(Folder.Synopsis))
             Builder.AppendLine(Folder.Synopsis.Trim());
 
@@ -599,7 +700,9 @@ public class DocumentExporter
     void AppendTextFileSynopsis(StringBuilder Builder, TextFile File)
     {
         Builder.AppendLine();
-        Builder.AppendLine($"● TEXTFILE {File.OrderIndex}: {File.Title}");
+        string Title = FormatSynopsisTitle(File, "TEXTFILE");
+        if (!string.IsNullOrWhiteSpace(Title))
+            Builder.AppendLine(Title);
         if (!string.IsNullOrWhiteSpace(File.Synopsis))
             Builder.AppendLine(File.Synopsis.Trim());
     }
@@ -632,8 +735,14 @@ public class DocumentExporter
     /// <param name="Level">The heading level.</param>
     void AppendFolderSynopsisMarkdown(StringBuilder Builder, Folder Folder, int Level)
     {
-        Builder.AppendLine($"{GetMarkdownHeading(Level)} {Folder.LevelTitle} {Folder.OrderIndex}: {Folder.Title}");
-        Builder.AppendLine();
+        if (Folder.IncludeTitleInOutput)
+        {
+            if (Folder.PageBreakBefore)
+                AppendMarkdownPageBreak(Builder);
+
+            Builder.AppendLine($"{GetMarkdownHeading(Level)} {Folder.LevelTitle} {GetItemNumberText(Folder)}: {Folder.Title}");
+            Builder.AppendLine();
+        }
 
         if (!string.IsNullOrWhiteSpace(Folder.Synopsis))
         {
@@ -641,8 +750,9 @@ public class DocumentExporter
             Builder.AppendLine();
         }
 
+        int ChildLevel = Folder.IncludeTitleInOutput ? Math.Min(6, Level + 1) : Level;
         foreach (BaseItem Item in Folder.GetChildItems())
-            AppendItemSynopsisMarkdown(Builder, Item, Math.Min(6, Level + 1));
+            AppendItemSynopsisMarkdown(Builder, Item, ChildLevel);
     }
     /// <summary>
     /// Appends item synopsis markdown.
@@ -671,8 +781,14 @@ public class DocumentExporter
     /// <param name="Level">The heading level.</param>
     void AppendTextFileSynopsisMarkdown(StringBuilder Builder, TextFile File, int Level)
     {
-        Builder.AppendLine($"{GetMarkdownHeading(Level)} TextFile {File.OrderIndex}: {File.Title}");
-        Builder.AppendLine();
+        if (File.IncludeTitleInOutput)
+        {
+            if (File.PageBreakBefore)
+                AppendMarkdownPageBreak(Builder);
+
+            Builder.AppendLine($"{GetMarkdownHeading(Level)} TextFile {GetItemNumberText(File)}: {File.Title}");
+            Builder.AppendLine();
+        }
 
         if (!string.IsNullOrWhiteSpace(File.Synopsis))
         {
@@ -711,18 +827,20 @@ public class DocumentExporter
     /// <param name="UseOdtHeadingLevels">True to use ODT heading levels.</param>
     void AppendFolderHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, ref int Heading1Count, Folder Folder, bool UseSecondary, int Level, bool UseOdtHeadingLevels)
     {
-        string Title = FormatTitle(Folder.LevelTitle, Folder.OrderIndex, GetExportTitle(Folder, UseSecondary), fOptions.FolderTitle);
+        string Title = FormatItemTitle(Folder, Folder.LevelTitle, GetExportTitle(Folder, UseSecondary), fOptions.FolderTitle);
         if (!string.IsNullOrWhiteSpace(Title))
         {
             string AnchorId = CreateAnchorId(AnchorIndex++);
-            AppendTocItem(TocBuilder, Level, AnchorId, Title);
-            bool UsePageBreak = fOptions.PageBreakBeforeHeading1 && Level == 1 && Heading1Count > 0;
+            if (Folder.IncludeInToc)
+                AppendTocItem(TocBuilder, Level, AnchorId, Title);
+
+            bool UsePageBreak = Folder.PageBreakBefore;
             Builder.AppendLine(CreateHtmlHeading(Level, AnchorId, Title, UsePageBreak));
             if (Level == 1)
                 Heading1Count++;
         }
 
-        int TextFileLevel = Math.Min(6, Level + 1);
+        int TextFileLevel = string.IsNullOrWhiteSpace(Title) ? Level : Math.Min(6, Level + 1);
         foreach (BaseItem Item in Folder.GetChildItems())
             AppendItemHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, Item, UseSecondary, TextFileLevel, UseOdtHeadingLevels);
     }
@@ -762,22 +880,25 @@ public class DocumentExporter
     /// <param name="Level">The heading level.</param>
     void AppendTextFileHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, ref int Heading1Count, TextFile File, bool UseSecondary, int Level)
     {
-        string Title = FormatTitle("TextFile", File.OrderIndex, GetExportTitle(File, UseSecondary), fOptions.TextFileTitle);
+        string Title = FormatItemTitle(File, "TextFile", GetExportTitle(File, UseSecondary), fOptions.TextFileTitle);
         if (!string.IsNullOrWhiteSpace(Title))
         {
             string AnchorId = CreateAnchorId(AnchorIndex++);
-            AppendTocItem(TocBuilder, Level, AnchorId, Title);
-            bool UsePageBreak = fOptions.PageBreakBeforeHeading1 && Level == 1 && Heading1Count > 0;
+            if (File.IncludeInToc)
+                AppendTocItem(TocBuilder, Level, AnchorId, Title);
+
+            bool UsePageBreak = File.PageBreakBefore;
             Builder.AppendLine(CreateHtmlHeading(Level, AnchorId, Title, UsePageBreak));
             if (Level == 1)
                 Heading1Count++;
         }
 
         string Text = UseSecondary ? File.Text2 : File.Text;
+        int TextFileLevel = string.IsNullOrWhiteSpace(Title) ? Math.Max(1, Level - 1) : Level;
         if (fOptions.TreatTextFilesAsPlainText)
-            AppendPlainTextHtml(Builder, TocBuilder, ref AnchorIndex, Text, Level);
+            AppendPlainTextHtml(Builder, TocBuilder, ref AnchorIndex, Text, TextFileLevel, File.IncludeInToc);
         else
-            AppendMarkdownHtml(Builder, TocBuilder, ref AnchorIndex, Text, Level);
+            AppendMarkdownHtml(Builder, TocBuilder, ref AnchorIndex, Text, TextFileLevel, File.IncludeInToc);
     }
     /// <summary>
     /// Builds synopsis HTML export.

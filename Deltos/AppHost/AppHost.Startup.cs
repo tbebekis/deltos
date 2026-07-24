@@ -46,6 +46,13 @@ static public partial class AppHost
         Settings = new AppSettings();
         Settings.Load();
     }
+    /// <summary>
+    /// Loads application documentation.
+    /// </summary>
+    static void LoadDocumentation()
+    {
+        Documentation.EnsureCreated();
+    }
     /// Returns the active owner window for owned dialogs.
     /// </summary>
     /// <returns>The active owner window, or null.</returns>
@@ -114,6 +121,7 @@ static public partial class AppHost
         SysConfig.ApplicationMode = ApplicationMode.Desktop;
         SysConfig.MainAssembly = typeof(AppHost).Assembly;
         LoadSettings();
+        LoadDocumentation();
         InitializeAutoSave();
     }
     /// <summary>
@@ -171,6 +179,10 @@ static public partial class AppHost
     /// Gets the application settings.
     /// </summary>
     static public AppSettings Settings { get; private set; }
+    /// <summary>
+    /// Gets the file-backed documentation store.
+    /// </summary>
+    static public DocumentationStore Documentation { get; } = new();
     /// <summary>
     /// Gets the please-wait window.
     /// </summary>

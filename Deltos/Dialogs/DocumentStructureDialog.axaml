@@ -13,7 +13,7 @@
     <Grid RowDefinitions="Auto,Auto,*,Auto"
           Margin="16"
           RowSpacing="10">
-        <TextBlock Text="Only the lowest folder level may contain TextFiles. Use a flat Document structure when the Document itself should contain TextFiles."
+        <TextBlock Text="The document structure is a template for suggested folder level names. Documents and folders may contain both folders and text files."
                    TextWrapping="Wrap" />
 
         <Grid Grid.Row="1"

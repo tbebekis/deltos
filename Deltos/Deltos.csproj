@@ -2,7 +2,7 @@
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
-        <Version>2026.7.15</Version>
+        <Version>2026.7.24</Version>
         <Authors>Theodoros Bebekis</Authors>
         <Product>Deltos</Product>
         <Copyright>Copyright (c) 2026 Theodoros Bebekis</Copyright>
@@ -32,6 +32,7 @@
 
     <ItemGroup>
       <AvaloniaResource Include="Resources\Images\**" />
+      <EmbeddedResource Include="Resources\Documentation\*.*" />
     </ItemGroup>
 
     <ItemGroup>
