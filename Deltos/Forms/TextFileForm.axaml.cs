@@ -66,7 +66,7 @@ public partial class TextFileForm: AppForm
             else if (Item is Document Document)
                 LoadSynopsisOnly(Document.Synopsis, Document.SynopsisFilePath, $"Document: {Document.Title}");
             else if (Item is Folder Folder)
-                LoadSynopsisOnly(Folder.Synopsis, Folder.SynopsisFilePath, $"{Folder.LevelTitle}: {Folder.Title}");
+                LoadSynopsisOnly(Folder.Synopsis, Folder.SynopsisFilePath, string.IsNullOrWhiteSpace(Folder.LevelTitle) ? Folder.Title : $"{Folder.LevelTitle}: {Folder.Title}");
 
             AdjustTitles();
         }
@@ -232,7 +232,7 @@ public partial class TextFileForm: AppForm
         }
         else if (Item is Folder Folder)
         {
-            EditorSynopsis.Title = $"{Folder.LevelTitle}: {Folder.Title}";
+            EditorSynopsis.Title = string.IsNullOrWhiteSpace(Folder.LevelTitle) ? Folder.Title : $"{Folder.LevelTitle}: {Folder.Title}";
             EditorSynopsis.FilePath = Folder.SynopsisFilePath;
             EditorSynopsis.PreviewId = AppHost.GetMarkdownPreviewFormId(Folder.Id);
         }

@@ -54,6 +54,7 @@ public partial class AppSettingsDialog: DialogWindow
         Result.FontSize = Source.FontSize;
         Result.SecondLanguageVisible = Source.SecondLanguageVisible;
         Result.ShowMarkdownPreviewButton = Source.ShowMarkdownPreviewButton;
+        Result.ShowFolderLevelTitleInTree = Source.ShowFolderLevelTitleInTree;
         return Result;
     }
     /// <summary>
@@ -67,6 +68,7 @@ public partial class AppSettingsDialog: DialogWindow
         edtFontSize.Value = fSettings.FontSize;
         chkSecondLanguageVisible.IsChecked = fSettings.SecondLanguageVisible;
         chkShowMarkdownPreviewButton.IsChecked = fSettings.ShowMarkdownPreviewButton;
+        chkShowFolderLevelTitleInTree.IsChecked = fSettings.ShowFolderLevelTitleInTree;
     }
     /// <summary>
     /// Saves controls into settings.
@@ -79,6 +81,7 @@ public partial class AppSettingsDialog: DialogWindow
         fSettings.FontSize = Math.Clamp((int)(edtFontSize.Value ?? 13), 8, 32);
         fSettings.SecondLanguageVisible = chkSecondLanguageVisible.IsChecked == true;
         fSettings.ShowMarkdownPreviewButton = chkShowMarkdownPreviewButton.IsChecked == true;
+        fSettings.ShowFolderLevelTitleInTree = chkShowFolderLevelTitleInTree.IsChecked == true;
     }
 
     // ● protected

@@ -65,7 +65,7 @@ public partial class SelectParentDialog: DialogWindow
     {
         Folder Folder = Item as Folder;
         if (Folder != null)
-            return $"{Folder.LevelTitle}: {Folder.Title}";
+            return string.IsNullOrWhiteSpace(Folder.LevelTitle) ? Folder.Title : $"{Folder.LevelTitle}: {Folder.Title}";
 
         return Item.Title;
     }

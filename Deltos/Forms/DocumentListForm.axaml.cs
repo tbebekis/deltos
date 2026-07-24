@@ -279,6 +279,9 @@ public partial class DocumentListForm: AppForm
     /// <param name="Data">The dialog data.</param>
     void ApplyItemDialogMetadata(BaseItem Item, ItemTitleDialogData Data)
     {
+        if (Item is Folder Folder)
+            Folder.LevelTitle = Data.LevelTitle;
+
         Item.Title2 = Data.Title2;
         Item.IncludeTitleInOutput = Data.IncludeTitleInOutput;
         Item.PageBreakBefore = Data.PageBreakBefore;
@@ -350,16 +353,18 @@ public partial class DocumentListForm: AppForm
         string Title = TitleData.Title;
         try
         {
-            AppHost.ShowPleaseWait($"Creating {LevelTitle}...", this.GetOwnerWindow());
+            string CreatedLevelTitle = TitleData.LevelTitle;
+            string CreatedLevelText = string.IsNullOrWhiteSpace(CreatedLevelTitle) ? "folder" : CreatedLevelTitle;
+            AppHost.ShowPleaseWait($"Creating {CreatedLevelText}...", this.GetOwnerWindow());
             await Task.Yield();
 
-            Folder Folder = ParentItem.AddFolder(Title, LevelTitle);
+            Folder Folder = ParentItem.AddFolder(Title, CreatedLevelTitle);
             ApplyItemDialogMetadata(Folder, TitleData);
             Folder.SaveMetadata();
             CreateProjectTree();
             SelectTreeItem(Folder);
             ShowSelectedItem(Folder);
-            LogBox.AppendLine($"{LevelTitle} created: {Folder.Title}");
+            LogBox.AppendLine($"{CreatedLevelText} created: {Folder.Title}");
         }
         catch (Exception e)
         {
@@ -717,8 +722,10 @@ public partial class DocumentListForm: AppForm
 
         string Title = TitleData.Title;
         string Title2 = TitleData.Title2;
+        string LevelTitle = Item is Folder Folder ? Folder.LevelTitle : string.Empty;
         if (string.Equals(Title, Item.Title, StringComparison.Ordinal)
             && string.Equals(Title2, Item.Title2, StringComparison.Ordinal)
+            && string.Equals(TitleData.LevelTitle, LevelTitle, StringComparison.Ordinal)
             && TitleData.IncludeTitleInOutput == Item.IncludeTitleInOutput
             && TitleData.PageBreakBefore == Item.PageBreakBefore
             && TitleData.IncludeInToc == Item.IncludeInToc
@@ -1387,7 +1394,7 @@ public partial class DocumentListForm: AppForm
         }
         else if (Item is Folder Folder)
         {
-            lblTextTitle.Text = $"{Folder.LevelTitle}: {Folder.Title}";
+            lblTextTitle.Text = string.IsNullOrWhiteSpace(Folder.LevelTitle) ? Folder.Title : $"{Folder.LevelTitle}: {Folder.Title}";
             Editor.EditorText = Folder.Synopsis;
             Editor.FilePath = Folder.SynopsisFilePath;
             Editor.PreviewId = AppHost.GetMarkdownPreviewFormId(Folder.Id);

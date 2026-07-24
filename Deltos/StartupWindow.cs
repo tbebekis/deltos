@@ -35,7 +35,7 @@ public class StartupWindow: Window
         Result.Width = 540;
         Result.Height = 300;
         Result.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
-        Result.Margin = new Thickness(0, 14, 0, 22);
+        Result.Margin = new Thickness(0, 14, 0, 34);
         Result.Stretch = Avalonia.Media.Stretch.Uniform;
 
         Uri Uri = AvaloniaAssets.FindUri("Assets", "Deltos-Startup.png");
@@ -65,6 +65,7 @@ public class StartupWindow: Window
         StackPanel Result = new StackPanel();
         Result.Width = 320;
         Result.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        Result.Margin = new Thickness(0, 0, 0, 0);
         Result.Spacing = 12;
 
         TextBlock TitleText = new TextBlock();
@@ -92,7 +93,8 @@ public class StartupWindow: Window
 
         StackPanel Panel = new StackPanel();
         Panel.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
-        Panel.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
+        Panel.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
+        Panel.Margin = new Thickness(0, 42, 0, 0);
         Panel.Spacing = 0;
 
         Panel.Children.Add(CreateTitle());

@@ -118,8 +118,9 @@ public partial class ItemTitleDialog: DialogWindow
         fData = InputData as ItemTitleDialogData ?? new ItemTitleDialogData();
         Title = fData.Caption;
         txtType.Text = fData.Type == ItemType.None ? string.Empty : fData.Type.ToString();
-        txtLevelTitle.Text = fData.LevelTitle;
-        pnlLevelTitle.IsVisible = !string.IsNullOrWhiteSpace(fData.LevelTitle);
+        edtLevelTitle.Text = fData.LevelTitle;
+        lblLevelTitle.IsVisible = fData.Type == ItemType.Folder;
+        edtLevelTitle.IsVisible = fData.Type == ItemType.Folder;
         edtTitle.Text = fData.Title;
         edtTitle2.Text = fData.Title2;
         chkIncludeTitleInOutput.IsChecked = fData.IncludeTitleInOutput;
@@ -146,6 +147,15 @@ public partial class ItemTitleDialog: DialogWindow
 
         fData.Title = Title;
         fData.Title2 = edtTitle2.Text?.Trim() ?? string.Empty;
+        fData.LevelTitle = edtLevelTitle.Text?.Trim() ?? string.Empty;
+        if (fData.Type == ItemType.Folder
+            && !string.IsNullOrWhiteSpace(fData.LevelTitle)
+            && !AppHost.IsValidFolderLevelTitle(fData.LevelTitle, false))
+        {
+            await Tripous.Desktop.MessageBox.Error("Folder level title is not valid.", this);
+            return;
+        }
+
         fData.IncludeTitleInOutput = chkIncludeTitleInOutput.IsChecked == true;
         fData.PageBreakBefore = chkPageBreakBefore.IsChecked == true;
         fData.IncludeInToc = chkIncludeInToc.IsChecked == true;

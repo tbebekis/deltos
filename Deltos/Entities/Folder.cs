@@ -55,6 +55,9 @@ public class Folder: BaseItem
     /// </summary>
     protected virtual void CheckLevelTitle()
     {
+        if (string.IsNullOrWhiteSpace(LevelTitle))
+            return;
+
         AppHost.CheckValidFolderLevelTitle(LevelTitle);
     }
     /// <summary>
@@ -633,6 +636,8 @@ public class Folder: BaseItem
             string Result = base.DisplayTitle;
             if (Document?.Structure?.IsLeaf == true)
                 return Result;
+            if (AppHost.Settings?.ShowFolderLevelTitleInTree != true)
+                return Result;
 
             return string.IsNullOrWhiteSpace(LevelTitle) ? Result : $"{LevelTitle} - {Result}";
         }
@@ -646,6 +651,8 @@ public class Folder: BaseItem
         {
             string Result = base.DisplayTitle2;
             if (Document?.Structure?.IsLeaf == true)
+                return Result;
+            if (AppHost.Settings?.ShowFolderLevelTitleInTree != true)
                 return Result;
 
             return string.IsNullOrWhiteSpace(LevelTitle) ? Result : $"{LevelTitle} - {Result}";
