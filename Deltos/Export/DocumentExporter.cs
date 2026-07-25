@@ -17,6 +17,14 @@ public class DocumentExporter
     /// The export options.
     /// </summary>
     readonly ExportOptions fOptions;
+    /// <summary>
+    /// The current export folder path.
+    /// </summary>
+    string fExportFolderPath = string.Empty;
+    /// <summary>
+    /// The copied export image paths by source file path.
+    /// </summary>
+    readonly Dictionary<string, string> fExportImagePaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     // ● private
     /// <summary>
@@ -63,6 +71,52 @@ public class DocumentExporter
             Result = Result.Replace(Char, '_');
 
         return Result.Replace(' ', '_');
+    }
+    /// <summary>
+    /// Returns true if a URL should not be copied as a local export image.
+    /// </summary>
+    /// <param name="Url">The URL.</param>
+    /// <returns>True if the URL is external or embedded.</returns>
+    static bool IsExternalImageUrl(string Url)
+    {
+        string Value = (Url ?? string.Empty).Trim();
+        return Value.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || Value.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            || Value.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+            || Value.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase);
+    }
+    /// <summary>
+    /// Removes any query string or fragment from an image path.
+    /// </summary>
+    /// <param name="ImagePath">The image path.</param>
+    /// <returns>The image path without query string or fragment.</returns>
+    static string RemoveImagePathSuffix(string ImagePath)
+    {
+        string Result = ImagePath ?? string.Empty;
+        int QueryIndex = Result.IndexOf('?');
+        int FragmentIndex = Result.IndexOf('#');
+        int Index = -1;
+        if (QueryIndex >= 0 && FragmentIndex >= 0)
+            Index = Math.Min(QueryIndex, FragmentIndex);
+        else if (QueryIndex >= 0)
+            Index = QueryIndex;
+        else if (FragmentIndex >= 0)
+            Index = FragmentIndex;
+
+        return Index < 0 ? Result : Result.Substring(0, Index);
+    }
+    /// <summary>
+    /// Returns a safe export image file name.
+    /// </summary>
+    /// <param name="FileName">The file name.</param>
+    /// <returns>The safe export image file name.</returns>
+    static string SafeExportImageFileName(string FileName)
+    {
+        string Result = string.IsNullOrWhiteSpace(FileName) ? "Image" : FileName.Trim();
+        foreach (char Char in System.IO.Path.GetInvalidFileNameChars())
+            Result = Result.Replace(Char, '_');
+
+        return string.IsNullOrWhiteSpace(Result) ? "Image" : Result;
     }
     /// <summary>
     /// Formats a title.
@@ -242,7 +296,7 @@ public class DocumentExporter
     /// <param name="AnchorIndex">The next anchor index.</param>
     /// <param name="MarkdownText">The markdown text.</param>
     /// <param name="TextFileLevel">The text file heading level.</param>
-    static void AppendMarkdownHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, string MarkdownText, int TextFileLevel, bool IncludeToc)
+    void AppendMarkdownHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, string MarkdownText, int TextFileLevel, bool IncludeToc)
     {
         if (string.IsNullOrWhiteSpace(MarkdownText))
             return;
@@ -271,7 +325,7 @@ public class DocumentExporter
             }
         }
 
-        Builder.AppendLine(Markdig.Markdown.ToHtml(TextBuilder.ToString()));
+        Builder.AppendLine(PrepareExportImageHtml(Markdig.Markdown.ToHtml(TextBuilder.ToString())));
     }
     /// <summary>
     /// Appends plain text as HTML paragraphs.
@@ -428,6 +482,7 @@ public class DocumentExporter
                .toc-level-4, .toc-level-5, .toc-level-6 { padding-left: 2.1rem; font-size: 0.9rem; }
                .content { box-sizing: border-box; padding: 3rem; }
                .content.single { max-width: 58rem; }
+               img { display: block; height: auto; margin: 1rem auto; max-width: 100%; }
                h1, h2, h3, h4, h5, h6 { color: {{HeadingColor}}; }
                p { margin: 0 0 0.8rem 0; }
                @media print {
@@ -442,6 +497,146 @@ public class DocumentExporter
                </body>
                </html>
                """;
+    }
+    /// <summary>
+    /// Rewrites exported HTML image paths to copied export images.
+    /// </summary>
+    /// <param name="Html">The HTML text.</param>
+    /// <returns>The HTML text with export-local image paths.</returns>
+    string PrepareExportImageHtml(string Html)
+    {
+        if (string.IsNullOrWhiteSpace(Html))
+            return Html ?? string.Empty;
+
+        return Regex.Replace(Html, "(<img\\b[^>]*?\\bsrc\\s*=\\s*)([\"'])(.*?)(\\2)", Match =>
+        {
+            string Source = WebUtility.HtmlDecode(Match.Groups[3].Value);
+            string ExportPath = CopyExportImage(Source, out int Width, out int Height);
+            if (string.IsNullOrWhiteSpace(ExportPath))
+                return Match.Value;
+
+            string SizeText = Width > 0 && Height > 0
+                ? $" width=\"{Width.ToString(CultureInfo.InvariantCulture)}\" height=\"{Height.ToString(CultureInfo.InvariantCulture)}\""
+                : string.Empty;
+
+            return Match.Groups[1].Value + Match.Groups[2].Value + WebUtility.HtmlEncode(ExportPath) + Match.Groups[2].Value + SizeText;
+        }, RegexOptions.IgnoreCase);
+    }
+    /// <summary>
+    /// Copies an image used by HTML export and returns its export-local relative path.
+    /// </summary>
+    /// <param name="ImagePath">The markdown image path.</param>
+    /// <returns>The export-local relative path.</returns>
+    string CopyExportImage(string ImagePath, out int Width, out int Height)
+    {
+        Width = 0;
+        Height = 0;
+        string SourcePath = ResolveExportImagePath(ImagePath);
+        if (string.IsNullOrWhiteSpace(SourcePath))
+            return string.Empty;
+
+        SourcePath = System.IO.Path.GetFullPath(SourcePath);
+        if (fExportImagePaths.TryGetValue(SourcePath, out string Result))
+        {
+            GetExportImageSize(SourcePath, out Width, out Height);
+            return Result;
+        }
+
+        string ExportImagesFolderPath = System.IO.Path.Combine(fExportFolderPath, Project.ImagesFolderName);
+        System.IO.Directory.CreateDirectory(ExportImagesFolderPath);
+
+        string FileName = SafeExportImageFileName(System.IO.Path.GetFileName(SourcePath));
+        string FileStem = System.IO.Path.GetFileNameWithoutExtension(FileName);
+        string Extension = System.IO.Path.GetExtension(FileName);
+        string DestFileName = FileName;
+        string DestFilePath = System.IO.Path.Combine(ExportImagesFolderPath, DestFileName);
+        int Index = 2;
+        while (System.IO.File.Exists(DestFilePath))
+        {
+            if (string.Equals(System.IO.Path.GetFullPath(DestFilePath), SourcePath, StringComparison.OrdinalIgnoreCase))
+                break;
+
+            DestFileName = $"{FileStem}-{Index}{Extension}";
+            DestFilePath = System.IO.Path.Combine(ExportImagesFolderPath, DestFileName);
+            Index++;
+        }
+
+        if (!System.IO.File.Exists(DestFilePath))
+            System.IO.File.Copy(SourcePath, DestFilePath);
+
+        Result = $"{Project.ImagesFolderName}/{DestFileName}";
+        fExportImagePaths[SourcePath] = Result;
+        GetExportImageSize(SourcePath, out Width, out Height);
+        return Result;
+    }
+    /// <summary>
+    /// Returns capped export image dimensions.
+    /// </summary>
+    /// <param name="ImagePath">The image file path.</param>
+    /// <param name="Width">The image width.</param>
+    /// <param name="Height">The image height.</param>
+    void GetExportImageSize(string ImagePath, out int Width, out int Height)
+    {
+        Width = 0;
+        Height = 0;
+        try
+        {
+            using Bitmap ImageBitmap = new Bitmap(ImagePath);
+            Width = ImageBitmap.PixelSize.Width;
+            Height = ImageBitmap.PixelSize.Height;
+            int MaxWidth = Math.Clamp(fOptions.ImageMaxWidth, 100, 2000);
+            if (Width > MaxWidth && Height > 0)
+            {
+                double Ratio = (double)MaxWidth / Width;
+                Width = MaxWidth;
+                Height = Math.Max(1, (int)Math.Round(Height * Ratio));
+            }
+        }
+        catch
+        {
+            Width = 0;
+            Height = 0;
+        }
+    }
+    /// <summary>
+    /// Resolves a markdown image path for export.
+    /// </summary>
+    /// <param name="ImagePath">The markdown image path.</param>
+    /// <returns>The resolved file path, if found; otherwise empty.</returns>
+    string ResolveExportImagePath(string ImagePath)
+    {
+        string Result = WebUtility.HtmlDecode(ImagePath ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(Result) || IsExternalImageUrl(Result))
+            return string.Empty;
+
+        Result = RemoveImagePathSuffix(Result);
+        if (Uri.TryCreate(Result, UriKind.Absolute, out Uri ImageUri) && ImageUri.IsFile)
+            Result = ImageUri.LocalPath;
+
+        try
+        {
+            Result = Uri.UnescapeDataString(Result);
+        }
+        catch
+        {
+        }
+
+        if (System.IO.Path.IsPathFullyQualified(Result) && System.IO.File.Exists(Result))
+            return Result;
+
+        Project Project = fDocument.Project;
+        if (Project == null)
+            return string.Empty;
+
+        string ImagesPath = System.IO.Path.Combine(Project.ImagesFolderPath, Result);
+        if (System.IO.File.Exists(ImagesPath))
+            return ImagesPath;
+
+        string ProjectPath = System.IO.Path.Combine(Project.FolderPath, Result);
+        if (System.IO.File.Exists(ProjectPath))
+            return ProjectPath;
+
+        return string.Empty;
     }
     /// <summary>
     /// Builds plain text export.
@@ -906,7 +1101,7 @@ public class DocumentExporter
     /// <returns>The synopsis HTML export.</returns>
     string BuildSynopsisHtml(bool UseBlackHeadings)
     {
-        return WrapHtml($"Synopsis - {fDocument.Title}", string.Empty, Markdig.Markdown.ToHtml(BuildSynopsisText()), false, UseBlackHeadings);
+        return WrapHtml($"Synopsis - {fDocument.Title}", string.Empty, PrepareExportImageHtml(Markdig.Markdown.ToHtml(BuildSynopsisText())), false, UseBlackHeadings);
     }
     /// <summary>
     /// Writes a file.
@@ -1059,6 +1254,8 @@ public class DocumentExporter
         string ExportRootPath = System.IO.Path.Combine(fDocument.FolderPath, "Export");
         string ExportFolderPath = System.IO.Path.Combine(ExportRootPath, DateTime.Now.ToFileName());
         System.IO.Directory.CreateDirectory(ExportFolderPath);
+        fExportFolderPath = ExportFolderPath;
+        fExportImagePaths.Clear();
 
         if (fOptions.Source.HasFlag(ExportSource.Text))
         {

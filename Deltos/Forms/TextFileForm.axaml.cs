@@ -183,6 +183,7 @@ public partial class TextFileForm: AppForm
             AppHost.RemoveDirtyEditor(Editor);
 
         AdjustTitles();
+        AppHost.NotifyDocumentMetricsChanged();
         LogBox.AppendLine($"Item saved: {Item.Title}");
     }
     /// <summary>

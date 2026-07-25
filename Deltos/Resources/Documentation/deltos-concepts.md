@@ -78,6 +78,20 @@ The item type cannot be changed after creation.
 The output metadata is stored in `Info.json` and is applied during document
 export.
 
+## Images
+
+Project images are stored in the project `Images` folder.
+
+To use a project image in markdown text, write only the image file name:
+
+```md
+![Diagram](diagram.png)
+```
+
+Deltos resolves that file name against the project `Images` folder for preview
+and export. Existing project-relative paths such as `Images/diagram.png` and
+`../Images/diagram.png` are also supported.
+
 ## Moving Items
 
 `Up` and `Down` reorder an item inside its current parent.
@@ -106,6 +120,11 @@ Deltos can export a document to:
 
 Per-item output metadata controls exported item title visibility, page breaks,
 HTML table-of-contents entries, and numbering.
+
+HTML and ODT exports copy referenced project images into the export folder's
+`Images` subfolder and rewrite generated HTML image paths to those copied files.
+The `Image max width` export option limits exported image width while preserving
+image aspect ratio.
 
 ## Components And Wiki
 

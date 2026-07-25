@@ -50,6 +50,8 @@ renaming, exporting, or generating large project outputs.
 - Item output metadata for export behavior, including title visibility, page
   breaks, TOC inclusion, and numbering.
 - Markdown editing with primary and secondary language text.
+- Project images can be referenced from markdown by file name, such as
+  `![Diagram](diagram.png)`.
 - Synopsis and draft text areas for documents, folders, and text files.
 - Temp scratchpad.
 - Notes list for project-level notes.
@@ -311,6 +313,17 @@ the second one is rejected. Deltos does not add automatic suffixes such as
 Text content is stored in markdown files such as `Text.md`, `Text2.md`,
 `Synopsis.md`, and `Draft.md`.
 
+Project images are stored in the project `Images` folder. Markdown text can
+reference those images by file name:
+
+```md
+![Diagram](diagram.png)
+```
+
+Deltos resolves that path against the project `Images` folder for markdown
+preview and document export. Existing project-relative image paths such as
+`Images/diagram.png` and `../Images/diagram.png` are also supported.
+
 Document and folder child items are stored in a common `Items` folder. The
 child type is read from each child's `Info.json`.
 
@@ -416,6 +429,15 @@ Editors support quick markdown formatting. Ctrl + B toggles bold text and
 Ctrl + I toggles italic text for the current selection or the word at the
 caret.
 
+Images can be inserted with standard markdown syntax. When an image is in the
+project `Images` folder, write only the image file name:
+
+```md
+![Diagram](diagram.png)
+```
+
+The markdown preview resolves the image from the project images folder.
+
 Global Search complements local editor search. It finds text across the whole
 project, then opens the matching item in the main content area and highlights
 the term in the correct editor.
@@ -500,6 +522,10 @@ Output behavior:
 - Markdown exports preserve markdown text.
 - HTML exports produce browser-readable output.
 - ODT exports produce a document file suitable for word processors.
+- HTML and ODT exports copy referenced project images into an export-local
+  `Images` folder and rewrite generated HTML image paths to those copied files.
+- `Image max width` limits exported image width while preserving image aspect
+  ratio.
 - Plain-text mode can be used for prose that should not be parsed as markdown.
 - Page breaks are controlled by each item's metadata.
 - Per-item `Include title in output` hides the exported title/heading while

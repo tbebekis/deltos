@@ -1046,7 +1046,7 @@ public partial class DocumentListForm: AppForm
         }
 
         MetricsPanel.Children.Clear();
-        AddMetricHeader(Project.Title, 16);
+        AddMetricHeader($"Project: {Project.Title}", 16);
         AddMetricGroup("Project", Panel =>
         {
             AddMetricRow(Panel, "Documents", DocumentCount.ToString());
@@ -1061,7 +1061,7 @@ public partial class DocumentListForm: AppForm
 
         foreach (Document Document in Project.Documents)
         {
-            AddMetricHeader(Document.DisplayTitle, 14);
+            AddMetricHeader($"Document: {Document.DisplayTitle}", 14);
             AddStatsGroup("Text", GetDocumentTextStats(Document, false));
             AddStatsGroup("Text2", GetDocumentTextStats(Document, true));
         }
@@ -1450,6 +1450,17 @@ public partial class DocumentListForm: AppForm
     }
 
     // ● public
+    /// <summary>
+    /// Refreshes the text metrics display.
+    /// </summary>
+    public void RefreshMetrics()
+    {
+        Project Project = AppHost.CurrentProject;
+        if (Project == null)
+            RenderNoProjectMetrics();
+        else
+            RenderMetrics(Project);
+    }
     /// <summary>
     /// Selects and shows an item in the document tree.
     /// </summary>

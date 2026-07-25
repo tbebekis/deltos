@@ -94,6 +94,17 @@ static public partial class AppHost
         Form?.RefreshItemTitle();
     }
     /// <summary>
+    /// Notifies the document list form that document metrics have changed.
+    /// </summary>
+    static public void NotifyDocumentMetricsChanged()
+    {
+        if (SideBarHandler == null)
+            return;
+
+        Forms.DocumentListForm Form = SideBarHandler.FindAppForm(nameof(Forms.DocumentListForm)) as Forms.DocumentListForm;
+        Form?.RefreshMetrics();
+    }
+    /// <summary>
     /// Closes the open content form for an item.
     /// </summary>
     /// <param name="Item">The item.</param>

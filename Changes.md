@@ -1,5 +1,16 @@
 # Changes
 
+## 2026.7.26 - 2026-07-26
+
+- Added document export support for project images referenced from markdown.
+- HTML and ODT exports now copy referenced images into the export folder's
+  `Images` subfolder and rewrite generated image paths.
+- Added `Image max width` export option for capping exported image dimensions.
+- Updated export options dialog sizing and layout.
+- Clarified metrics panel headers as project and document sections.
+- Refreshed sidebar text metrics after saving text items.
+- Documented project image markdown references and export behavior.
+
 ## 2026.7.24 - 2026-07-24
 
 - Refactored document storage to a mixed ordered item model.

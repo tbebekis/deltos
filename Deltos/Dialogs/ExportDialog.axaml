@@ -4,16 +4,16 @@
                       x:Class="Deltos.ExportDialog"
                       Title="Export Options"
                       Width="620"
-                      Height="520"
+                      Height="650"
                       MinWidth="580"
-                      MinHeight="470"
+                      MinHeight="620"
                       CanResize="False"
                       ShowInTaskbar="False"
                       WindowStartupLocation="CenterOwner">
     <Grid RowDefinitions="*,Auto,Auto"
           Margin="12"
-          RowSpacing="12">
-        <Grid RowDefinitions="Auto,*,Auto"
+          RowSpacing="18">
+        <Grid RowDefinitions="Auto,Auto,Auto"
               RowSpacing="14">
             <Grid ColumnDefinitions="*,*,*"
                   ColumnSpacing="14">
@@ -90,9 +90,22 @@
             <GroupBox Grid.Row="2"
                       Header="Options">
                 <StackPanel Margin="8"
-                            Spacing="6">
+                            Spacing="12">
                     <CheckBox Name="chTreatTextFilesAsPlainText"
                               Content="Treat TextFiles as Plain Text (not Markdown)" />
+                    <Grid ColumnDefinitions="Auto,120,Auto"
+                          ColumnSpacing="8">
+                        <TextBlock Text="Image max width"
+                                   VerticalAlignment="Center" />
+                        <NumericUpDown Name="edtImageMaxWidth"
+                                       Grid.Column="1"
+                                       Minimum="100"
+                                       Maximum="2000"
+                                       Increment="50" />
+                        <TextBlock Grid.Column="2"
+                                   Text="px"
+                                   VerticalAlignment="Center" />
+                    </Grid>
                 </StackPanel>
             </GroupBox>
         </Grid>

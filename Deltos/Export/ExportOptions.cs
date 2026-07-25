@@ -116,6 +116,7 @@ public class ExportOptions
         FolderTitle = ExportTitleOptions.None;
         TextFileTitle = ExportTitleOptions.None;
         TreatTextFilesAsPlainText = true;
+        ImageMaxWidth = 400;
         PageBreakBeforeHeading1 = false;
     }
 
@@ -144,6 +145,10 @@ public class ExportOptions
     /// Gets or sets a value indicating whether text files are exported as plain text instead of markdown.
     /// </summary>
     public bool TreatTextFilesAsPlainText { get; set; } = true;
+    /// <summary>
+    /// Gets or sets the maximum exported image width in pixels.
+    /// </summary>
+    public int ImageMaxWidth { get; set; } = 400;
     /// <summary>
     /// Gets or sets a value indicating whether Heading 1 starts on a new page in HTML and ODT exports.
     /// </summary>
