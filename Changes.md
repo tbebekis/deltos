@@ -10,6 +10,8 @@
 - Clarified metrics panel headers as project and document sections.
 - Refreshed sidebar text metrics after saving text items.
 - Documented project image markdown references and export behavior.
+- Added Text Editor support for showing text files, components, and notes in
+  their list page.
 
 ## 2026.7.24 - 2026-07-24
 

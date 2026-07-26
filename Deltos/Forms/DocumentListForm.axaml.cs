@@ -820,7 +820,26 @@ public partial class DocumentListForm: AppForm
     /// <param name="Item">The base item.</param>
     void SelectTreeItem(BaseItem Item)
     {
+        ClearTreeSelection(tvProject);
         SelectTreeItem(tvProject, Item);
+    }
+    /// <summary>
+    /// Clears selected nodes in a tree branch.
+    /// </summary>
+    /// <param name="ParentNode">The parent tree node.</param>
+    void ClearTreeSelection(ItemsControl ParentNode)
+    {
+        if (ParentNode == null)
+            return;
+
+        foreach (object Child in ParentNode.Items)
+        {
+            if (Child is TreeViewItem Node)
+            {
+                Node.IsSelected = false;
+                ClearTreeSelection(Node);
+            }
+        }
     }
     /// <summary>
     /// Selects a base item in a tree branch.

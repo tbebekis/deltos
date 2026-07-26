@@ -30,6 +30,10 @@ public partial class TextEditorForm: UserControl
     /// </summary>
     private Button fBtnShowFolder;
     /// <summary>
+    /// The Show Item in List toolbar button.
+    /// </summary>
+    Button fBtnShowItemInList;
+    /// <summary>
     /// The markdown preview toolbar button.
     /// </summary>
     Button fBtnMarkdownPreview;
@@ -82,6 +86,10 @@ public partial class TextEditorForm: UserControl
     /// </summary>
     private bool fShowFolderButtonVisible = true;
     /// <summary>
+    /// Field for the ShowItemInListButtonVisible property.
+    /// </summary>
+    bool fShowItemInListButtonVisible;
+    /// <summary>
     /// The default editor font size.
     /// </summary>
     private const double DefaultFontSize = 14;
@@ -131,6 +139,7 @@ public partial class TextEditorForm: UserControl
         fBtnSearchForTerm = fToolBar.AddButton("table_tab_search.png", "Search for Term (Ctrl + T)", SearchForTerm);
         fBtnSave = fToolBar.AddButton("disk.png", "Save (Ctrl + S)", SaveText);
         fBtnShowFolder = fToolBar.AddButton("folder_go.png", "Show in folder", ShowFolder);
+        fBtnShowItemInList = fToolBar.AddButton("table_select_row.png", "Show Item in its List Page", ShowItemInList);
         fBtnMarkdownPreview = fToolBar.AddButton("html.png", "HTML Preview", ShowMarkdownPreview);
         UpdateButtonVisibility();
     }
@@ -413,6 +422,9 @@ public partial class TextEditorForm: UserControl
         if (fBtnShowFolder != null)
             fBtnShowFolder.IsVisible = ShowFolderButtonVisible;
 
+        if (fBtnShowItemInList != null)
+            fBtnShowItemInList.IsVisible = ShowItemInListButtonVisible;
+
         if (fBtnMarkdownPreview != null)
             fBtnMarkdownPreview.IsVisible = AppHost.Settings?.ShowMarkdownPreviewButton == true;
     }
@@ -540,6 +552,13 @@ public partial class TextEditorForm: UserControl
     public void ShowFolder()
     {
         ShowFolderRequested?.Invoke(this, EventArgs.Empty);
+    }
+    /// <summary>
+    /// Requests showing the edited item in its list page.
+    /// </summary>
+    public void ShowItemInList()
+    {
+        ShowItemInListRequested?.Invoke(this, EventArgs.Empty);
     }
     /// <summary>
     /// Shows the current markdown text as an HTML preview tab.
@@ -670,6 +689,10 @@ public partial class TextEditorForm: UserControl
     /// Occurs when the Show Folder command is requested.
     /// </summary>
     public event EventHandler ShowFolderRequested;
+    /// <summary>
+    /// Occurs when the Show Item in List command is requested.
+    /// </summary>
+    public event EventHandler ShowItemInListRequested;
 
     // ● properties
     /// <summary>
@@ -832,6 +855,18 @@ public partial class TextEditorForm: UserControl
         set
         {
             fShowFolderButtonVisible = value;
+            UpdateButtonVisibility();
+        }
+    }
+    /// <summary>
+    /// Gets or sets a value indicating whether the Show Item in List toolbar button is visible.
+    /// </summary>
+    public bool ShowItemInListButtonVisible
+    {
+        get => fShowItemInListButtonVisible;
+        set
+        {
+            fShowItemInListButtonVisible = value;
             UpdateButtonVisibility();
         }
     }

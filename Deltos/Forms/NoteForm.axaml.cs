@@ -39,6 +39,7 @@ public partial class NoteForm: AppForm
                 Editor.EditorText = string.Empty;
                 Editor.FilePath = string.Empty;
                 Editor.PreviewId = string.Empty;
+                Editor.ShowItemInListButtonVisible = false;
                 Editor.ReadOnly = true;
                 return;
             }
@@ -49,6 +50,7 @@ public partial class NoteForm: AppForm
             Editor.EditorText = Note.Text;
             Editor.FilePath = Note.TextFilePath;
             Editor.PreviewId = AppHost.GetMarkdownPreviewFormId(Note.Id);
+            Editor.ShowItemInListButtonVisible = true;
             Editor.ReadOnly = false;
             Editor.Modified = false;
             Editor.RegisterHighlighter(Editor.FilePath);
@@ -102,6 +104,18 @@ public partial class NoteForm: AppForm
         Sys.OpenFileExplorer(Editor.FilePath);
     }
     /// <summary>
+    /// Handles editor Show Item in List requests.
+    /// </summary>
+    /// <param name="Sender">The event sender.</param>
+    /// <param name="Args">The event arguments.</param>
+    void Editor_ShowItemInListRequested(object Sender, EventArgs Args)
+    {
+        if (Note == null)
+            return;
+
+        AppHost.ShowItemInListPage(new LinkItem(Note.Type, LinkPlace.Text, Note.DisplayTitle, Note));
+    }
+    /// <summary>
     /// Handles editor modified state changes.
     /// </summary>
     /// <param name="Sender">The event sender.</param>
@@ -132,6 +146,7 @@ public partial class NoteForm: AppForm
     {
         Editor.SaveRequested += Editor_SaveRequested;
         Editor.ShowFolderRequested += Editor_ShowFolderRequested;
+        Editor.ShowItemInListRequested += Editor_ShowItemInListRequested;
         Editor.ModifiedChanged += Editor_ModifiedChanged;
         LoadNote();
     }
@@ -142,6 +157,7 @@ public partial class NoteForm: AppForm
     {
         Editor.SaveRequested -= Editor_SaveRequested;
         Editor.ShowFolderRequested -= Editor_ShowFolderRequested;
+        Editor.ShowItemInListRequested -= Editor_ShowItemInListRequested;
         Editor.ModifiedChanged -= Editor_ModifiedChanged;
         AppHost.RemoveDirtyEditor(Editor);
 
