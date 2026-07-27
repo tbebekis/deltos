@@ -66,6 +66,7 @@ public class AppSettings: SettingsBase
     {
         base.LoadAfter();
         NormalizeRecentProjects();
+        WordsPerPage = Math.Clamp(WordsPerPage, 50, 1000);
     }
 
     // ● construction
@@ -90,6 +91,7 @@ public class AppSettings: SettingsBase
         AutoSaveSecondsInterval = Source.AutoSaveSecondsInterval;
         FontFamily = Source.FontFamily;
         FontSize = Source.FontSize;
+        WordsPerPage = Source.WordsPerPage;
         SecondLanguageVisible = Source.SecondLanguageVisible;
         ShowMarkdownPreviewButton = Source.ShowMarkdownPreviewButton;
         ShowFolderLevelTitleInTree = Source.ShowFolderLevelTitleInTree;
@@ -141,6 +143,10 @@ public class AppSettings: SettingsBase
     /// Gets or sets the editor font size.
     /// </summary>
     public int FontSize { get; set; } = 13;
+    /// <summary>
+    /// Gets or sets the words per estimated page.
+    /// </summary>
+    public int WordsPerPage { get; set; } = 250;
     /// <summary>
     /// Gets or sets a value indicating whether the second language editor is visible.
     /// </summary>

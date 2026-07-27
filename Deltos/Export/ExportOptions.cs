@@ -68,7 +68,11 @@ public enum ExportFormat
     /// <summary>
     /// Markdown format.
     /// </summary>
-    Markdown = 8
+    Markdown = 8,
+    /// <summary>
+    /// Internal markdown files, one file per TextFile.
+    /// </summary>
+    InternalMarkdown = 16
 }
 
 /// <summary>
@@ -115,7 +119,7 @@ public class ExportOptions
         Format = ExportFormat.None;
         FolderTitle = ExportTitleOptions.None;
         TextFileTitle = ExportTitleOptions.None;
-        TreatTextFilesAsPlainText = true;
+        TreatTextFilesAsPlainText = false;
         ImageMaxWidth = 400;
         PageBreakBeforeHeading1 = false;
     }
@@ -144,7 +148,7 @@ public class ExportOptions
     /// <summary>
     /// Gets or sets a value indicating whether text files are exported as plain text instead of markdown.
     /// </summary>
-    public bool TreatTextFilesAsPlainText { get; set; } = true;
+    public bool TreatTextFilesAsPlainText { get; set; } = false;
     /// <summary>
     /// Gets or sets the maximum exported image width in pixels.
     /// </summary>

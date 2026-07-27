@@ -635,7 +635,7 @@ public partial class TextEditorForm: UserControl
     {
         UpdateStatusBarLineColumn();
 
-        TextStats Stats = TextMetrics.Compute(EditorText);
+        TextStats Stats = TextMetrics.Compute(EditorText, AppHost.Settings?.WordsPerPage ?? 250);
         lblMetrics.Text = $"Pages: {Stats.EstimatedPages:0.00}, Words: {Stats.WordCount}, Chars: {Stats.CharCount}, Lines: {Stats.LineCount}, Pars: {Stats.ParagraphCount}";
         lblReadOnly.Text = $"ReadOnly: {TextEditor.IsReadOnly}";
         lblModified.Text = Modified ? "Modified" : "Saved";

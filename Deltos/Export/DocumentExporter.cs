@@ -25,6 +25,10 @@ public class DocumentExporter
     /// The copied export image paths by source file path.
     /// </summary>
     readonly Dictionary<string, string> fExportImagePaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// The markdown parser pipeline.
+    /// </summary>
+    static readonly MarkdownPipeline fMarkdownPipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
     // ● private
     /// <summary>
@@ -200,6 +204,45 @@ public class DocumentExporter
         return Item.OrderIndex.ToString(CultureInfo.InvariantCulture);
     }
     /// <summary>
+    /// Returns the document automatic order segment for an internal export file name.
+    /// </summary>
+    /// <param name="Document">The document.</param>
+    /// <returns>The document order segment.</returns>
+    static string GetInternalDocumentOrderSegment(Document Document)
+    {
+        int OrderIndex = Document == null ? 0 : Document.OrderIndex;
+        return OrderIndex.ToString("000", CultureInfo.InvariantCulture);
+    }
+    /// <summary>
+    /// Returns the type-relative item order segment for an internal export file name.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <param name="Siblings">The sibling items.</param>
+    /// <returns>The item order segment.</returns>
+    static string GetInternalItemOrderSegment(BaseItem Item, List<BaseItem> Siblings)
+    {
+        int OrderIndex = 0;
+        foreach (BaseItem Sibling in Siblings)
+        {
+            if ((Item is Folder && Sibling is Folder) || (Item is TextFile && Sibling is TextFile))
+                OrderIndex++;
+
+            if (ReferenceEquals(Item, Sibling))
+                break;
+        }
+
+        return OrderIndex.ToString("000", CultureInfo.InvariantCulture);
+    }
+    /// <summary>
+    /// Returns the internal export file number.
+    /// </summary>
+    /// <param name="Segments">The number segments.</param>
+    /// <returns>The file number.</returns>
+    static string GetInternalFileNumber(List<string> Segments)
+    {
+        return string.Join(".", Segments);
+    }
+    /// <summary>
     /// Returns an item title for the selected export language.
     /// </summary>
     /// <param name="Item">The item.</param>
@@ -325,7 +368,7 @@ public class DocumentExporter
             }
         }
 
-        Builder.AppendLine(PrepareExportImageHtml(Markdig.Markdown.ToHtml(TextBuilder.ToString())));
+        Builder.AppendLine(PrepareExportImageHtml(Markdig.Markdown.ToHtml(TextBuilder.ToString(), fMarkdownPipeline)));
     }
     /// <summary>
     /// Appends plain text as HTML paragraphs.
@@ -485,6 +528,9 @@ public class DocumentExporter
                img { display: block; height: auto; margin: 1rem auto; max-width: 100%; }
                h1, h2, h3, h4, h5, h6 { color: {{HeadingColor}}; }
                p { margin: 0 0 0.8rem 0; }
+               table { border-collapse: collapse; font-size: 0.9em; margin: 1rem 0; table-layout: fixed; width: 100%; }
+               th, td { border: 1px solid #B8B8B8; overflow-wrap: anywhere; padding: 0.35rem 0.45rem; vertical-align: top; word-break: break-word; }
+               th { background: #F2F2F2; font-weight: bold; }
                @media print {
                    .page { display: block; }
                    .toc { height: auto; position: static; }
@@ -731,6 +777,103 @@ public class DocumentExporter
             AppendItemMarkdown(Builder, Item, UseSecondary, RootLevel);
 
         return Builder.ToString();
+    }
+    /// <summary>
+    /// Exports internal markdown files.
+    /// </summary>
+    /// <param name="FolderPath">The export folder path.</param>
+    /// <param name="UseSecondary">True to use secondary text.</param>
+    void ExportInternalMarkdown(string FolderPath, bool UseSecondary)
+    {
+        List<string> Segments = new List<string> { GetInternalDocumentOrderSegment(fDocument) };
+        ExportInternalMarkdownDocumentItems(FolderPath, fDocument.GetChildItems(), Segments, UseSecondary);
+    }
+    /// <summary>
+    /// Exports document-level internal markdown files recursively.
+    /// </summary>
+    /// <param name="FolderPath">The export folder path.</param>
+    /// <param name="Items">The document child items.</param>
+    /// <param name="DocumentSegments">The document number segments.</param>
+    /// <param name="UseSecondary">True to use secondary text.</param>
+    void ExportInternalMarkdownDocumentItems(string FolderPath, List<BaseItem> Items, List<string> DocumentSegments, bool UseSecondary)
+    {
+        int ContainerIndex = 0;
+        int TextFileIndex = 0;
+        bool InVirtualContainer = false;
+
+        foreach (BaseItem Item in Items)
+        {
+            Folder Folder = Item as Folder;
+            if (Folder != null)
+            {
+                ContainerIndex++;
+                TextFileIndex = 0;
+                InVirtualContainer = false;
+
+                List<string> Segments = new List<string>(DocumentSegments) { ContainerIndex.ToString("000", CultureInfo.InvariantCulture) };
+                ExportInternalMarkdownItems(FolderPath, Folder.GetChildItems(), Segments, UseSecondary);
+                continue;
+            }
+
+            TextFile File = Item as TextFile;
+            if (File != null)
+            {
+                if (!InVirtualContainer)
+                {
+                    if (ContainerIndex > 0)
+                        ContainerIndex++;
+
+                    TextFileIndex = 0;
+                    InVirtualContainer = true;
+                }
+
+                TextFileIndex++;
+                List<string> Segments = new List<string>(DocumentSegments)
+                {
+                    ContainerIndex.ToString("000", CultureInfo.InvariantCulture),
+                    TextFileIndex.ToString("000", CultureInfo.InvariantCulture)
+                };
+                WriteInternalMarkdownFile(FolderPath, File, Segments, UseSecondary);
+            }
+        }
+    }
+    /// <summary>
+    /// Exports internal markdown files recursively.
+    /// </summary>
+    /// <param name="FolderPath">The export folder path.</param>
+    /// <param name="Items">The child items.</param>
+    /// <param name="ParentSegments">The parent number segments.</param>
+    /// <param name="UseSecondary">True to use secondary text.</param>
+    void ExportInternalMarkdownItems(string FolderPath, List<BaseItem> Items, List<string> ParentSegments, bool UseSecondary)
+    {
+        foreach (BaseItem Item in Items)
+        {
+            List<string> Segments = new List<string>(ParentSegments) { GetInternalItemOrderSegment(Item, Items) };
+
+            Folder Folder = Item as Folder;
+            if (Folder != null)
+            {
+                ExportInternalMarkdownItems(FolderPath, Folder.GetChildItems(), Segments, UseSecondary);
+                continue;
+            }
+
+            TextFile File = Item as TextFile;
+            if (File != null)
+                WriteInternalMarkdownFile(FolderPath, File, Segments, UseSecondary);
+        }
+    }
+    /// <summary>
+    /// Writes an internal markdown file.
+    /// </summary>
+    /// <param name="FolderPath">The export folder path.</param>
+    /// <param name="File">The text file.</param>
+    /// <param name="Segments">The number segments.</param>
+    /// <param name="UseSecondary">True to use secondary text.</param>
+    void WriteInternalMarkdownFile(string FolderPath, TextFile File, List<string> Segments, bool UseSecondary)
+    {
+        string Suffix = UseSecondary ? "_Secondary" : "_Primary";
+        string FileName = $"{GetInternalFileNumber(Segments)}_{SafeTitle(GetExportTitle(File, UseSecondary))}{Suffix}.md";
+        WriteFile(FolderPath, FileName, UseSecondary ? File.Text2 : File.Text);
     }
     /// <summary>
     /// Appends folder markdown.
@@ -1101,7 +1244,7 @@ public class DocumentExporter
     /// <returns>The synopsis HTML export.</returns>
     string BuildSynopsisHtml(bool UseBlackHeadings)
     {
-        return WrapHtml($"Synopsis - {fDocument.Title}", string.Empty, PrepareExportImageHtml(Markdig.Markdown.ToHtml(BuildSynopsisText())), false, UseBlackHeadings);
+        return WrapHtml($"Synopsis - {fDocument.Title}", string.Empty, PrepareExportImageHtml(Markdig.Markdown.ToHtml(BuildSynopsisText(), fMarkdownPipeline)), false, UseBlackHeadings);
     }
     /// <summary>
     /// Writes a file.
@@ -1132,10 +1275,16 @@ public class DocumentExporter
             FileName = LibreOfficePath,
             Arguments = $"--headless --convert-to odt --outdir \"{FolderPath}\" \"{HtmlFilePath}\"",
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
         };
 
         using Process Process = Process.Start(Info) ?? throw new InvalidOperationException("Cannot start LibreOffice.");
+        Process.OutputDataReceived += (Sender, Args) => { };
+        Process.ErrorDataReceived += (Sender, Args) => { };
+        Process.BeginOutputReadLine();
+        Process.BeginErrorReadLine();
         if (!Process.WaitForExit(300000))
         {
             Process.Kill();
@@ -1156,9 +1305,76 @@ public class DocumentExporter
         }
 
         NormalizeOdtHeadings(TargetOdtFilePath);
+        NormalizeOdtTables(TargetOdtFilePath);
 
         if (System.IO.File.Exists(HtmlFilePath))
             System.IO.File.Delete(HtmlFilePath);
+    }
+    /// <summary>
+    /// Normalizes LibreOffice imported tables to relative page width.
+    /// </summary>
+    /// <param name="OdtFilePath">The ODT file path.</param>
+    void NormalizeOdtTables(string OdtFilePath)
+    {
+        using ZipArchive Archive = ZipFile.Open(OdtFilePath, ZipArchiveMode.Update);
+        ZipArchiveEntry ContentEntry = Archive.GetEntry("content.xml") ?? throw new InvalidOperationException("ODT content.xml not found.");
+        XDocument ContentDocument;
+        using (Stream Stream = ContentEntry.Open())
+            ContentDocument = XDocument.Load(Stream, LoadOptions.PreserveWhitespace);
+
+        XNamespace StyleNamespace = "urn:oasis:names:tc:opendocument:xmlns:style:1.0";
+        XNamespace TableNamespace = "urn:oasis:names:tc:opendocument:xmlns:table:1.0";
+
+        foreach (XElement TableProperties in ContentDocument.Descendants(StyleNamespace + "table-properties"))
+        {
+            TableProperties.Attribute(StyleNamespace + "width")?.Remove();
+            TableProperties.SetAttributeValue(StyleNamespace + "rel-width", "100%");
+            TableProperties.SetAttributeValue(TableNamespace + "align", "left");
+        }
+
+        foreach (XElement ColumnProperties in ContentDocument.Descendants(StyleNamespace + "table-column-properties"))
+        {
+            string ColumnWidth = (string)ColumnProperties.Attribute(StyleNamespace + "column-width") ?? string.Empty;
+            string RelativeColumnWidth = GetOdtRelativeColumnWidth(ColumnWidth);
+            ColumnProperties.Attribute(StyleNamespace + "column-width")?.Remove();
+            ColumnProperties.SetAttributeValue(StyleNamespace + "rel-column-width", RelativeColumnWidth);
+        }
+
+        ContentEntry.Delete();
+        ContentEntry = Archive.CreateEntry("content.xml");
+        using Stream OutputStream = ContentEntry.Open();
+        ContentDocument.Save(OutputStream, SaveOptions.DisableFormatting);
+    }
+    /// <summary>
+    /// Returns an ODT relative column width.
+    /// </summary>
+    /// <param name="ColumnWidth">The imported column width.</param>
+    /// <returns>The relative column width.</returns>
+    static string GetOdtRelativeColumnWidth(string ColumnWidth)
+    {
+        double Width = ParseOdtLength(ColumnWidth);
+        int RelativeWidth = Width > 0 ? Math.Max(1, (int)Math.Round(Width * 1000)) : 1;
+        return RelativeWidth.ToString(CultureInfo.InvariantCulture) + "*";
+    }
+    /// <summary>
+    /// Parses an ODT length value.
+    /// </summary>
+    /// <param name="Value">The length value.</param>
+    /// <returns>The parsed length.</returns>
+    static double ParseOdtLength(string Value)
+    {
+        string Text = (Value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(Text))
+            return 0;
+
+        Match Match = Regex.Match(Text, @"^-?\d+(\.\d+)?");
+        if (!Match.Success)
+            return 0;
+
+        if (!double.TryParse(Match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double Result))
+            return 0;
+
+        return Result;
     }
     /// <summary>
     /// Normalizes LibreOffice imported heading paragraphs as ODT outline headings.
@@ -1268,15 +1484,20 @@ public class DocumentExporter
                 bool UseSecondary = Language == ExportLanguage.Secondary;
                 string BaseName = SafeTitle(GetExportTitle(fDocument, UseSecondary));
                 string Suffix = UseSecondary ? "_Secondary" : "_Primary";
-                string Text = BuildText(UseSecondary);
                 if (fOptions.Format.HasFlag(ExportFormat.Txt))
+                {
+                    string Text = BuildText(UseSecondary);
                     WriteFile(ExportFolderPath, $"{BaseName}{Suffix}.txt", Text);
+                }
 
                 if (fOptions.Format.HasFlag(ExportFormat.Markdown))
                 {
                     string Markdown = BuildMarkdown(UseSecondary);
                     WriteFile(ExportFolderPath, $"{BaseName}{Suffix}.md", Markdown);
                 }
+
+                if (fOptions.Format.HasFlag(ExportFormat.InternalMarkdown))
+                    ExportInternalMarkdown(ExportFolderPath, UseSecondary);
 
                 if (fOptions.Format.HasFlag(ExportFormat.Html))
                 {

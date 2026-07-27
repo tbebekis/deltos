@@ -4,9 +4,9 @@
                       x:Class="Deltos.AppSettingsDialog"
                       Title="Settings"
                       Width="440"
-                      Height="380"
+                      Height="420"
                       MinWidth="420"
-                      MinHeight="360"
+                      MinHeight="400"
                       CanResize="False"
                       ShowInTaskbar="False"
                       WindowStartupLocation="CenterOwner">
@@ -14,7 +14,7 @@
           Margin="16"
           RowSpacing="14">
         <Grid ColumnDefinitions="Auto,*"
-              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
               ColumnSpacing="12"
               RowSpacing="10">
             <CheckBox Name="chkAutoSave"
@@ -48,16 +48,26 @@
                            Maximum="32"
                            Increment="1" />
 
+            <TextBlock Grid.Row="4"
+                       Text="Words per page"
+                       VerticalAlignment="Center" />
+            <NumericUpDown Name="edtWordsPerPage"
+                           Grid.Row="4"
+                           Grid.Column="1"
+                           Minimum="50"
+                           Maximum="1000"
+                           Increment="25" />
+
             <CheckBox Name="chkSecondLanguageVisible"
-                      Grid.Row="4"
+                      Grid.Row="5"
                       Grid.ColumnSpan="2"
                       Content="Show second language editor" />
             <CheckBox Name="chkShowMarkdownPreviewButton"
-                      Grid.Row="5"
+                      Grid.Row="6"
                       Grid.ColumnSpan="2"
                       Content="Show markdown preview button in text editors" />
             <CheckBox Name="chkShowFolderLevelTitleInTree"
-                      Grid.Row="6"
+                      Grid.Row="7"
                       Grid.ColumnSpan="2"
                       Content="Show folder level title in tree" />
         </Grid>

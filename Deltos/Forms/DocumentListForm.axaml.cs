@@ -529,7 +529,7 @@ public partial class DocumentListForm: AppForm
         try
         {
             AppHost.ShowPleaseWait("Exporting document...", this.GetOwnerWindow());
-            await Task.Yield();
+            await Task.Delay(50);
 
             string ExportFolderPath = new DocumentExporter(Document, Options).Execute();
             LogBox.AppendLine($"Document exported: {ExportFolderPath}");
@@ -1241,7 +1241,7 @@ public partial class DocumentListForm: AppForm
             TextFile File = Item as TextFile;
             if (File != null)
             {
-                Stats.Add(TextMetrics.Compute(UseSecondText ? File.Text2 : File.Text));
+                Stats.Add(TextMetrics.Compute(UseSecondText ? File.Text2 : File.Text, AppHost.Settings?.WordsPerPage ?? 250));
                 continue;
             }
 

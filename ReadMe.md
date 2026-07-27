@@ -50,6 +50,8 @@ renaming, exporting, or generating large project outputs.
 - Item output metadata for export behavior, including title visibility, page
   breaks, TOC inclusion, and numbering.
 - Markdown editing with primary and secondary language text.
+- Markdown tables are shown in HTML preview and exported as tables in HTML and
+  ODT output.
 - Project images can be referenced from markdown by file name, such as
   `![Diagram](diagram.png)`.
 - Synopsis and draft text areas for documents, folders, and text files.
@@ -72,6 +74,8 @@ renaming, exporting, or generating large project outputs.
 - Built-in documentation available from the main toolbar.
 - Auto-save support.
 - Export per document to TXT, Markdown, HTML, and ODT.
+- Internal Markdown export for writing one markdown file per text file with
+  hierarchical file names.
 - Plain-text export mode for prose that should not be treated as markdown.
 - Git commit and push integration for project folders.
 - Static wiki generation from components.
@@ -483,7 +487,8 @@ Wiki settings:
 - Default social image URL.
 
 Application settings cover local preferences such as recent projects, auto-save,
-editor font settings, and secondary-language editor visibility.
+editor font settings, words-per-page page estimates, and secondary-language
+editor visibility.
 
 ## Export
 
@@ -493,6 +498,7 @@ Supported formats:
 
 - TXT.
 - Markdown.
+- Internal Markdown.
 - HTML.
 - ODT.
 
@@ -520,13 +526,20 @@ Output behavior:
   markdown files in the project.
 - TXT exports produce plain text.
 - Markdown exports preserve markdown text.
+- Internal Markdown exports write one markdown file per text file, with file
+  names that include the document, container, and text-file numbering.
 - HTML exports produce browser-readable output.
 - ODT exports produce a document file suitable for word processors.
+- Markdown pipe tables are rendered as real tables in HTML and ODT exports when
+  text files are treated as markdown.
+- ODT table exports use relative table width so tables adapt when the word
+  processor page size changes.
 - HTML and ODT exports copy referenced project images into an export-local
   `Images` folder and rewrite generated HTML image paths to those copied files.
 - `Image max width` limits exported image width while preserving image aspect
   ratio.
 - Plain-text mode can be used for prose that should not be parsed as markdown.
+  It is disabled by default.
 - Page breaks are controlled by each item's metadata.
 - Per-item `Include title in output` hides the exported title/heading while
   keeping the item's text.

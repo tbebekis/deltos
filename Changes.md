@@ -1,5 +1,18 @@
 # Changes
 
+## 2026.7.27 - 2026-07-27
+
+- Added configurable words-per-page text metric setting.
+- Added `Internal Markdown` export format that writes one markdown file per
+  text file with hierarchical file names.
+- Added markdown table rendering to HTML preview.
+- Added markdown pipe table support to HTML and ODT export.
+- Made ODT table exports use relative table width so tables adapt to page size
+  changes in LibreOffice.
+- Changed export defaults so text files are treated as markdown by default.
+- Improved export please-wait rendering before long-running export work.
+- Suppressed LibreOffice conversion output from the debug console.
+
 ## 2026.7.26 - 2026-07-26
 
 - Added document export support for project images referenced from markdown.

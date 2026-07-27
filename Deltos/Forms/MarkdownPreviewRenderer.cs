@@ -52,6 +52,10 @@ static public class MarkdownPreviewRenderer
         {
             AddPreviewCodeBlock(Panel, CodeBlock, Indent);
         }
+        else if (Block is Table Table)
+        {
+            AddPreviewTable(Panel, Table, Indent);
+        }
         else if (Block is ThematicBreakBlock)
         {
             Border Border = new Border();
@@ -139,6 +143,106 @@ static public class MarkdownPreviewRenderer
         Panel.Children.Add(TextBlock);
     }
     /// <summary>
+    /// Adds a markdown table to the preview.
+    /// </summary>
+    /// <param name="Panel">The target panel.</param>
+    /// <param name="Table">The table block.</param>
+    /// <param name="Indent">The indent level.</param>
+    static void AddPreviewTable(StackPanel Panel, Table Table, int Indent)
+    {
+        List<TableRow> Rows = new List<TableRow>();
+        int ColumnCount = 0;
+        foreach (Block Block in Table)
+        {
+            TableRow Row = Block as TableRow;
+            if (Row == null)
+                continue;
+
+            Rows.Add(Row);
+            int RowColumnCount = 0;
+            foreach (Block CellBlock in Row)
+            {
+                TableCell Cell = CellBlock as TableCell;
+                RowColumnCount += Math.Max(1, Cell?.ColumnSpan ?? 1);
+            }
+
+            ColumnCount = Math.Max(ColumnCount, RowColumnCount);
+        }
+
+        if (Rows.Count == 0 || ColumnCount == 0)
+            return;
+
+        Grid TableGrid = new Grid();
+        TableGrid.Margin = GetIndentedMargin(Indent, 6, 8);
+        TableGrid.ColumnSpacing = 0;
+        TableGrid.RowSpacing = 0;
+
+        for (int ColumnIndex = 0; ColumnIndex < ColumnCount; ColumnIndex++)
+            TableGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+
+        for (int RowIndex = 0; RowIndex < Rows.Count; RowIndex++)
+            TableGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+
+        for (int RowIndex = 0; RowIndex < Rows.Count; RowIndex++)
+            AddPreviewTableRow(TableGrid, Rows[RowIndex], RowIndex);
+
+        Panel.Children.Add(TableGrid);
+    }
+    /// <summary>
+    /// Adds a markdown table row to the preview.
+    /// </summary>
+    /// <param name="TableGrid">The target grid.</param>
+    /// <param name="Row">The table row.</param>
+    /// <param name="RowIndex">The row index.</param>
+    static void AddPreviewTableRow(Grid TableGrid, TableRow Row, int RowIndex)
+    {
+        int ColumnIndex = 0;
+        foreach (Block Block in Row)
+        {
+            TableCell Cell = Block as TableCell;
+            if (Cell == null)
+                continue;
+
+            Border Border = new Border();
+            Border.BorderBrush = Brushes.LightGray;
+            Border.BorderThickness = new Thickness(1);
+            Border.Background = Row.IsHeader ? Brushes.WhiteSmoke : Brushes.White;
+            Border.Padding = new Thickness(6, 4);
+
+            StackPanel CellPanel = new StackPanel();
+            foreach (Block ChildBlock in Cell)
+                AddPreviewTableCellBlock(CellPanel, ChildBlock, Row.IsHeader);
+
+            Border.Child = CellPanel;
+            Grid.SetRow(Border, RowIndex);
+            Grid.SetColumn(Border, ColumnIndex);
+            Grid.SetColumnSpan(Border, Math.Max(1, Cell.ColumnSpan));
+            TableGrid.Children.Add(Border);
+
+            ColumnIndex += Math.Max(1, Cell.ColumnSpan);
+        }
+    }
+    /// <summary>
+    /// Adds a markdown table cell block to the preview.
+    /// </summary>
+    /// <param name="Panel">The cell panel.</param>
+    /// <param name="Block">The cell child block.</param>
+    /// <param name="IsHeader">True if the cell is in the header row.</param>
+    static void AddPreviewTableCellBlock(StackPanel Panel, Block Block, bool IsHeader)
+    {
+        if (Block is ParagraphBlock ParagraphBlock)
+        {
+            FontWeight FontWeight = IsHeader ? FontWeight.Bold : FontWeight.Normal;
+            TextBlock TextBlock = CreatePreviewTextBlock(GetPreviewFontSize(), FontWeight, new Thickness(0));
+            AddInlineContent(Panel, TextBlock, ParagraphBlock.Inline, FontWeight, FontStyle.Normal);
+            Panel.Children.Add(TextBlock);
+        }
+        else
+        {
+            AddPreviewBlock(Panel, Block, 0);
+        }
+    }
+    /// <summary>
     /// Adds inline markdown content to a text block.
     /// </summary>
     /// <param name="Panel">The target panel.</param>
@@ -188,7 +292,10 @@ static public class MarkdownPreviewRenderer
         {
             if (LinkInline.IsImage)
             {
-                AddPreviewImage(Panel, LinkInline.Url, GetInlineText(LinkInline));
+                if (Panel != null)
+                    AddPreviewImage(Panel, LinkInline.Url, GetInlineText(LinkInline));
+                else
+                    TextBlock.Inlines.Add(CreateRun(GetInlineText(LinkInline), FontWeight, FontStyle));
             }
             else
             {

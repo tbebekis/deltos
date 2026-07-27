@@ -52,6 +52,7 @@ public partial class ExportDialog: DialogWindow
         chHtml.IsChecked = fOptions.Format.HasFlag(ExportFormat.Html);
         chOdt.IsChecked = fOptions.Format.HasFlag(ExportFormat.Odt);
         chMarkdown.IsChecked = fOptions.Format.HasFlag(ExportFormat.Markdown);
+        chInternalMarkdown.IsChecked = fOptions.Format.HasFlag(ExportFormat.InternalMarkdown);
 
         chFolderBullet.IsChecked = fOptions.FolderTitle.HasFlag(ExportTitleOptions.Bullet);
         chFolderNumber.IsChecked = fOptions.FolderTitle.HasFlag(ExportTitleOptions.Number);
@@ -92,6 +93,8 @@ public partial class ExportDialog: DialogWindow
             fOptions.Format |= ExportFormat.Odt;
         if (chMarkdown.IsChecked == true)
             fOptions.Format |= ExportFormat.Markdown;
+        if (chInternalMarkdown.IsChecked == true)
+            fOptions.Format |= ExportFormat.InternalMarkdown;
 
         if (chFolderBullet.IsChecked == true)
             fOptions.FolderTitle |= ExportTitleOptions.Bullet;
@@ -129,6 +132,12 @@ public partial class ExportDialog: DialogWindow
         if (fOptions.Format == ExportFormat.None)
         {
             await Tripous.Desktop.MessageBox.Info("Please select at least one format.", this);
+            return false;
+        }
+
+        if (fOptions.Format.HasFlag(ExportFormat.InternalMarkdown) && !fOptions.Source.HasFlag(ExportSource.Text))
+        {
+            await Tripous.Desktop.MessageBox.Info("Internal Markdown export requires Text content.", this);
             return false;
         }
 

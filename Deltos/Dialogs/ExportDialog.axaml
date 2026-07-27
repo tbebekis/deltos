@@ -4,9 +4,9 @@
                       x:Class="Deltos.ExportDialog"
                       Title="Export Options"
                       Width="620"
-                      Height="650"
+                      Height="720"
                       MinWidth="580"
-                      MinHeight="620"
+                      MinHeight="690"
                       CanResize="False"
                       ShowInTaskbar="False"
                       WindowStartupLocation="CenterOwner">
@@ -21,9 +21,21 @@
                     <StackPanel Margin="8"
                                 Spacing="6">
                         <CheckBox Name="chPrimary"
-                                  Content="Primary" />
+                                  Content="Primary">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Exports the primary language fields. For document text this uses Text, and for titles it uses the primary title of the document, folders, and text files." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                         <CheckBox Name="chSecondary"
-                                  Content="Secondary" />
+                                  Content="Secondary">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Exports the secondary language fields. For document text this uses Text2, and for titles it uses the secondary title when it exists, falling back to the primary title when it does not." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                     </StackPanel>
                 </GroupBox>
 
@@ -32,9 +44,21 @@
                     <StackPanel Margin="8"
                                 Spacing="6">
                         <CheckBox Name="chText"
-                                  Content="Text" />
+                                  Content="Text">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Exports the actual writing text from TextFile items. Folder and document items contribute structure and titles, while each TextFile contributes its main text content." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                         <CheckBox Name="chSynopsis"
-                                  Content="Synopsis" />
+                                  Content="Synopsis">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Exports synopsis material instead of the main writing text. The export includes synopsis text from the document, folders, and text files where synopsis content exists." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                     </StackPanel>
                 </GroupBox>
 
@@ -43,13 +67,45 @@
                     <StackPanel Margin="8"
                                 Spacing="6">
                         <CheckBox Name="chTxt"
-                                  Content="TXT" />
+                                  Content="TXT">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Creates plain text files. This is useful for simple reading, editing in basic text tools, or sending text to systems that do not need markdown, HTML, or document formatting." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                         <CheckBox Name="chHtml"
-                                  Content="HTML" />
+                                  Content="HTML">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Creates HTML files from the selected content. Markdown is rendered to HTML, project images referenced from markdown are copied into the export folder, and image paths are rewritten for the exported HTML." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                         <CheckBox Name="chOdt"
-                                  Content="ODT" />
+                                  Content="ODT">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Creates OpenDocument text files through LibreOffice. Deltos first builds an HTML source file, then asks LibreOffice from PATH to convert it to ODT." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                         <CheckBox Name="chMarkdown"
-                                  Content="Markdown" />
+                                  Content="Markdown">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Creates one combined markdown file for the selected document content. Folder and text-file titles are written as markdown headings according to the title options below." />
+                            </ToolTip.Tip>
+                        </CheckBox>
+                        <CheckBox Name="chInternalMarkdown"
+                                  Content="Internal Markdown">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Creates one markdown file per TextFile for internal use. File names include the full hierarchical order path, such as document, parent folders, and text file order numbers. This option requires Text content." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                     </StackPanel>
                 </GroupBox>
             </Grid>
@@ -61,13 +117,37 @@
                     <StackPanel Margin="8"
                                 Spacing="6">
                         <CheckBox Name="chFolderBullet"
-                                  Content="Bullet" />
+                                  Content="Bullet">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Adds a bullet marker before exported folder headings. This affects folder titles in combined TXT, Markdown, HTML, and ODT exports." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                         <CheckBox Name="chFolderNumber"
-                                  Content="Number" />
+                                  Content="Number">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Adds the folder number to exported folder headings. Automatic numbering uses the folder order inside its parent; custom and disabled numbering follow the folder metadata." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                         <CheckBox Name="chFolderWord"
-                                  Content="Word" />
+                                  Content="Word">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Adds the folder level word before exported folder titles, for example Part, Chapter, Section, or another level title defined by the document structure." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                         <CheckBox Name="chFolderTitle"
-                                  Content="Title" />
+                                  Content="Title">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Adds the folder title itself to exported folder headings. If this is off, folder headings may still include bullet, number, or word depending on the other selected options." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                     </StackPanel>
                 </GroupBox>
 
@@ -76,13 +156,37 @@
                     <StackPanel Margin="8"
                                 Spacing="6">
                         <CheckBox Name="chTextFileBullet"
-                                  Content="Bullet" />
+                                  Content="Bullet">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Adds a bullet marker before exported TextFile headings. This affects text-file titles in combined TXT, Markdown, HTML, and ODT exports." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                         <CheckBox Name="chTextFileNumber"
-                                  Content="Number" />
+                                  Content="Number">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Adds the TextFile number to exported TextFile headings. Automatic numbering uses the TextFile order inside its parent; custom and disabled numbering follow the TextFile metadata." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                         <CheckBox Name="chTextFileWord"
-                                  Content="Word" />
+                                  Content="Word">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Adds the word TextFile before exported text-file titles. This is useful when the output should clearly identify writing units separately from folders." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                         <CheckBox Name="chTextFileTitle"
-                                  Content="Title" />
+                                  Content="Title">
+                            <ToolTip.Tip>
+                                <TextBlock MaxWidth="420"
+                                           TextWrapping="Wrap"
+                                           Text="Adds the TextFile title itself to exported TextFile headings. If this is off, the text content can still be exported without showing the text-file title." />
+                            </ToolTip.Tip>
+                        </CheckBox>
                     </StackPanel>
                 </GroupBox>
             </Grid>
@@ -92,7 +196,13 @@
                 <StackPanel Margin="8"
                             Spacing="12">
                     <CheckBox Name="chTreatTextFilesAsPlainText"
-                              Content="Treat TextFiles as Plain Text (not Markdown)" />
+                              Content="Treat TextFiles as Plain Text (not Markdown)">
+                        <ToolTip.Tip>
+                            <TextBlock MaxWidth="420"
+                                       TextWrapping="Wrap"
+                                       Text="Treats TextFile content as plain prose when building rich exports. Markdown syntax in the text is escaped or preserved as text instead of being interpreted as formatting. Turn this off when the TextFile content should be rendered as markdown." />
+                        </ToolTip.Tip>
+                    </CheckBox>
                     <Grid ColumnDefinitions="Auto,120,Auto"
                           ColumnSpacing="8">
                         <TextBlock Text="Image max width"

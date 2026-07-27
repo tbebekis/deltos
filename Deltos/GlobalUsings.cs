@@ -30,6 +30,7 @@ global using Avalonia.VisualTree;
 global using AvaloniaEdit;
 
 global using Markdig;
+global using Markdig.Extensions.Tables;
 global using Markdig.Syntax;
 global using Markdig.Syntax.Inlines;
 

@@ -152,4 +152,77 @@ public class DocumentExporterMetadataTests
             DeleteFolder(ProjectPath);
         }
     }
+    /// <summary>
+    /// Tests that markdown pipe tables are rendered as HTML tables.
+    /// </summary>
+    [Fact]
+    public void HtmlExportRendersMarkdownPipeTables()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Book");
+            TextFile FileItem = Document.AddTextFile("Table Text");
+            FileItem.Text =
+                "| Concept | Example |" + Environment.NewLine +
+                "|---|---|" + Environment.NewLine +
+                "| DataModule | `InvoiceDataModule` |";
+            Deltos.Export.ExportOptions Options = CreateOptions(Deltos.Export.ExportFormat.Html);
+            Options.TreatTextFilesAsPlainText = false;
+
+            string ExportFolderPath = new Deltos.Export.DocumentExporter(Document, Options).Execute();
+            string Html = File.ReadAllText(GetExportFile(ExportFolderPath, ".html"));
+
+            Assert.Contains("<table>", Html);
+            Assert.Contains("<th>Concept</th>", Html);
+            Assert.Contains("<code>InvoiceDataModule</code>", Html);
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
+    /// <summary>
+    /// Tests that internal markdown export writes one file per text file with full hierarchical numbering.
+    /// </summary>
+    [Fact]
+    public void InternalMarkdownExportUsesHierarchicalFileNames()
+    {
+        string ProjectPath;
+        Project Project = CreateProject(out ProjectPath);
+
+        try
+        {
+            Document Document = Project.AddDocument("Book");
+            TextFile Preface = Document.AddTextFile("Preface");
+            Preface.Text = "Preface text.";
+            TextFile Introduction = Document.AddTextFile("Introduction");
+            Introduction.Text = "Introduction text.";
+            Folder Part = Document.AddFolder("Part One", "Part");
+            TextFile Opening = Part.AddTextFile("What Is a Business Application");
+            Opening.Text = "Opening text.";
+            TextFile Epilogue = Document.AddTextFile("Epilogue");
+            Epilogue.Text = "Epilogue text.";
+
+            string ExportFolderPath = new Deltos.Export.DocumentExporter(Document, CreateOptions(Deltos.Export.ExportFormat.InternalMarkdown)).Execute();
+            string[] FilePaths = Directory.GetFiles(ExportFolderPath, "*.md").OrderBy(x => x).ToArray();
+            string[] FileNames = FilePaths.Select(Path.GetFileName).ToArray();
+
+            Assert.Equal(4, FileNames.Length);
+            Assert.Contains("001.000.001_Preface_Primary.md", FileNames);
+            Assert.Contains("001.000.002_Introduction_Primary.md", FileNames);
+            Assert.Contains("001.001.001_What_Is_a_Business_Application_Primary.md", FileNames);
+            Assert.Contains("001.002.001_Epilogue_Primary.md", FileNames);
+            Assert.Contains("Preface text.", File.ReadAllText(Path.Combine(ExportFolderPath, "001.000.001_Preface_Primary.md")));
+            Assert.Contains("Introduction text.", File.ReadAllText(Path.Combine(ExportFolderPath, "001.000.002_Introduction_Primary.md")));
+            Assert.Contains("Opening text.", File.ReadAllText(Path.Combine(ExportFolderPath, "001.001.001_What_Is_a_Business_Application_Primary.md")));
+            Assert.Contains("Epilogue text.", File.ReadAllText(Path.Combine(ExportFolderPath, "001.002.001_Epilogue_Primary.md")));
+        }
+        finally
+        {
+            DeleteFolder(ProjectPath);
+        }
+    }
 }

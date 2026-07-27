@@ -52,6 +52,7 @@ public partial class AppSettingsDialog: DialogWindow
         Result.AutoSaveSecondsInterval = Source.AutoSaveSecondsInterval;
         Result.FontFamily = Source.FontFamily;
         Result.FontSize = Source.FontSize;
+        Result.WordsPerPage = Source.WordsPerPage;
         Result.SecondLanguageVisible = Source.SecondLanguageVisible;
         Result.ShowMarkdownPreviewButton = Source.ShowMarkdownPreviewButton;
         Result.ShowFolderLevelTitleInTree = Source.ShowFolderLevelTitleInTree;
@@ -66,6 +67,7 @@ public partial class AppSettingsDialog: DialogWindow
         edtAutoSaveSecondsInterval.Value = fSettings.AutoSaveSecondsInterval;
         edtFontFamily.Text = fSettings.FontFamily;
         edtFontSize.Value = fSettings.FontSize;
+        edtWordsPerPage.Value = fSettings.WordsPerPage;
         chkSecondLanguageVisible.IsChecked = fSettings.SecondLanguageVisible;
         chkShowMarkdownPreviewButton.IsChecked = fSettings.ShowMarkdownPreviewButton;
         chkShowFolderLevelTitleInTree.IsChecked = fSettings.ShowFolderLevelTitleInTree;
@@ -79,6 +81,7 @@ public partial class AppSettingsDialog: DialogWindow
         fSettings.AutoSaveSecondsInterval = Math.Clamp((int)(edtAutoSaveSecondsInterval.Value ?? 30), 5, 3600);
         fSettings.FontFamily = string.IsNullOrWhiteSpace(edtFontFamily.Text) ? "Liberation Mono, Cascadia Code, Consolas, Monospace" : edtFontFamily.Text.Trim();
         fSettings.FontSize = Math.Clamp((int)(edtFontSize.Value ?? 13), 8, 32);
+        fSettings.WordsPerPage = Math.Clamp((int)(edtWordsPerPage.Value ?? 250), 250, 1000);
         fSettings.SecondLanguageVisible = chkSecondLanguageVisible.IsChecked == true;
         fSettings.ShowMarkdownPreviewButton = chkShowMarkdownPreviewButton.IsChecked == true;
         fSettings.ShowFolderLevelTitleInTree = chkShowFolderLevelTitleInTree.IsChecked == true;
