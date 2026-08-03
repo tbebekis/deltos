@@ -8,7 +8,7 @@
         </Border>
         <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                       VerticalScrollBarVisibility="Auto"
-                      Background="#FFFFFF">
+                      Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
             <StackPanel Name="MarkdownPreviewPanel"
                         MaxWidth="1180"
                         HorizontalAlignment="Left"

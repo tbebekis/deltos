@@ -12,6 +12,8 @@ public partial class MainWindow : Window
     Tripous.Desktop.ToolBar fToolBar;
     AppFormPagerHandler fSideBarHandler;
     AppFormPagerHandler fContentHandler;
+    ComboBox fThemeCombo;
+    bool fUpdatingThemeCombo;
     GridLength fSideBarWidth;
     GridLength fLogHeight;
 
@@ -72,6 +74,82 @@ public partial class MainWindow : Window
     {
         Border Separator = fToolBar.AddSeparator();
         Separator.Margin = new Thickness(3, 0);
+    }
+    /// <summary>
+    /// Adds the theme selector to the toolbar.
+    /// </summary>
+    void AddThemeSelector()
+    {
+        fThemeCombo = fToolBar.AddComboBox(new[] { "Default", "Light", "Dark" }, GetThemeIndex(AppHost.Settings?.Theme), 110);
+        fThemeCombo.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
+        fThemeCombo.Margin = new Thickness(4, 0, 0, 0);
+        fThemeCombo.SelectionChanged += ThemeCombo_SelectionChanged;
+    }
+    /// <summary>
+    /// Returns the selected index for a theme.
+    /// </summary>
+    /// <param name="Theme">The theme name.</param>
+    /// <returns>The selected index.</returns>
+    int GetThemeIndex(string Theme)
+    {
+        string NormalizedTheme = AppHost.NormalizeTheme(Theme);
+        if (NormalizedTheme == "Light")
+            return 1;
+        if (NormalizedTheme == "Dark")
+            return 2;
+        return 0;
+    }
+    /// <summary>
+    /// Applies a theme selected from the UI.
+    /// </summary>
+    /// <param name="Theme">The theme name.</param>
+    void ApplySelectedTheme(string Theme)
+    {
+        if (AppHost.Settings == null)
+            return;
+
+        string NormalizedTheme = AppHost.NormalizeTheme(Theme);
+        AppHost.Settings.Theme = NormalizedTheme;
+        AppHost.ApplyTheme(NormalizedTheme);
+    }
+    /// <summary>
+    /// Synchronizes the toolbar theme selector with settings.
+    /// </summary>
+    void SyncThemeSelector()
+    {
+        if (fThemeCombo == null)
+            return;
+
+        int Index = GetThemeIndex(AppHost.Settings?.Theme);
+        if (fThemeCombo.SelectedIndex != Index)
+        {
+            try
+            {
+                fUpdatingThemeCombo = true;
+                fThemeCombo.SelectedIndex = Index;
+            }
+            finally
+            {
+                fUpdatingThemeCombo = false;
+            }
+        }
+    }
+    /// <summary>
+    /// Handles theme selection changes.
+    /// </summary>
+    /// <param name="Sender">The event sender.</param>
+    /// <param name="Args">The event arguments.</param>
+    void ThemeCombo_SelectionChanged(object Sender, SelectionChangedEventArgs Args)
+    {
+        if (fUpdatingThemeCombo)
+            return;
+
+        if (fThemeCombo?.SelectedItem is not string Theme)
+            return;
+
+        ApplySelectedTheme(Theme);
+        AppHost.Settings.Save();
+        LogBox.AppendLine($"Theme changed: {AppHost.Settings.Theme}");
     }
 
     /// <summary>
@@ -874,6 +952,8 @@ public partial class MainWindow : Window
         {
             AppHost.Settings.CopyEditableSettingsFrom(EditedSettings);
             AppHost.Settings.Save();
+            AppHost.ApplyTheme(AppHost.Settings.Theme);
+            SyncThemeSelector();
             AppHost.ApplyAutoSaveSettings();
             LogBox.AppendLine("Settings saved.");
         }
@@ -922,6 +1002,9 @@ public partial class MainWindow : Window
 
         AddToolBarButton("setting_tools.png", "Application Settings", "Settings");
         AddToolBarButton("setting_tools.png", "Project Settings", "ProjectSettings");
+
+        AddToolBarSeparator();
+        AddThemeSelector();
 
         AddToolBarSeparator();
 

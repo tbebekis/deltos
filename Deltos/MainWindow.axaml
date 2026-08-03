@@ -17,15 +17,9 @@
         <!-- ToolBar -->
         <Border Name="ToolBarPanel"
                 Grid.Row="0"
-                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
-                BorderThickness="0,0,0,1"
-                Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-                Padding="6,4">
+                Classes="ToolbarContainer">
             <StackPanel Name="pnlToolBar"
-                        Classes="ToolBar"
-                        Orientation="Horizontal"
-                        Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-                        Spacing="2" />
+                        Classes="ToolBar" />
         </Border>
 
         <!-- Main Panel -->
@@ -74,9 +68,8 @@
         <!-- StatusBar -->
         <Border Name="StatusBar"
                 Grid.Row="2"
-                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                Classes="StatusBar"
                 BorderThickness="0,1,0,0"
-                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
                 Padding="10,5">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Name="lblStatus"

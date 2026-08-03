@@ -1,5 +1,17 @@
 # Changes
 
+## 2026.8.3 - 2026-08-03
+
+- Added application theme selection with Default, Light, and Dark options.
+- Made Dark the initial application theme for new settings.
+- Added theme-aware Tripous desktop shared styles through explicit
+  `TripousDesktop.axaml` include.
+- Removed local duplicate toolbar, status bar, modal dialog, button, and
+  splitter styling now provided by Tripous desktop styles.
+- Made text metrics and markdown preview colors theme-aware for Light and Dark.
+- Made copied built-in documentation refresh when the application assembly is
+  newer than the app-data documentation files.
+
 ## 2026.7.27 - 2026-07-27
 
 - Added configurable words-per-page text metric setting.

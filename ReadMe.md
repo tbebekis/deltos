@@ -72,6 +72,7 @@ renaming, exporting, or generating large project outputs.
 - Quick View list for collecting important items and search hits while working.
 - Text metrics for every editor.
 - Built-in documentation available from the main toolbar.
+- Theme selection with Default, Light, and Dark application themes.
 - Auto-save support.
 - Export per document to TXT, Markdown, HTML, and ODT.
 - Internal Markdown export for writing one markdown file per text file with
@@ -487,8 +488,16 @@ Wiki settings:
 - Default social image URL.
 
 Application settings cover local preferences such as recent projects, auto-save,
-editor font settings, words-per-page page estimates, and secondary-language
-editor visibility.
+application theme, editor font settings, words-per-page page estimates, and
+secondary-language editor visibility.
+
+The application theme can be changed from the main toolbar or from Settings.
+Default follows the operating system theme, while Light and Dark force that
+theme immediately without restarting the application.
+
+Built-in documentation is copied to the application data folder so it can be
+opened from the main toolbar. The copied files are refreshed when the
+application assembly is newer than the stored documentation copy.
 
 ## Export
 

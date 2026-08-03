@@ -3,59 +3,44 @@
              xmlns:AvaloniaEdit="https://github.com/avaloniaui/avaloniaedit"
              xmlns:Primitives="clr-namespace:Avalonia.Controls.Primitives;assembly=Avalonia.Controls"
              x:Class="Deltos.App"
-             RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             RequestedThemeVariant="Dark">
+             <!-- The saved application theme overrides this initial default during startup. -->
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="DeltosMetricsTitleBrush" Color="#0F5E8C" />
+                    <SolidColorBrush x:Key="DeltosMarkdownPreviewTextBrush" Color="#111827" />
+                    <SolidColorBrush x:Key="DeltosMarkdownPreviewTitleBrush" Color="#0F5E8C" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="DeltosMetricsTitleBrush" Color="#7CC9FF" />
+                    <SolidColorBrush x:Key="DeltosMarkdownPreviewTextBrush" Color="#C4CAD2" />
+                    <SolidColorBrush x:Key="DeltosMarkdownPreviewTitleBrush" Color="#8CC7EA" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="avares://Tripous.Desktop/Themes/TripousDesktop.axaml" />
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
-        <Style Selector="Button">
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
-            <Setter Property="BorderBrush" Value="#9A9A9A" />
-            <Setter Property="BorderThickness" Value="1" />
-        </Style>
         <Style Selector="TabItem">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style Selector="TabItem:selected">
-            <Setter Property="Background" Value="#FFF3E4" />
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumBrush}" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Foreground" Value="#1F1F1F" />
+            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
             <Setter Property="FontWeight" Value="Bold" />
         </Style>
-        <Style Selector="Border.ToolbarContainer">
-            <Setter Property="Padding" Value="2" />
-            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
-            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
-        </Style>
-        <Style Selector="StackPanel.ToolBar">
-            <Setter Property="Orientation" Value="Horizontal" />
-            <Setter Property="Spacing" Value="2" />
-            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
-        </Style>
-        <Style Selector="StackPanel.ToolBar > Button">
-            <Setter Property="Width" Value="32" />
-            <Setter Property="Height" Value="32" />
-            <Setter Property="MinWidth" Value="0" />
-            <Setter Property="Padding" Value="2" />
-            <Setter Property="BorderThickness" Value="0" />
-        </Style>
-        <Style Selector="StackPanel.ToolBar > Button > Image">
-            <Setter Property="Width" Value="24" />
-            <Setter Property="Height" Value="24" />
-            <Setter Property="Stretch" Value="Uniform" />
-        </Style>
-        <Style Selector="GridSplitter">
-            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumBrush}" />
-        </Style>
         <Style Selector="AvaloniaEdit|TextEditor">
-            <Setter Property="Background" Value="White" />
-            <Setter Property="Foreground" Value="Black" />
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
             <Setter Property="FontFamily" Value="Liberation Mono, Cascadia Code, Consolas, Monospace" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="ShowLineNumbers" Value="False" />

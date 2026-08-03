@@ -99,6 +99,24 @@ and export. Existing project-relative paths such as `Images/diagram.png` and
 Use `Change Parent` to move a folder or text file to another document or folder
 container.
 
+## Application Theme
+
+Deltos supports Default, Light, and Dark application themes.
+
+Default follows the operating system theme. Light and Dark force that theme
+immediately without restarting the application.
+
+The theme can be changed from the main toolbar or from Settings. New
+application settings start in Dark theme.
+
+## Built-In Documentation
+
+Built-in documentation is copied to the application data folder so it can be
+opened from the main toolbar.
+
+When the application assembly is newer than the copied documentation files,
+Deltos refreshes the app-data documentation from the embedded files.
+
 ## Legacy Project Conversion
 
 Projects without `ProjectManifest.json` are treated as legacy projects.

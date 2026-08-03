@@ -11,11 +11,39 @@ public class DocumentationStore
     // ● private
     const string MainDocumentFileName = "deltos-concepts.md";
     string GetResourcePrefix() => typeof(DocumentationStore).Namespace + ".Resources.Documentation.";
+    DateTime GetAssemblyWriteTimeUtc(System.Reflection.Assembly Assembly)
+    {
+        if (Assembly == null || string.IsNullOrWhiteSpace(Assembly.Location) || !File.Exists(Assembly.Location))
+            return DateTime.MinValue;
+
+        return File.GetLastWriteTimeUtc(Assembly.Location);
+    }
     string GetTargetFilePath(string ResourceName)
     {
         string Prefix = GetResourcePrefix();
         string FileName = ResourceName.StartsWith(Prefix) ? ResourceName.Substring(Prefix.Length) : ResourceName;
         return Path.Combine(FolderPath, FileName);
+    }
+    bool ShouldWriteFile(string FilePath, DateTime AssemblyWriteTimeUtc)
+    {
+        if (!File.Exists(FilePath))
+            return true;
+
+        if (AssemblyWriteTimeUtc == DateTime.MinValue)
+            return false;
+
+        return File.GetLastWriteTimeUtc(FilePath) < AssemblyWriteTimeUtc;
+    }
+    void WriteResourceFile(System.Reflection.Assembly Assembly, string ResourceName, string FilePath, DateTime AssemblyWriteTimeUtc)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
+
+        using Stream Stream = Assembly.GetManifestResourceStream(ResourceName);
+        using FileStream FileStream = File.Create(FilePath);
+        Stream.CopyTo(FileStream);
+
+        if (AssemblyWriteTimeUtc != DateTime.MinValue)
+            File.SetLastWriteTimeUtc(FilePath, AssemblyWriteTimeUtc);
     }
 
     // ● construction
@@ -33,17 +61,15 @@ public class DocumentationStore
     public void EnsureCreated()
     {
         System.Reflection.Assembly Assembly = typeof(DocumentationStore).Assembly;
+        DateTime AssemblyWriteTimeUtc = GetAssemblyWriteTimeUtc(Assembly);
         string Prefix = GetResourcePrefix();
         foreach (string ResourceName in Assembly.GetManifestResourceNames().Where(Item => Item.StartsWith(Prefix)).OrderBy(Item => Item))
         {
             string FilePath = GetTargetFilePath(ResourceName);
-            if (File.Exists(FilePath))
+            if (!ShouldWriteFile(FilePath, AssemblyWriteTimeUtc))
                 continue;
 
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
-            using Stream Stream = Assembly.GetManifestResourceStream(ResourceName);
-            using FileStream FileStream = File.Create(FilePath);
-            Stream.CopyTo(FileStream);
+            WriteResourceFile(Assembly, ResourceName, FilePath, AssemblyWriteTimeUtc);
         }
     }
     /// <summary>

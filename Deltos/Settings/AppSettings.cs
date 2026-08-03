@@ -67,6 +67,7 @@ public class AppSettings: SettingsBase
         base.LoadAfter();
         NormalizeRecentProjects();
         WordsPerPage = Math.Clamp(WordsPerPage, 50, 1000);
+        Theme = AppHost.NormalizeTheme(Theme);
     }
 
     // ● construction
@@ -92,6 +93,7 @@ public class AppSettings: SettingsBase
         FontFamily = Source.FontFamily;
         FontSize = Source.FontSize;
         WordsPerPage = Source.WordsPerPage;
+        Theme = Source.Theme;
         SecondLanguageVisible = Source.SecondLanguageVisible;
         ShowMarkdownPreviewButton = Source.ShowMarkdownPreviewButton;
         ShowFolderLevelTitleInTree = Source.ShowFolderLevelTitleInTree;
@@ -147,6 +149,10 @@ public class AppSettings: SettingsBase
     /// Gets or sets the words per estimated page.
     /// </summary>
     public int WordsPerPage { get; set; } = 250;
+    /// <summary>
+    /// Gets or sets the application theme.
+    /// </summary>
+    public string Theme { get; set; } = "Dark";
     /// <summary>
     /// Gets or sets a value indicating whether the second language editor is visible.
     /// </summary>

@@ -23,9 +23,11 @@ global using Avalonia.Controls.ApplicationLifetimes;
 global using Avalonia.Input;
 global using Avalonia.Interactivity;
 global using Avalonia.Markup.Xaml;
+global using Avalonia.Markup.Xaml.MarkupExtensions;
 global using Avalonia.Media;
 global using Avalonia.Media.Imaging;
 global using Avalonia.Platform.Storage;
+global using Avalonia.Styling;
 global using Avalonia.VisualTree;
 global using AvaloniaEdit;
 

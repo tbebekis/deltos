@@ -224,7 +224,7 @@
                    Text="ODT export uses LibreOffice. LibreOffice must be installed and available in PATH."
                    TextWrapping="Wrap"
                    FontWeight="SemiBold"
-                   Foreground="#8A4B16"
+                   Foreground="{DynamicResource SystemAccentBrush}"
                    Opacity="0.95" />
 
         <StackPanel Grid.Row="2"

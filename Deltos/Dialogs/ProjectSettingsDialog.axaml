@@ -46,7 +46,7 @@
                                Text="The local git repository is always the project folder."
                                TextWrapping="Wrap"
                                FontWeight="SemiBold"
-                               Foreground="#8A4B16" />
+                               Foreground="{DynamicResource SystemAccentBrush}" />
                 </Grid>
             </TabItem>
 

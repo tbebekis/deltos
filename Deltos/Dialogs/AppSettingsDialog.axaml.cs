@@ -53,10 +53,35 @@ public partial class AppSettingsDialog: DialogWindow
         Result.FontFamily = Source.FontFamily;
         Result.FontSize = Source.FontSize;
         Result.WordsPerPage = Source.WordsPerPage;
+        Result.Theme = Source.Theme;
         Result.SecondLanguageVisible = Source.SecondLanguageVisible;
         Result.ShowMarkdownPreviewButton = Source.ShowMarkdownPreviewButton;
         Result.ShowFolderLevelTitleInTree = Source.ShowFolderLevelTitleInTree;
         return Result;
+    }
+    /// <summary>
+    /// Returns the selected index for a theme.
+    /// </summary>
+    /// <param name="Theme">The theme name.</param>
+    /// <returns>The selected index.</returns>
+    int GetThemeIndex(string Theme)
+    {
+        string NormalizedTheme = AppHost.NormalizeTheme(Theme);
+        if (NormalizedTheme == "Light")
+            return 1;
+        if (NormalizedTheme == "Dark")
+            return 2;
+        return 0;
+    }
+    /// <summary>
+    /// Returns the theme selected in the dialog.
+    /// </summary>
+    /// <returns>The selected theme.</returns>
+    string GetSelectedTheme()
+    {
+        if (cboTheme.SelectedItem is ComboBoxItem Item && Item.Content is string Text)
+            return AppHost.NormalizeTheme(Text);
+        return "Dark";
     }
     /// <summary>
     /// Loads settings into controls.
@@ -68,6 +93,7 @@ public partial class AppSettingsDialog: DialogWindow
         edtFontFamily.Text = fSettings.FontFamily;
         edtFontSize.Value = fSettings.FontSize;
         edtWordsPerPage.Value = fSettings.WordsPerPage;
+        cboTheme.SelectedIndex = GetThemeIndex(fSettings.Theme);
         chkSecondLanguageVisible.IsChecked = fSettings.SecondLanguageVisible;
         chkShowMarkdownPreviewButton.IsChecked = fSettings.ShowMarkdownPreviewButton;
         chkShowFolderLevelTitleInTree.IsChecked = fSettings.ShowFolderLevelTitleInTree;
@@ -82,6 +108,7 @@ public partial class AppSettingsDialog: DialogWindow
         fSettings.FontFamily = string.IsNullOrWhiteSpace(edtFontFamily.Text) ? "Liberation Mono, Cascadia Code, Consolas, Monospace" : edtFontFamily.Text.Trim();
         fSettings.FontSize = Math.Clamp((int)(edtFontSize.Value ?? 13), 8, 32);
         fSettings.WordsPerPage = Math.Clamp((int)(edtWordsPerPage.Value ?? 250), 250, 1000);
+        fSettings.Theme = GetSelectedTheme();
         fSettings.SecondLanguageVisible = chkSecondLanguageVisible.IsChecked == true;
         fSettings.ShowMarkdownPreviewButton = chkShowMarkdownPreviewButton.IsChecked == true;
         fSettings.ShowFolderLevelTitleInTree = chkShowFolderLevelTitleInTree.IsChecked == true;

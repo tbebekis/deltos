@@ -13,12 +13,43 @@ static public class MarkdownPreviewRenderer
     /// The markdown parser pipeline.
     /// </summary>
     static readonly MarkdownPipeline fMarkdownPipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
-    /// <summary>
-    /// The heading foreground brush.
-    /// </summary>
-    static readonly IBrush fHeadingBrush = new SolidColorBrush(Color.Parse("#8A4B16"));
 
     // ● private
+    /// <summary>
+    /// Binds a text foreground to the active theme.
+    /// </summary>
+    /// <param name="TextBlock">The text block.</param>
+    /// <param name="ResourceKey">The resource key.</param>
+    static void BindForeground(TextBlock TextBlock, string ResourceKey = "DeltosMarkdownPreviewTextBrush")
+    {
+        TextBlock.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension(ResourceKey));
+    }
+    /// <summary>
+    /// Binds a run foreground to the active theme.
+    /// </summary>
+    /// <param name="Run">The run.</param>
+    /// <param name="ResourceKey">The resource key.</param>
+    static void BindForeground(Run Run, string ResourceKey = "DeltosMarkdownPreviewTextBrush")
+    {
+        Run.Bind(Run.ForegroundProperty, new DynamicResourceExtension(ResourceKey));
+    }
+    /// <summary>
+    /// Binds a border background to the active theme.
+    /// </summary>
+    /// <param name="Border">The border.</param>
+    /// <param name="ResourceKey">The resource key.</param>
+    static void BindBackground(Border Border, string ResourceKey)
+    {
+        Border.Bind(Border.BackgroundProperty, new DynamicResourceExtension(ResourceKey));
+    }
+    /// <summary>
+    /// Binds a border brush to the active theme.
+    /// </summary>
+    /// <param name="Border">The border.</param>
+    static void BindBorderBrush(Border Border)
+    {
+        Border.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("SystemControlForegroundBaseMediumLowBrush"));
+    }
     /// <summary>
     /// Adds a markdown block to the preview.
     /// </summary>
@@ -30,7 +61,7 @@ static public class MarkdownPreviewRenderer
         if (Block is HeadingBlock HeadingBlock)
         {
             TextBlock TextBlock = CreatePreviewTextBlock(GetHeadingFontSize(HeadingBlock.Level), FontWeight.Bold, GetIndentedMargin(Indent, 6, 2));
-            TextBlock.Foreground = fHeadingBrush;
+            BindForeground(TextBlock, "DeltosMarkdownPreviewTitleBrush");
             AddInlineContent(Panel, TextBlock, HeadingBlock.Inline, FontWeight.Bold, FontStyle.Normal);
             Panel.Children.Add(TextBlock);
         }
@@ -60,7 +91,7 @@ static public class MarkdownPreviewRenderer
         {
             Border Border = new Border();
             Border.Height = 1;
-            Border.Background = Brushes.LightGray;
+            BindBackground(Border, "SystemControlForegroundBaseMediumLowBrush");
             Border.Margin = GetIndentedMargin(Indent, 6, 6);
             Panel.Children.Add(Border);
         }
@@ -114,7 +145,7 @@ static public class MarkdownPreviewRenderer
     static void AddPreviewQuote(StackPanel Panel, QuoteBlock QuoteBlock, int Indent)
     {
         Border Border = new Border();
-        Border.BorderBrush = Brushes.LightGray;
+        BindBorderBrush(Border);
         Border.BorderThickness = new Thickness(3, 0, 0, 0);
         Border.Padding = new Thickness(8, 0, 0, 0);
         Border.Margin = GetIndentedMargin(Indent, 4, 4);
@@ -137,7 +168,7 @@ static public class MarkdownPreviewRenderer
     {
         TextBlock TextBlock = CreatePreviewTextBlock(Math.Max(8, GetPreviewFontSize() - 1), FontWeight.Normal, GetIndentedMargin(Indent, 4, 4));
         TextBlock.FontFamily = new FontFamily("Liberation Mono, Cascadia Code, Consolas, Monospace");
-        TextBlock.Background = Brushes.WhiteSmoke;
+        TextBlock.Bind(TextBlock.BackgroundProperty, new DynamicResourceExtension("SystemControlBackgroundChromeMediumLowBrush"));
         TextBlock.Padding = new Thickness(6);
         TextBlock.Text = CodeBlock.Lines.ToString();
         Panel.Children.Add(TextBlock);
@@ -204,9 +235,9 @@ static public class MarkdownPreviewRenderer
                 continue;
 
             Border Border = new Border();
-            Border.BorderBrush = Brushes.LightGray;
+            BindBorderBrush(Border);
             Border.BorderThickness = new Thickness(1);
-            Border.Background = Row.IsHeader ? Brushes.WhiteSmoke : Brushes.White;
+            BindBackground(Border, Row.IsHeader ? "SystemControlBackgroundChromeMediumLowBrush" : "SystemControlBackgroundAltHighBrush");
             Border.Padding = new Thickness(6, 4);
 
             StackPanel CellPanel = new StackPanel();
@@ -300,7 +331,7 @@ static public class MarkdownPreviewRenderer
             else
             {
                 Run Run = CreateRun(GetInlineText(LinkInline), FontWeight, FontStyle);
-                Run.Foreground = Brushes.DodgerBlue;
+                BindForeground(Run, "DeltosMarkdownPreviewTitleBrush");
                 TextBlock.Inlines.Add(Run);
             }
         }
@@ -345,7 +376,7 @@ static public class MarkdownPreviewRenderer
         Result.FontFamily = GetPreviewFontFamily();
         Result.FontSize = FontSize;
         Result.FontWeight = FontWeight;
-        Result.Foreground = Brushes.Black;
+        BindForeground(Result);
         Result.Margin = Margin;
         Result.TextWrapping = TextWrapping.Wrap;
         return Result;

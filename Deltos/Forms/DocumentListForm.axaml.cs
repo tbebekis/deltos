@@ -1044,7 +1044,7 @@ public partial class DocumentListForm: AppForm
     void RenderNoProjectMetrics()
     {
         MetricsPanel.Children.Clear();
-        AddMetricText("No project open.", 12, FontWeight.Normal, Brushes.Black);
+        AddMetricText("No project open.", 12, FontWeight.Normal);
     }
     /// <summary>
     /// Renders the text metrics display.
@@ -1086,23 +1086,31 @@ public partial class DocumentListForm: AppForm
         }
     }
     /// <summary>
+    /// Binds text foreground to the active theme.
+    /// </summary>
+    /// <param name="TextBlock">The text block.</param>
+    void BindForeground(TextBlock TextBlock)
+    {
+        TextBlock.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("SystemControlForegroundBaseHighBrush"));
+    }
+    /// <summary>
     /// Adds metric text to the metrics panel.
     /// </summary>
     /// <param name="Text">The text.</param>
     /// <param name="FontSize">The font size.</param>
     /// <param name="FontWeight">The font weight.</param>
-    /// <param name="Foreground">The foreground brush.</param>
-    void AddMetricText(string Text, double FontSize, FontWeight FontWeight, IBrush Foreground)
+    void AddMetricText(string Text, double FontSize, FontWeight FontWeight)
     {
-        MetricsPanel.Children.Add(new TextBlock
+        TextBlock TextBlock = new TextBlock
         {
             Text = Text,
             FontSize = FontSize,
             FontWeight = FontWeight,
-            Foreground = Foreground,
             Margin = new Thickness(0, 2, 0, 0),
             TextWrapping = TextWrapping.Wrap
-        });
+        };
+        BindForeground(TextBlock);
+        MetricsPanel.Children.Add(TextBlock);
     }
     /// <summary>
     /// Adds a metric header.
@@ -1111,7 +1119,16 @@ public partial class DocumentListForm: AppForm
     /// <param name="FontSize">The font size.</param>
     void AddMetricHeader(string Text, double FontSize)
     {
-        AddMetricText(Text, FontSize, FontWeight.Bold, new SolidColorBrush(Color.Parse("#8A4B16")));
+        TextBlock TextBlock = new TextBlock
+        {
+            Text = Text,
+            FontSize = FontSize,
+            FontWeight = FontWeight.Bold,
+            Margin = new Thickness(0, 2, 0, 0),
+            TextWrapping = TextWrapping.Wrap
+        };
+        TextBlock.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("DeltosMetricsTitleBrush"));
+        MetricsPanel.Children.Add(TextBlock);
     }
     /// <summary>
     /// Adds a metric group.
@@ -1121,7 +1138,7 @@ public partial class DocumentListForm: AppForm
     void AddMetricGroup(string Title, Action<Grid> LoadRows)
     {
         Border Border = new Border();
-        Border.BorderBrush = new SolidColorBrush(Color.Parse("#D8C5B4"));
+        Border.Bind(Border.BorderBrushProperty, new DynamicResourceExtension("SystemControlForegroundBaseMediumLowBrush"));
         Border.BorderThickness = new Thickness(0, 1, 0, 0);
         Border.Padding = new Thickness(0, 4, 0, 0);
 
@@ -1136,9 +1153,9 @@ public partial class DocumentListForm: AppForm
         {
             Text = Title,
             FontSize = 13,
-            FontWeight = FontWeight.SemiBold,
-            Foreground = Brushes.Black
+            FontWeight = FontWeight.SemiBold
         };
+        Header.Bind(TextBlock.ForegroundProperty, new DynamicResourceExtension("DeltosMetricsTitleBrush"));
         Grid.SetColumnSpan(Header, 2);
         Grid.Children.Add(Header);
 
@@ -1161,10 +1178,10 @@ public partial class DocumentListForm: AppForm
         {
             Text = Label,
             FontSize = 12,
-            Foreground = Brushes.Black,
             Opacity = 0.82,
             TextTrimming = TextTrimming.CharacterEllipsis
         };
+        BindForeground(LabelBlock);
         TextBlock ValueBlock = new TextBlock
         {
             Text = Value,
@@ -1175,6 +1192,7 @@ public partial class DocumentListForm: AppForm
             TextAlignment = TextAlignment.Right,
             TextWrapping = TextWrapping.NoWrap
         };
+        BindForeground(ValueBlock);
 
         Grid.SetRow(LabelBlock, RowIndex);
         Grid.SetColumn(LabelBlock, 0);

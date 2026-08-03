@@ -39,7 +39,7 @@
                 </TextBlock>
                 <TextBlock Text="https://www.amazon.com/dp/B0DJH77BDJ"
                            TextWrapping="Wrap"
-                           Foreground="#1E6BD6"
+                           Foreground="{DynamicResource SystemAccentBrush}"
                            TextDecorations="Underline"
                            Cursor="Hand"
                            PointerPressed="AmazonLink_PointerPressed" />

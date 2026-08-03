@@ -47,6 +47,17 @@ static public partial class AppHost
         Settings.Load();
     }
     /// <summary>
+    /// Applies the theme from application settings.
+    /// </summary>
+    static void ApplySettingsTheme()
+    {
+        if (Settings == null)
+            return;
+
+        Settings.Theme = NormalizeTheme(Settings.Theme);
+        ApplyTheme(Settings.Theme);
+    }
+    /// <summary>
     /// Loads application documentation.
     /// </summary>
     static void LoadDocumentation()
@@ -68,6 +79,39 @@ static public partial class AppHost
     }
 
     // ● public
+    /// <summary>
+    /// Normalizes a theme name.
+    /// </summary>
+    /// <param name="Theme">The theme name.</param>
+    /// <returns>The normalized theme name.</returns>
+    static public string NormalizeTheme(string Theme)
+    {
+        string Result = string.IsNullOrWhiteSpace(Theme) ? "Dark" : Theme.Trim();
+        if (Result.IsSameText("Default") || Result.IsSameText("System"))
+            return "Default";
+        if (Result.IsSameText("Light"))
+            return "Light";
+        if (Result.IsSameText("Dark"))
+            return "Dark";
+        return "Dark";
+    }
+    /// <summary>
+    /// Applies the application theme.
+    /// </summary>
+    /// <param name="Theme">The theme name.</param>
+    static public void ApplyTheme(string Theme)
+    {
+        if (Application.Current == null)
+            return;
+
+        string NormalizedTheme = NormalizeTheme(Theme);
+        Application.Current.RequestedThemeVariant = NormalizedTheme switch
+        {
+            "Light" => ThemeVariant.Light,
+            "Dark" => ThemeVariant.Dark,
+            _ => ThemeVariant.Default
+        };
+    }
     /// <summary>
     /// Creates the startup window.
     /// </summary>
@@ -121,6 +165,7 @@ static public partial class AppHost
         SysConfig.ApplicationMode = ApplicationMode.Desktop;
         SysConfig.MainAssembly = typeof(AppHost).Assembly;
         LoadSettings();
+        ApplySettingsTheme();
         LoadDocumentation();
         InitializeAutoSave();
     }
