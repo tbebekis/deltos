@@ -20,7 +20,7 @@ public class AutoSaveService
     /// <summary>
     /// The save action.
     /// </summary>
-    readonly Action fSaveProc;
+    readonly Func<Task> fSaveProc;
     /// <summary>
     /// True when there is dirty content to save.
     /// </summary>
@@ -34,7 +34,7 @@ public class AutoSaveService
     /// <summary>
     /// Executes the save action when needed.
     /// </summary>
-    void Execute()
+    async void Execute()
     {
         lock (fLock)
         {
@@ -42,20 +42,21 @@ public class AutoSaveService
                 return;
 
             fIsSaving = true;
+            fIsDirty = false;
         }
 
         try
         {
-            fSaveProc?.Invoke();
-
-            lock (fLock)
-                fIsDirty = false;
+            if (fSaveProc != null)
+                await fSaveProc();
 
             Saved?.Invoke(this, DateTime.Now);
         }
         catch (Exception e)
         {
             LogBox.AppendLine(e);
+            lock (fLock)
+                fIsDirty = true;
         }
         finally
         {
@@ -69,7 +70,7 @@ public class AutoSaveService
     /// Initializes a new instance of the AutoSaveService class.
     /// </summary>
     /// <param name="SaveProc">The save action.</param>
-    public AutoSaveService(Action SaveProc)
+    public AutoSaveService(Func<Task> SaveProc)
     {
         fSaveProc = SaveProc;
         fTimer = new Avalonia.Threading.DispatcherTimer();

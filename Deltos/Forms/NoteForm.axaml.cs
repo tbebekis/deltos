@@ -76,6 +76,17 @@ public partial class NoteForm: AppForm
         LogBox.AppendLine($"Note saved: {Note.Title}");
     }
     /// <summary>
+    /// Applies the editor text to the note before auto-save creates a file snapshot.
+    /// </summary>
+    /// <param name="Editor">The editor.</param>
+    void ApplyAutoSaveEditorText(TextEditorForm Editor)
+    {
+        if (Note == null || Editor == null)
+            return;
+
+        Note.Text = Editor.EditorText;
+    }
+    /// <summary>
     /// Updates the host title according to modified state.
     /// </summary>
     void AdjustTitle()
@@ -126,7 +137,7 @@ public partial class NoteForm: AppForm
             return;
 
         if (Editor.Modified)
-            AppHost.AddDirtyEditor(Editor);
+            AppHost.AddDirtyEditor(Editor, ApplyAutoSaveEditorText);
 
         AdjustTitle();
     }

@@ -108,6 +108,20 @@ public partial class ComponentForm: AppForm
         LogBox.AppendLine($"Component saved: {Component.Title}");
     }
     /// <summary>
+    /// Applies one editor text value to the edited component before auto-save creates a file snapshot.
+    /// </summary>
+    /// <param name="Editor">The editor.</param>
+    void ApplyAutoSaveEditorText(TextEditorForm Editor)
+    {
+        if (Component == null || Editor == null)
+            return;
+
+        if (Editor == EditorText)
+            Component.Text = Editor.EditorText;
+        else if (Editor == EditorText2)
+            Component.Text2 = Editor.EditorText;
+    }
+    /// <summary>
     /// Updates the host title according to modified state.
     /// </summary>
     void AdjustTitle()
@@ -170,7 +184,7 @@ public partial class ComponentForm: AppForm
             return;
 
         if (Sender is TextEditorForm Editor && Editor.Modified)
-            AppHost.AddDirtyEditor(Editor);
+            AppHost.AddDirtyEditor(Editor, ApplyAutoSaveEditorText);
 
         AdjustTitle();
     }

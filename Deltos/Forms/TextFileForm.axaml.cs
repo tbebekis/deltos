@@ -191,6 +191,35 @@ public partial class TextFileForm: AppForm
         LogBox.AppendLine($"Item saved: {Item.Title}");
     }
     /// <summary>
+    /// Applies one editor text value to the edited item before auto-save creates a file snapshot.
+    /// </summary>
+    /// <param name="Editor">The editor.</param>
+    void ApplyAutoSaveEditorText(TextEditorForm Editor)
+    {
+        if (Item == null || Editor == null)
+            return;
+
+        if (Item is TextFile TextFile)
+        {
+            if (Editor == EditorText)
+                TextFile.Text = Editor.EditorText;
+            else if (Editor == EditorText2)
+                TextFile.Text2 = Editor.EditorText;
+            else if (Editor == EditorSynopsis)
+                TextFile.Synopsis = Editor.EditorText;
+            else if (Editor == EditorDraft)
+                TextFile.Draft = Editor.EditorText;
+        }
+        else if (Item is Document Document && Editor == EditorSynopsis)
+        {
+            Document.Synopsis = Editor.EditorText;
+        }
+        else if (Item is Folder Folder && Editor == EditorSynopsis)
+        {
+            Folder.Synopsis = Editor.EditorText;
+        }
+    }
+    /// <summary>
     /// Updates the host and inner tab titles.
     /// </summary>
     private void AdjustTitles()
@@ -289,7 +318,7 @@ public partial class TextFileForm: AppForm
             return;
 
         if (Sender is TextEditorForm Editor && Editor.Modified)
-            AppHost.AddDirtyEditor(Editor);
+            AppHost.AddDirtyEditor(Editor, ApplyAutoSaveEditorText);
 
         AdjustTitles();
     }

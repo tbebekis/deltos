@@ -81,6 +81,18 @@ public partial class TempFileForm: AppForm
         LogBox.AppendLine("Temp text saved.");
     }
     /// <summary>
+    /// Applies the editor text to the project temp text before auto-save creates a file snapshot.
+    /// </summary>
+    /// <param name="Editor">The editor.</param>
+    void ApplyAutoSaveEditorText(TextEditorForm Editor)
+    {
+        Project Project = AppHost.CurrentProject;
+        if (Project == null || Editor == null)
+            return;
+
+        Project.TempFileText = Editor.EditorText;
+    }
+    /// <summary>
     /// Updates the host title according to modified state.
     /// </summary>
     void AdjustTitle()
@@ -119,7 +131,7 @@ public partial class TempFileForm: AppForm
             return;
 
         if (Editor.Modified)
-            AppHost.AddDirtyEditor(Editor);
+            AppHost.AddDirtyEditor(Editor, ApplyAutoSaveEditorText);
 
         AdjustTitle();
     }
