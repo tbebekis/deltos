@@ -4,9 +4,9 @@
                       x:Class="Deltos.ExportDialog"
                       Title="Export Options"
                       Width="620"
-                      Height="720"
+                      Height="760"
                       MinWidth="580"
-                      MinHeight="690"
+                      MinHeight="730"
                       CanResize="False"
                       ShowInTaskbar="False"
                       WindowStartupLocation="CenterOwner">
@@ -201,6 +201,14 @@
                             <TextBlock MaxWidth="420"
                                        TextWrapping="Wrap"
                                        Text="Treats TextFile content as plain prose when building rich exports. Markdown syntax in the text is escaped or preserved as text instead of being interpreted as formatting. Turn this off when the TextFile content should be rendered as markdown." />
+                        </ToolTip.Tip>
+                    </CheckBox>
+                    <CheckBox Name="chSingleLineBreaksCreateParagraphs"
+                              Content="Single line breaks create paragraphs">
+                        <ToolTip.Tip>
+                            <TextBlock MaxWidth="420"
+                                       TextWrapping="Wrap"
+                                       Text="Treats consecutive prose lines in TextFile markdown as separate paragraphs in HTML and ODT exports. Markdown blocks such as headings, lists, tables, blockquotes, and code fences keep their normal markdown behavior." />
                         </ToolTip.Tip>
                     </CheckBox>
                     <Grid ColumnDefinitions="Auto,120,Auto"

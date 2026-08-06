@@ -82,16 +82,19 @@ static public partial class AppHost
         return Handler.ShowAppForm(Context) as T;
     }
     /// <summary>
-    /// Notifies an open content form that an item title has changed.
+    /// Notifies open content forms that an item title or path has changed.
     /// </summary>
-    /// <param name="Item">The renamed item.</param>
+    /// <param name="Item">The changed item.</param>
     static public void NotifyItemTitleChanged(BaseItem Item)
     {
         if (Item == null || ContentHandler == null)
             return;
 
-        Forms.TextFileForm Form = ContentHandler.FindAppForm(Item.Id) as Forms.TextFileForm;
-        Form?.RefreshItemTitle();
+        foreach (BaseItem ItemNode in Item.GetDescendantItems(true))
+        {
+            Forms.TextFileForm Form = ContentHandler.FindAppForm(ItemNode.Id) as Forms.TextFileForm;
+            Form?.RefreshItemTitle();
+        }
     }
     /// <summary>
     /// Notifies the document list form that document metrics have changed.

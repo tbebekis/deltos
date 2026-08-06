@@ -65,6 +65,7 @@ public partial class ExportDialog: DialogWindow
         chTextFileTitle.IsChecked = fOptions.TextFileTitle.HasFlag(ExportTitleOptions.Title);
 
         chTreatTextFilesAsPlainText.IsChecked = fOptions.TreatTextFilesAsPlainText;
+        chSingleLineBreaksCreateParagraphs.IsChecked = fOptions.SingleLineBreaksCreateParagraphs;
         edtImageMaxWidth.Value = Math.Clamp(fOptions.ImageMaxWidth, 100, 2000);
     }
     /// <summary>
@@ -115,6 +116,7 @@ public partial class ExportDialog: DialogWindow
             fOptions.TextFileTitle |= ExportTitleOptions.Title;
 
         fOptions.TreatTextFilesAsPlainText = chTreatTextFilesAsPlainText.IsChecked == true;
+        fOptions.SingleLineBreaksCreateParagraphs = chSingleLineBreaksCreateParagraphs.IsChecked == true;
         fOptions.ImageMaxWidth = Math.Clamp((int)(edtImageMaxWidth.Value ?? 400), 100, 2000);
 
         if (fOptions.Language == ExportLanguage.None)

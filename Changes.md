@@ -1,5 +1,12 @@
 # Changes
 
+## 2026.8.6 - 2026-08-06
+
+- Refreshed open content forms for changed items and descendants after item
+  title or storage-path changes.
+- Added `Single line breaks create paragraphs` export option for Markdown,
+  HTML, and ODT exports.
+
 ## 2026.8.3 - 2026-08-03
 
 - Added application theme selection with Default, Light, and Dark options.

@@ -78,6 +78,8 @@ renaming, exporting, or generating large project outputs.
 - Internal Markdown export for writing one markdown file per text file with
   hierarchical file names.
 - Plain-text export mode for prose that should not be treated as markdown.
+- Optional export mode where single line breaks create paragraphs in Markdown,
+  HTML, and ODT output.
 - Git commit and push integration for project folders.
 - Static wiki generation from components.
 - Light, direct desktop UI built around sidebars, trees, tabs, and editors.
@@ -549,6 +551,9 @@ Output behavior:
   ratio.
 - Plain-text mode can be used for prose that should not be parsed as markdown.
   It is disabled by default.
+- `Single line breaks create paragraphs` can be used for prose where each
+  non-empty line should become its own paragraph in Markdown, HTML, and ODT
+  exports.
 - Page breaks are controlled by each item's metadata.
 - Per-item `Include title in output` hides the exported title/heading while
   keeping the item's text.
@@ -575,6 +580,7 @@ Export heading rules:
   `##` becomes Heading 2 and `###` becomes Heading 3.
 - Markdown headings inside text files are still recognized when `Treat
   TextFiles as Plain Text` is enabled.
+
 ## Static Wiki
 
 Deltos can generate a static wiki from project components.

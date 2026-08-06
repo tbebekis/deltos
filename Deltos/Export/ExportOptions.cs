@@ -120,6 +120,7 @@ public class ExportOptions
         FolderTitle = ExportTitleOptions.None;
         TextFileTitle = ExportTitleOptions.None;
         TreatTextFilesAsPlainText = false;
+        SingleLineBreaksCreateParagraphs = false;
         ImageMaxWidth = 400;
         PageBreakBeforeHeading1 = false;
     }
@@ -149,6 +150,10 @@ public class ExportOptions
     /// Gets or sets a value indicating whether text files are exported as plain text instead of markdown.
     /// </summary>
     public bool TreatTextFilesAsPlainText { get; set; } = false;
+    /// <summary>
+    /// Gets or sets a value indicating whether single line breaks in markdown prose create paragraphs in rich exports.
+    /// </summary>
+    public bool SingleLineBreaksCreateParagraphs { get; set; } = false;
     /// <summary>
     /// Gets or sets the maximum exported image width in pixels.
     /// </summary>

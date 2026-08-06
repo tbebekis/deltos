@@ -332,6 +332,78 @@ public class DocumentExporter
         return Result == 0 ? 1 : Result;
     }
     /// <summary>
+    /// Returns true if a markdown line starts a block that should keep normal markdown line behavior.
+    /// </summary>
+    /// <param name="Line">The markdown line.</param>
+    /// <returns>True if the line is a markdown block line; otherwise false.</returns>
+    static bool IsMarkdownBlockLine(string Line)
+    {
+        string Value = Line.Trim();
+        if (string.IsNullOrWhiteSpace(Value))
+            return true;
+
+        if (Line.StartsWith("    ", StringComparison.Ordinal) || Line.StartsWith("\t", StringComparison.Ordinal))
+            return true;
+
+        if (IsMarkdownFence(Line) || TryParseMarkdownHeading(Value, out int _, out string _))
+            return true;
+
+        if (Value.StartsWith(">", StringComparison.Ordinal))
+            return true;
+
+        if (Value.Contains('|'))
+            return true;
+
+        if (Regex.IsMatch(Value, @"^([-+*]|\d+[.)])\s+"))
+            return true;
+
+        if (Regex.IsMatch(Value, @"^([-*_])(\s*\1){2,}\s*$"))
+            return true;
+
+        if (Regex.IsMatch(Value, @"^\[[^\]]+\]:\s+\S+"))
+            return true;
+
+        return Regex.IsMatch(Value, @"^<[A-Za-z!/]");
+    }
+    /// <summary>
+    /// Returns true if a blank line should be inserted between two markdown lines.
+    /// </summary>
+    /// <param name="Line">The current line.</param>
+    /// <param name="NextLine">The next line.</param>
+    /// <returns>True if a blank line should be inserted; otherwise false.</returns>
+    static bool ShouldInsertParagraphBreak(string Line, string NextLine)
+    {
+        return !IsMarkdownBlockLine(Line) && !IsMarkdownBlockLine(NextLine);
+    }
+    /// <summary>
+    /// Converts consecutive markdown prose lines to separate markdown paragraphs.
+    /// </summary>
+    /// <param name="MarkdownText">The markdown text.</param>
+    /// <returns>The converted markdown text.</returns>
+    static string ApplySingleLineParagraphs(string MarkdownText)
+    {
+        if (string.IsNullOrWhiteSpace(MarkdownText))
+            return MarkdownText ?? string.Empty;
+
+        StringBuilder Builder = new();
+        bool InFence = false;
+        string[] Lines = MarkdownText.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        for (int Index = 0; Index < Lines.Length; Index++)
+        {
+            string Line = Lines[Index];
+            bool IsFenceLine = IsMarkdownFence(Line);
+            Builder.AppendLine(Line);
+
+            if (IsFenceLine)
+                InFence = !InFence;
+
+            if (!InFence && !IsFenceLine && Index < Lines.Length - 1 && ShouldInsertParagraphBreak(Line, Lines[Index + 1]))
+                Builder.AppendLine();
+        }
+
+        return Builder.ToString();
+    }
+    /// <summary>
     /// Appends markdown text as HTML.
     /// </summary>
     /// <param name="Builder">The string builder.</param>
@@ -343,6 +415,9 @@ public class DocumentExporter
     {
         if (string.IsNullOrWhiteSpace(MarkdownText))
             return;
+
+        if (fOptions.SingleLineBreaksCreateParagraphs)
+            MarkdownText = ApplySingleLineParagraphs(MarkdownText);
 
         StringBuilder TextBuilder = new StringBuilder();
         bool InFence = false;
@@ -941,6 +1016,9 @@ public class DocumentExporter
         if (!string.IsNullOrWhiteSpace(Text))
         {
             int TextFileLevel = string.IsNullOrWhiteSpace(Title) ? Math.Max(1, Level - 1) : Level;
+            if (fOptions.SingleLineBreaksCreateParagraphs)
+                Text = ApplySingleLineParagraphs(Text);
+
             Builder.AppendLine(ShiftMarkdownHeadings(Text.Trim(), TextFileLevel));
             Builder.AppendLine();
         }
