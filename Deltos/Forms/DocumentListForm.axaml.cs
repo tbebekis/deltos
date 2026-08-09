@@ -31,6 +31,7 @@ public partial class DocumentListForm: AppForm
         fToolBar.AddButton("table_delete.png", "Delete", async () => await DeleteSelectedItem());
         fToolBar.AddSeparator();
         fToolBar.AddButton("page_edit.png", "Edit Text", EditSelectedItem);
+        fToolBar.AddButton("wishlist_add.png", "Add to Quick View", QuickViewSelectedItem);
         fToolBar.AddButton("html.png", "HTML Preview", PreviewSelectedItem);
         fToolBar.AddButton("table_export.png", "Export Document", async () => await ExportDocument());
         fToolBar.AddButton("scroll_pane_tree.png", "Change Parent", async () => await ChangeSelectedItemParent());
@@ -913,6 +914,17 @@ public partial class DocumentListForm: AppForm
             Text = File.Text;
 
         AppHost.ShowMarkdownPreview(AppHost.GetMarkdownPreviewFormId(Item.Id), Title, Text);
+    }
+    /// <summary>
+    /// Adds the selected item to QuickView.
+    /// </summary>
+    void QuickViewSelectedItem()
+    {
+        BaseItem Item = GetSelectedBaseItem();
+        if (Item == null)
+            return;
+
+        AppHost.AddToQuickView(new LinkItem(Item.Type, LinkPlace.Text, Item.DisplayTitle, Item));
     }
 
     // ● tree

@@ -18,7 +18,7 @@
                          IsReadOnly="True"
                          BorderThickness="0"
                          Background="Transparent"
-                         FontSize="14"
+                         FontSize="22"
                          FontWeight="Bold"
                          VerticalContentAlignment="Center" />
             </Grid>
