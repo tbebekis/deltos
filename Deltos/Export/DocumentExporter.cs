@@ -1382,11 +1382,215 @@ public class DocumentExporter
             System.IO.File.Move(SourceOdtFilePath, TargetOdtFilePath);
         }
 
+        EmbedOdtImages(TargetOdtFilePath);
         NormalizeOdtHeadings(TargetOdtFilePath);
         NormalizeOdtTables(TargetOdtFilePath);
 
         if (System.IO.File.Exists(HtmlFilePath))
             System.IO.File.Delete(HtmlFilePath);
+    }
+    /// <summary>
+    /// Embeds locally linked images inside an ODT package.
+    /// </summary>
+    /// <param name="OdtFilePath">The ODT file path.</param>
+    void EmbedOdtImages(string OdtFilePath)
+    {
+        string OdtFolderPath = System.IO.Path.GetDirectoryName(OdtFilePath) ?? string.Empty;
+        using ZipArchive Archive = ZipFile.Open(OdtFilePath, ZipArchiveMode.Update);
+        ZipArchiveEntry ContentEntry = Archive.GetEntry("content.xml") ?? throw new InvalidOperationException("ODT content.xml not found.");
+        XDocument ContentDocument;
+        using (Stream Stream = ContentEntry.Open())
+            ContentDocument = XDocument.Load(Stream, LoadOptions.PreserveWhitespace);
+
+        XNamespace DrawNamespace = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0";
+        XNamespace XlinkNamespace = "http://www.w3.org/1999/xlink";
+        Dictionary<string, string> EmbeddedPaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> UsedPaths = new HashSet<string>(Archive.Entries.Select(Item => Item.FullName), StringComparer.OrdinalIgnoreCase);
+        bool Changed = false;
+
+        foreach (XElement ImageElement in ContentDocument.Descendants(DrawNamespace + "image"))
+        {
+            XAttribute HrefAttribute = ImageElement.Attribute(XlinkNamespace + "href");
+            string Href = HrefAttribute?.Value ?? string.Empty;
+            string SourcePath = ResolveOdtImagePath(Href, OdtFolderPath);
+            if (string.IsNullOrWhiteSpace(SourcePath))
+                continue;
+
+            SourcePath = System.IO.Path.GetFullPath(SourcePath);
+            if (!EmbeddedPaths.TryGetValue(SourcePath, out string InternalPath))
+            {
+                InternalPath = AddOdtImageEntry(Archive, SourcePath, UsedPaths);
+                EmbeddedPaths[SourcePath] = InternalPath;
+            }
+
+            HrefAttribute.Value = InternalPath;
+            Changed = true;
+        }
+
+        if (!Changed)
+            return;
+
+        ContentEntry.Delete();
+        ContentEntry = Archive.CreateEntry("content.xml");
+        using (Stream OutputStream = ContentEntry.Open())
+            ContentDocument.Save(OutputStream, SaveOptions.DisableFormatting);
+
+        UpdateOdtManifest(Archive, EmbeddedPaths.Values);
+    }
+    /// <summary>
+    /// Resolves a linked ODT image path.
+    /// </summary>
+    /// <param name="Href">The image href.</param>
+    /// <param name="OdtFolderPath">The ODT folder path.</param>
+    /// <returns>The resolved image file path, if found; otherwise empty.</returns>
+    string ResolveOdtImagePath(string Href, string OdtFolderPath)
+    {
+        string Result = WebUtility.HtmlDecode(Href ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(Result) || IsExternalImageUrl(Result) || Result.StartsWith("Pictures/", StringComparison.OrdinalIgnoreCase))
+            return string.Empty;
+
+        Result = RemoveImagePathSuffix(Result);
+        if (Uri.TryCreate(Result, UriKind.Absolute, out Uri ImageUri) && ImageUri.IsFile)
+            Result = ImageUri.LocalPath;
+
+        try
+        {
+            Result = Uri.UnescapeDataString(Result);
+        }
+        catch
+        {
+        }
+
+        if (System.IO.Path.IsPathFullyQualified(Result) && System.IO.File.Exists(Result))
+            return Result;
+
+        if (string.IsNullOrWhiteSpace(OdtFolderPath))
+            return string.Empty;
+
+        string FilePath = ResolveOdtRelativeImagePath(Result, OdtFolderPath);
+        if (!string.IsNullOrWhiteSpace(FilePath))
+            return FilePath;
+
+        string NormalizedResult = Result.Replace('\\', '/');
+        while (NormalizedResult.StartsWith("../", StringComparison.Ordinal))
+            NormalizedResult = NormalizedResult.Substring(3);
+
+        FilePath = ResolveOdtRelativeImagePath(NormalizedResult, OdtFolderPath);
+        if (!string.IsNullOrWhiteSpace(FilePath))
+            return FilePath;
+
+        string FileName = System.IO.Path.GetFileName(Result);
+        if (string.IsNullOrWhiteSpace(FileName))
+            return string.Empty;
+
+        FilePath = ResolveOdtRelativeImagePath(System.IO.Path.Combine(Project.ImagesFolderName, FileName), OdtFolderPath);
+        if (!string.IsNullOrWhiteSpace(FilePath))
+            return FilePath;
+
+        return ResolveOdtRelativeImagePath(FileName, System.IO.Path.Combine(OdtFolderPath, Project.ImagesFolderName));
+    }
+    /// <summary>
+    /// Resolves an ODT relative image path.
+    /// </summary>
+    /// <param name="ImagePath">The image path.</param>
+    /// <param name="BaseFolderPath">The base folder path.</param>
+    /// <returns>The resolved image file path, if found; otherwise empty.</returns>
+    string ResolveOdtRelativeImagePath(string ImagePath, string BaseFolderPath)
+    {
+        if (string.IsNullOrWhiteSpace(ImagePath) || string.IsNullOrWhiteSpace(BaseFolderPath))
+            return string.Empty;
+
+        string FilePath = System.IO.Path.GetFullPath(System.IO.Path.Combine(BaseFolderPath, ImagePath));
+        return System.IO.File.Exists(FilePath) ? FilePath : string.Empty;
+    }
+    /// <summary>
+    /// Adds an image file entry to an ODT package.
+    /// </summary>
+    /// <param name="Archive">The ODT archive.</param>
+    /// <param name="ImagePath">The image file path.</param>
+    /// <param name="UsedPaths">The already used package paths.</param>
+    /// <returns>The internal package path.</returns>
+    string AddOdtImageEntry(ZipArchive Archive, string ImagePath, HashSet<string> UsedPaths)
+    {
+        string FileName = SafeExportImageFileName(System.IO.Path.GetFileName(ImagePath));
+        string FileStem = System.IO.Path.GetFileNameWithoutExtension(FileName);
+        string Extension = System.IO.Path.GetExtension(FileName);
+        string InternalPath = $"Pictures/{FileName}";
+        int Index = 2;
+        while (UsedPaths.Contains(InternalPath))
+        {
+            InternalPath = $"Pictures/{FileStem}-{Index}{Extension}";
+            Index++;
+        }
+
+        ZipArchiveEntry Entry = Archive.CreateEntry(InternalPath);
+        using (Stream EntryStream = Entry.Open())
+        using (Stream ImageStream = System.IO.File.OpenRead(ImagePath))
+            ImageStream.CopyTo(EntryStream);
+
+        UsedPaths.Add(InternalPath);
+        return InternalPath;
+    }
+    /// <summary>
+    /// Updates the ODT manifest with embedded image entries.
+    /// </summary>
+    /// <param name="Archive">The ODT archive.</param>
+    /// <param name="ImagePaths">The embedded image package paths.</param>
+    void UpdateOdtManifest(ZipArchive Archive, IEnumerable<string> ImagePaths)
+    {
+        ZipArchiveEntry ManifestEntry = Archive.GetEntry("META-INF/manifest.xml");
+        if (ManifestEntry == null)
+            return;
+
+        XDocument ManifestDocument;
+        using (Stream Stream = ManifestEntry.Open())
+            ManifestDocument = XDocument.Load(Stream, LoadOptions.PreserveWhitespace);
+
+        XNamespace ManifestNamespace = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
+        XElement Root = ManifestDocument.Root;
+        if (Root == null)
+            return;
+
+        HashSet<string> ExistingPaths = new HashSet<string>(
+            Root.Elements(ManifestNamespace + "file-entry").Select(Item => (string)Item.Attribute(ManifestNamespace + "full-path") ?? string.Empty),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (string ImagePath in ImagePaths)
+        {
+            if (ExistingPaths.Contains(ImagePath))
+                continue;
+
+            Root.Add(new XElement(ManifestNamespace + "file-entry",
+                new XAttribute(ManifestNamespace + "full-path", ImagePath),
+                new XAttribute(ManifestNamespace + "media-type", GetImageMediaType(ImagePath))));
+        }
+
+        ManifestEntry.Delete();
+        ManifestEntry = Archive.CreateEntry("META-INF/manifest.xml");
+        using Stream OutputStream = ManifestEntry.Open();
+        ManifestDocument.Save(OutputStream, SaveOptions.DisableFormatting);
+    }
+    /// <summary>
+    /// Returns an image media type from a file path.
+    /// </summary>
+    /// <param name="FilePath">The file path.</param>
+    /// <returns>The image media type.</returns>
+    static string GetImageMediaType(string FilePath)
+    {
+        string Extension = System.IO.Path.GetExtension(FilePath).ToLowerInvariant();
+        return Extension switch
+        {
+            ".bmp" => "image/bmp",
+            ".gif" => "image/gif",
+            ".jpg" => "image/jpeg",
+            ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".svg" => "image/svg+xml",
+            ".tif" => "image/tiff",
+            ".tiff" => "image/tiff",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
     }
     /// <summary>
     /// Normalizes LibreOffice imported tables to relative page width.
