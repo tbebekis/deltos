@@ -7,10 +7,6 @@ namespace Deltos;
 static public partial class AppHost
 {
     /// <summary>
-    /// Matches valid title characters.
-    /// </summary>
-    static Regex TitleCharsRegex = new Regex(@"^[\p{L}\p{N} \-]*$");
-    /// <summary>
     /// Matches valid folder level title characters.
     /// </summary>
     static Regex LevelTitleCharsRegex = new Regex(@"^[\p{L}\p{N} ]*$");
@@ -23,8 +19,8 @@ static public partial class AppHost
     /// </summary>
     const string SValidTitle = @"
 A valid title
-  • can contain only letters, numbers, spaces and hyphens
-  • cannot contain special characters
+  • cannot be empty
+  • must produce a valid storage name
   • cannot start with a number
 ";
     /// <summary>
@@ -51,11 +47,21 @@ A valid folder level title
     
     // ● filenames and paths
     /// <summary>
-    /// Returns true if the provided item title is valid (not empty, no invalid characters, does not start with a digit).
+    /// Returns true if the provided item title is valid.
     /// </summary>
     static public bool IsValidFileName(string Title, bool ShowMessage)
     {
-        return IsValidName(Title, ShowMessage, TitleCharsRegex, SInvalidTitleErrorMessage);
+        string TrimmedTitle = Title == null ? string.Empty : Title.Trim();
+
+        bool Result = IsValidTitleName(TrimmedTitle);
+        if (!Result && ShowMessage)
+        {
+            string Message = string.Format(SInvalidTitleErrorMessage, Title);
+            // TODO: ErrorBox(Message);
+            LogBox.AppendLine(Message);
+        }
+
+        return Result;
     }
     /// <summary>
     /// Returns true if the provided folder level title is valid.
@@ -63,6 +69,33 @@ A valid folder level title
     static public bool IsValidFolderLevelTitle(string Title, bool ShowMessage)
     {
         return IsValidName(Title, ShowMessage, LevelTitleCharsRegex, SInvalidFolderLevelTitleErrorMessage);
+    }
+    /// <summary>
+    /// Returns true if the provided title is valid.
+    /// </summary>
+    /// <param name="TrimmedTitle">The trimmed title.</param>
+    /// <returns>True if the title is valid; otherwise false.</returns>
+    static bool IsValidTitleName(string TrimmedTitle)
+    {
+        if (string.IsNullOrWhiteSpace(TrimmedTitle))
+            return false;
+
+        if (char.IsDigit(TrimmedTitle[0]))
+            return false;
+
+        string StorageName = TrimmedTitle;
+        foreach (char Char in System.IO.Path.GetInvalidFileNameChars())
+            StorageName = StorageName.Replace(Char, '_');
+
+        foreach (char Char in "<>:\"/\\|?*")
+            StorageName = StorageName.Replace(Char, '_');
+
+        StorageName = StorageName.Replace(' ', '_');
+        StorageName = Regex.Replace(StorageName, "_+", "_").Trim('_');
+        if (string.IsNullOrWhiteSpace(StorageName))
+            return false;
+
+        return !char.IsDigit(StorageName[0]);
     }
     /// <summary>
     /// Returns true if the provided name is valid.
