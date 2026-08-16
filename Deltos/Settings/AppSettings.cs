@@ -97,6 +97,7 @@ public class AppSettings: SettingsBase
         SecondLanguageVisible = Source.SecondLanguageVisible;
         ShowMarkdownPreviewButton = Source.ShowMarkdownPreviewButton;
         ShowFolderLevelTitleInTree = Source.ShowFolderLevelTitleInTree;
+        ShowDocumentItemNumbers = Source.ShowDocumentItemNumbers;
     }
     /// <summary>
     /// Adds a project path to the recent project list.
@@ -165,4 +166,8 @@ public class AppSettings: SettingsBase
     /// Gets or sets a value indicating whether folder level titles are shown before folder titles in the UI tree.
     /// </summary>
     public bool ShowFolderLevelTitleInTree { get; set; } = true;
+    /// <summary>
+    /// Gets or sets a value indicating whether document item numbers are shown in the UI.
+    /// </summary>
+    public bool ShowDocumentItemNumbers { get; set; } = false;
 }

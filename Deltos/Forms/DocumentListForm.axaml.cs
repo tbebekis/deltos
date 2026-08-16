@@ -962,7 +962,7 @@ public partial class DocumentListForm: AppForm
     /// <param name="Document">The document.</param>
     void AddDocumentNode(ItemsControl ParentNode, Document Document)
     {
-        TreeViewItem DocumentNode = CreateNode(Document.DisplayTitle, Document);
+        TreeViewItem DocumentNode = CreateNode(GetNumberedTitle(Document, Document.DisplayTitle), Document);
         ParentNode.Items.Add(DocumentNode);
 
         foreach (BaseItem Item in Document.GetChildItems())
@@ -975,7 +975,7 @@ public partial class DocumentListForm: AppForm
     /// <param name="Folder">The folder.</param>
     void AddFolderNode(TreeViewItem ParentNode, Folder Folder)
     {
-        TreeViewItem FolderNode = CreateNode(Folder.DisplayTitle, Folder);
+        TreeViewItem FolderNode = CreateNode(GetNumberedTitle(Folder, Folder.DisplayTitle), Folder);
         ParentNode.Items.Add(FolderNode);
 
         foreach (BaseItem Item in Folder.GetChildItems())
@@ -1006,7 +1006,7 @@ public partial class DocumentListForm: AppForm
     /// <param name="File">The text file.</param>
     void AddTextFileNode(TreeViewItem ParentNode, TextFile File)
     {
-        ParentNode.Items.Add(CreateNode(File.DisplayTitle, File));
+        ParentNode.Items.Add(CreateNode(GetNumberedTitle(File, File.DisplayTitle), File));
     }
     /// <summary>
     /// Creates a folder tree node.
@@ -1030,6 +1030,16 @@ public partial class DocumentListForm: AppForm
         }
 
         return Result;
+    }
+    /// <summary>
+    /// Returns a numbered item title when numbering is enabled.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <param name="Title">The title.</param>
+    /// <returns>The display title.</returns>
+    string GetNumberedTitle(BaseItem Item, string Title)
+    {
+        return DocumentItemNumbering.GetNumberedDisplayTitle(Item, Title);
     }
     /// <summary>
     /// Creates a tree node.
@@ -1436,21 +1446,22 @@ public partial class DocumentListForm: AppForm
 
         if (Item is Document Document)
         {
-            lblTextTitle.Text = $"Document: {Document.Title}";
+            lblTextTitle.Text = $"Document: {GetNumberedTitle(Document, Document.Title)}";
             Editor.EditorText = Document.Synopsis;
             Editor.FilePath = Document.SynopsisFilePath;
             Editor.PreviewId = AppHost.GetMarkdownPreviewFormId(Document.Id);
         }
         else if (Item is Folder Folder)
         {
-            lblTextTitle.Text = string.IsNullOrWhiteSpace(Folder.LevelTitle) ? Folder.Title : $"{Folder.LevelTitle}: {Folder.Title}";
+            string Title = GetNumberedTitle(Folder, Folder.Title);
+            lblTextTitle.Text = string.IsNullOrWhiteSpace(Folder.LevelTitle) ? Title : $"{Folder.LevelTitle}: {Title}";
             Editor.EditorText = Folder.Synopsis;
             Editor.FilePath = Folder.SynopsisFilePath;
             Editor.PreviewId = AppHost.GetMarkdownPreviewFormId(Folder.Id);
         }
         else if (Item is TextFile File)
         {
-            lblTextTitle.Text = $"TextFile: {File.Title}";
+            lblTextTitle.Text = $"TextFile: {GetNumberedTitle(File, File.Title)}";
             Editor.EditorText = File.Text;
             Editor.FilePath = File.TextFilePath;
             Editor.PreviewId = AppHost.GetMarkdownPreviewFormId(File.Id);

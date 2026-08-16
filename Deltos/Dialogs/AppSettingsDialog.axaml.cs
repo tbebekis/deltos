@@ -57,6 +57,7 @@ public partial class AppSettingsDialog: DialogWindow
         Result.SecondLanguageVisible = Source.SecondLanguageVisible;
         Result.ShowMarkdownPreviewButton = Source.ShowMarkdownPreviewButton;
         Result.ShowFolderLevelTitleInTree = Source.ShowFolderLevelTitleInTree;
+        Result.ShowDocumentItemNumbers = Source.ShowDocumentItemNumbers;
         return Result;
     }
     /// <summary>
@@ -97,6 +98,7 @@ public partial class AppSettingsDialog: DialogWindow
         chkSecondLanguageVisible.IsChecked = fSettings.SecondLanguageVisible;
         chkShowMarkdownPreviewButton.IsChecked = fSettings.ShowMarkdownPreviewButton;
         chkShowFolderLevelTitleInTree.IsChecked = fSettings.ShowFolderLevelTitleInTree;
+        chkShowDocumentItemNumbers.IsChecked = fSettings.ShowDocumentItemNumbers;
     }
     /// <summary>
     /// Saves controls into settings.
@@ -112,6 +114,7 @@ public partial class AppSettingsDialog: DialogWindow
         fSettings.SecondLanguageVisible = chkSecondLanguageVisible.IsChecked == true;
         fSettings.ShowMarkdownPreviewButton = chkShowMarkdownPreviewButton.IsChecked == true;
         fSettings.ShowFolderLevelTitleInTree = chkShowFolderLevelTitleInTree.IsChecked == true;
+        fSettings.ShowDocumentItemNumbers = chkShowDocumentItemNumbers.IsChecked == true;
     }
 
     // ● protected

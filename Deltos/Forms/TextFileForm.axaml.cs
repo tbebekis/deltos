@@ -60,15 +60,15 @@ public partial class TextFileForm: AppForm
                 return;
             }
 
-            fBaseTitle = Item.DisplayTitle;
+            fBaseTitle = GetNumberedTitle(Item, Item.DisplayTitle);
             TitleText = fBaseTitle;
 
             if (Item is TextFile TextFile)
                 LoadTextFile(TextFile);
             else if (Item is Document Document)
-                LoadSynopsisOnly(Document.Synopsis, Document.SynopsisFilePath, $"Document: {Document.Title}");
+                LoadSynopsisOnly(Document.Synopsis, Document.SynopsisFilePath, GetDocumentEditorTitle(Document));
             else if (Item is Folder Folder)
-                LoadSynopsisOnly(Folder.Synopsis, Folder.SynopsisFilePath, string.IsNullOrWhiteSpace(Folder.LevelTitle) ? Folder.Title : $"{Folder.LevelTitle}: {Folder.Title}");
+                LoadSynopsisOnly(Folder.Synopsis, Folder.SynopsisFilePath, GetFolderEditorTitle(Folder));
 
             AdjustTitles();
         }
@@ -86,12 +86,12 @@ public partial class TextFileForm: AppForm
         tabText.IsVisible = true;
         tabDraft.IsVisible = true;
 
-        EditorText.Title = TextFile.DisplayTitle;
+        EditorText.Title = fBaseTitle;
         EditorText.EditorText = TextFile.Text;
         EditorText.FilePath = TextFile.TextFilePath;
         EditorText.PreviewId = AppHost.GetMarkdownPreviewFormId(TextFile.Id);
 
-        EditorText2.Title = TextFile.DisplayTitle2;
+        EditorText2.Title = GetNumberedTitle(TextFile, TextFile.DisplayTitle2);
         EditorText2.EditorText = TextFile.Text2;
         EditorText2.FilePath = TextFile.Text2FilePath;
         EditorText2.PreviewId = AppHost.GetMarkdownPreviewFormId(TextFile.Id);
@@ -142,6 +142,35 @@ public partial class TextFileForm: AppForm
         Editor.ShowItemInListButtonVisible = Item is TextFile;
         Editor.Modified = false;
         Editor.RegisterHighlighter(Editor.FilePath);
+    }
+    /// <summary>
+    /// Returns a numbered item title when numbering is enabled.
+    /// </summary>
+    /// <param name="Item">The item.</param>
+    /// <param name="Title">The title.</param>
+    /// <returns>The display title.</returns>
+    string GetNumberedTitle(BaseItem Item, string Title)
+    {
+        return DocumentItemNumbering.GetNumberedDisplayTitle(Item, Title);
+    }
+    /// <summary>
+    /// Returns the document editor title.
+    /// </summary>
+    /// <param name="Document">The document.</param>
+    /// <returns>The editor title.</returns>
+    string GetDocumentEditorTitle(Document Document)
+    {
+        return $"Document: {GetNumberedTitle(Document, Document.Title)}";
+    }
+    /// <summary>
+    /// Returns the folder editor title.
+    /// </summary>
+    /// <param name="Folder">The folder.</param>
+    /// <returns>The editor title.</returns>
+    string GetFolderEditorTitle(Folder Folder)
+    {
+        string Title = GetNumberedTitle(Folder, Folder.Title);
+        return string.IsNullOrWhiteSpace(Folder.LevelTitle) ? Title : $"{Folder.LevelTitle}: {Title}";
     }
     /// <summary>
     /// Applies application settings to the form.
@@ -238,7 +267,7 @@ public partial class TextFileForm: AppForm
         if (Item == null)
             return;
 
-        fBaseTitle = Item.DisplayTitle;
+        fBaseTitle = GetNumberedTitle(Item, Item.DisplayTitle);
 
         if (Item is TextFile TextFile)
         {
@@ -246,7 +275,7 @@ public partial class TextFileForm: AppForm
             EditorText.FilePath = TextFile.TextFilePath;
             EditorText.PreviewId = AppHost.GetMarkdownPreviewFormId(TextFile.Id);
 
-            EditorText2.Title = TextFile.DisplayTitle2;
+            EditorText2.Title = GetNumberedTitle(TextFile, TextFile.DisplayTitle2);
             EditorText2.FilePath = TextFile.Text2FilePath;
             EditorText2.PreviewId = AppHost.GetMarkdownPreviewFormId(TextFile.Id);
 
@@ -260,13 +289,13 @@ public partial class TextFileForm: AppForm
         }
         else if (Item is Document Document)
         {
-            EditorSynopsis.Title = $"Document: {Document.Title}";
+            EditorSynopsis.Title = GetDocumentEditorTitle(Document);
             EditorSynopsis.FilePath = Document.SynopsisFilePath;
             EditorSynopsis.PreviewId = AppHost.GetMarkdownPreviewFormId(Document.Id);
         }
         else if (Item is Folder Folder)
         {
-            EditorSynopsis.Title = string.IsNullOrWhiteSpace(Folder.LevelTitle) ? Folder.Title : $"{Folder.LevelTitle}: {Folder.Title}";
+            EditorSynopsis.Title = GetFolderEditorTitle(Folder);
             EditorSynopsis.FilePath = Folder.SynopsisFilePath;
             EditorSynopsis.PreviewId = AppHost.GetMarkdownPreviewFormId(Folder.Id);
         }

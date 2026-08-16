@@ -26,6 +26,10 @@ public class DocumentExporter
     /// </summary>
     readonly Dictionary<string, string> fExportImagePaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     /// <summary>
+    /// The internal markdown numbers by item.
+    /// </summary>
+    readonly Dictionary<BaseItem, string> fInternalMarkdownNumbers = new Dictionary<BaseItem, string>();
+    /// <summary>
     /// The markdown parser pipeline.
     /// </summary>
     static readonly MarkdownPipeline fMarkdownPipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
@@ -860,6 +864,10 @@ public class DocumentExporter
     /// <param name="UseSecondary">True to use secondary text.</param>
     void ExportInternalMarkdown(string FolderPath, bool UseSecondary)
     {
+        fInternalMarkdownNumbers.Clear();
+        foreach (KeyValuePair<BaseItem, string> Pair in DocumentItemNumbering.BuildNumbers(fDocument, true))
+            fInternalMarkdownNumbers[Pair.Key] = Pair.Value;
+
         List<string> Segments = new List<string> { GetInternalDocumentOrderSegment(fDocument) };
         ExportInternalMarkdownDocumentItems(FolderPath, fDocument.GetChildItems(), Segments, UseSecondary);
     }
@@ -947,7 +955,11 @@ public class DocumentExporter
     void WriteInternalMarkdownFile(string FolderPath, TextFile File, List<string> Segments, bool UseSecondary)
     {
         string Suffix = UseSecondary ? "_Secondary" : "_Primary";
-        string FileName = $"{GetInternalFileNumber(Segments)}_{SafeTitle(GetExportTitle(File, UseSecondary))}{Suffix}.md";
+        string Number = fInternalMarkdownNumbers.TryGetValue(File, out string ItemNumber) ? ItemNumber : string.Empty;
+        if (string.IsNullOrWhiteSpace(Number))
+            Number = GetInternalFileNumber(Segments);
+
+        string FileName = $"{Number}_{SafeTitle(GetExportTitle(File, UseSecondary))}{Suffix}.md";
         WriteFile(FolderPath, FileName, UseSecondary ? File.Text2 : File.Text);
     }
     /// <summary>
