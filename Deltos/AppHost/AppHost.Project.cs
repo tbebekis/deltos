@@ -82,6 +82,7 @@ static public partial class AppHost
 
         string Title = CurrentProject.Title;
 
+        SaveOpenContentSession();
         ProjectClosed?.Invoke(null, EventArgs.Empty);
         ClearDirtyEditors();
         CloseAllUi();
@@ -112,6 +113,7 @@ static public partial class AppHost
         {
             ProjectOpened?.Invoke(null, EventArgs.Empty);
             ShowSideBarForms();
+            RestoreOpenContentSession(Project);
             LogBox.AppendLine($"Project opened: '{Project.Title}'.");
         }
     }

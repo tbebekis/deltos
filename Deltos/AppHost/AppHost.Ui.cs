@@ -54,7 +54,9 @@ static public partial class AppHost
     static public T ShowContentForm<T>(string FormId = null, string Title = null, object Tag = null)
         where T: AppForm
     {
-        return ShowAppForm<T>(ContentHandler, FormId, Title, Tag);
+        T Result = ShowAppForm<T>(ContentHandler, FormId, Title, Tag);
+        SaveOpenContentSession();
+        return Result;
     }
 
     /// <summary>
@@ -120,6 +122,87 @@ static public partial class AppHost
             ContentHandler.CloseForm(ChildItem.Id);
 
         ContentHandler.CloseForm(Item.Id);
+        SaveOpenContentSession();
+    }
+    /// <summary>
+    /// Returns the open content item identifiers.
+    /// </summary>
+    /// <returns>The open content item identifiers.</returns>
+    static List<string> GetOpenContentItemIds()
+    {
+        List<string> Result = new List<string>();
+        if (ContentHandler == null)
+            return Result;
+
+        foreach (object Item in ContentHandler.Pager.Items)
+        {
+            if (Item is TabItem TabItem && TabItem.Tag is AppForm Form && Form.Context?.Tag is BaseItem BaseItem && !string.IsNullOrWhiteSpace(BaseItem.Id))
+                Result.Add(BaseItem.Id);
+        }
+
+        return Result;
+    }
+    /// <summary>
+    /// Finds a project item by id.
+    /// </summary>
+    /// <param name="Project">The project.</param>
+    /// <param name="Id">The item id.</param>
+    /// <returns>The found item, if any; otherwise null.</returns>
+    static BaseItem FindProjectItemById(Project Project, string Id)
+    {
+        if (Project == null || string.IsNullOrWhiteSpace(Id))
+            return null;
+
+        BaseItem Result = Project.GetDescendantItems(true).FirstOrDefault(Item => Item.Id.IsSameText(Id));
+        if (Result != null)
+            return Result;
+
+        Result = Project.Notes.FirstOrDefault(Item => Item.Id.IsSameText(Id));
+        if (Result != null)
+            return Result;
+
+        return Project.Components.FirstOrDefault(Item => Item.Id.IsSameText(Id));
+    }
+    /// <summary>
+    /// Saves the current open content session to application settings.
+    /// </summary>
+    static public void SaveOpenContentSession()
+    {
+        if (Settings == null || CurrentProject == null || ContentHandler == null)
+            return;
+
+        Settings.OpenContentProjectPath = CurrentProject.ProjectPath;
+        Settings.OpenContentItemIds = GetOpenContentItemIds();
+        Settings.SelectedOpenContentItemId = string.Empty;
+        if (ContentHandler.Pager.SelectedItem is TabItem TabItem && TabItem.Tag is AppForm Form && Form.Context?.Tag is BaseItem BaseItem)
+            Settings.SelectedOpenContentItemId = BaseItem.Id;
+
+        Settings.Save();
+    }
+    /// <summary>
+    /// Restores the saved open content session.
+    /// </summary>
+    /// <param name="Project">The current project.</param>
+    static public void RestoreOpenContentSession(Project Project)
+    {
+        if (Settings == null || Project == null || ContentHandler == null)
+            return;
+
+        if (!Settings.RestoreOpenFilesOnStartup || !Settings.OpenContentProjectPath.IsSameText(Project.ProjectPath))
+            return;
+
+        foreach (string Id in Settings.OpenContentItemIds ?? new List<string>())
+        {
+            BaseItem Item = FindProjectItemById(Project, Id);
+            if (Item != null)
+                ShowLinkItemPage(new LinkItem(Item.Type, LinkPlace.Text, Item.Title, Item));
+        }
+
+        if (!string.IsNullOrWhiteSpace(Settings.SelectedOpenContentItemId))
+        {
+            AppForm Form = ContentHandler.FindAppForm(Settings.SelectedOpenContentItemId);
+            Form?.SetAsSelectedForm();
+        }
     }
 
     /// <summary>

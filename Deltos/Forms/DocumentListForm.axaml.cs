@@ -1234,10 +1234,6 @@ public partial class DocumentListForm: AppForm
         {
             AddMetricRow(Panel, "Words", Stats.WordCount.ToString());
             AddMetricRow(Panel, "Pages", $"{Stats.EstimatedPages:0.00}");
-            AddMetricRow(Panel, "Chars", Stats.CharCount.ToString());
-            AddMetricRow(Panel, "Chars - spaces", Stats.CharCountNoSpaces.ToString());
-            AddMetricRow(Panel, "Lines", Stats.LineCount.ToString());
-            AddMetricRow(Panel, "Pars", Stats.ParagraphCount.ToString());
         });
     }
     /// <summary>
@@ -1419,6 +1415,19 @@ public partial class DocumentListForm: AppForm
         Args.Handled = true;
     }
     /// <summary>
+    /// Handles tree key events.
+    /// </summary>
+    /// <param name="Sender">The event sender.</param>
+    /// <param name="Args">The event arguments.</param>
+    async void TreeKeyDown(object Sender, KeyEventArgs Args)
+    {
+        if (Args.Key != Key.Delete)
+            return;
+
+        Args.Handled = true;
+        await DeleteSelectedItem();
+    }
+    /// <summary>
     /// Returns the tree node that raised an input event.
     /// </summary>
     /// <param name="Source">The input event source.</param>
@@ -1497,6 +1506,7 @@ public partial class DocumentListForm: AppForm
         CreateToolBar();
         tvProject.SelectionChanged += TreeSelectionChanged;
         tvProject.DoubleTapped += TreeDoubleTapped;
+        tvProject.KeyDown += TreeKeyDown;
         tvProject.AddHandler(InputElement.PointerPressedEvent, TreePointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 

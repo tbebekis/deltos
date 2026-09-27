@@ -409,6 +409,19 @@ public partial class TagListForm: AppForm
         EditComponentText();
         Args.Handled = true;
     }
+    /// <summary>
+    /// Handles tag list key events.
+    /// </summary>
+    /// <param name="Sender">The event sender.</param>
+    /// <param name="Args">The event arguments.</param>
+    async void TagsKeyDown(object Sender, KeyEventArgs Args)
+    {
+        if (Args.Key != Key.Delete)
+            return;
+
+        Args.Handled = true;
+        await DeleteTag();
+    }
 
     // ● overrides
     /// <summary>
@@ -419,6 +432,7 @@ public partial class TagListForm: AppForm
         TitleText = "Tags";
         ClosableByUser = false;
         CreateToolBar();
+        lboTags.KeyDown += TagsKeyDown;
         LoadTags();
     }
 

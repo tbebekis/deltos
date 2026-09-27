@@ -66,6 +66,7 @@ public class AppSettings: SettingsBase
     {
         base.LoadAfter();
         NormalizeRecentProjects();
+        OpenContentItemIds ??= new List<string>();
         WordsPerPage = Math.Clamp(WordsPerPage, 50, 1000);
         Theme = AppHost.NormalizeTheme(Theme);
     }
@@ -96,6 +97,7 @@ public class AppSettings: SettingsBase
         Theme = Source.Theme;
         SecondLanguageVisible = Source.SecondLanguageVisible;
         ShowMarkdownPreviewButton = Source.ShowMarkdownPreviewButton;
+        RestoreOpenFilesOnStartup = Source.RestoreOpenFilesOnStartup;
         ShowFolderLevelTitleInTree = Source.ShowFolderLevelTitleInTree;
         ShowDocumentItemNumbers = Source.ShowDocumentItemNumbers;
     }
@@ -162,6 +164,22 @@ public class AppSettings: SettingsBase
     /// Gets or sets a value indicating whether text editors show the markdown preview button.
     /// </summary>
     public bool ShowMarkdownPreviewButton { get; set; } = true;
+    /// <summary>
+    /// Gets or sets a value indicating whether open files are restored when the application starts.
+    /// </summary>
+    public bool RestoreOpenFilesOnStartup { get; set; } = true;
+    /// <summary>
+    /// Gets or sets the project path used by the open content session.
+    /// </summary>
+    public string OpenContentProjectPath { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the open content item identifiers.
+    /// </summary>
+    public List<string> OpenContentItemIds { get; set; } = new();
+    /// <summary>
+    /// Gets or sets the selected open content item identifier.
+    /// </summary>
+    public string SelectedOpenContentItemId { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets a value indicating whether folder level titles are shown before folder titles in the UI tree.
     /// </summary>

@@ -315,6 +315,19 @@ public partial class NoteListForm: AppForm
         EditNoteText();
         Args.Handled = true;
     }
+    /// <summary>
+    /// Handles note list key events.
+    /// </summary>
+    /// <param name="Sender">The event sender.</param>
+    /// <param name="Args">The event arguments.</param>
+    async void NotesKeyDown(object Sender, KeyEventArgs Args)
+    {
+        if (Args.Key != Key.Delete)
+            return;
+
+        Args.Handled = true;
+        await DeleteNote();
+    }
 
     // ● overrides
     /// <summary>
@@ -325,6 +338,7 @@ public partial class NoteListForm: AppForm
         TitleText = "Notes";
         ClosableByUser = false;
         CreateToolBar();
+        lboNotes.KeyDown += NotesKeyDown;
         LoadNotes();
     }
 

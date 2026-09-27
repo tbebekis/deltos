@@ -248,6 +248,19 @@ public partial class QuickViewForm: AppForm
         EditSelectedItemText();
         Args.Handled = true;
     }
+    /// <summary>
+    /// Handles item list key events.
+    /// </summary>
+    /// <param name="Sender">The event sender.</param>
+    /// <param name="Args">The event arguments.</param>
+    void ItemsKeyDown(object Sender, KeyEventArgs Args)
+    {
+        if (Args.Key != Key.Delete)
+            return;
+
+        Args.Handled = true;
+        RemoveSelectedItem();
+    }
 
     // ● overrides
     /// <summary>
@@ -260,6 +273,7 @@ public partial class QuickViewForm: AppForm
         CreateToolBar();
         Editor.ToolBarVisible = false;
         Editor.ReadOnly = true;
+        lboItems.KeyDown += ItemsKeyDown;
         LoadItems();
     }
 

@@ -703,17 +703,25 @@ public partial class MainWindow : Window
             LogBox.AppendLine("Commit to git started.");
 
             GitCli Git = CreateProjectGitCli();
-            Git.CheckGitInstalled();
+            bool Initialized = await Task.Run(() =>
+            {
+                Git.CheckGitInstalled();
+                if (Git.IsGitRepo())
+                    return false;
 
-            if (!Git.IsGitRepo())
+                Git.InitRepo();
+                return true;
+            });
+
+            if (Initialized)
             {
                 LogBox.AppendLine("Initializing git repository...");
-                Git.InitRepo();
                 EnsureProjectGitIgnore(Project);
                 LogBox.AppendLine("Git repository initialized.");
             }
 
-            if (!Git.HasUncommittedChanges())
+            bool HasUncommittedChanges = await Task.Run(() => Git.HasUncommittedChanges());
+            if (!HasUncommittedChanges)
             {
                 LogBox.AppendLine("There are no uncommitted changes.");
                 LogBox.AppendLine("Commit to git completed: nothing to commit.");
@@ -751,7 +759,8 @@ public partial class MainWindow : Window
             await Task.Yield();
 
             GitCli Git = CreateProjectGitCli();
-            if (Git.CommitIfNeeded(CommitMessage))
+            bool Committed = await Task.Run(() => Git.CommitIfNeeded(CommitMessage));
+            if (Committed)
             {
                 LogBox.AppendLine($"Committed to git: {CommitMessage}");
                 LogBox.AppendLine("Commit to git completed.");
@@ -788,6 +797,9 @@ public partial class MainWindow : Window
 
         ProjectSettings Settings = ProjectSettings.Load(Project);
         GitCli Git = CreateProjectGitCli();
+        string ProjectPath = Project.ProjectPath;
+        string RemoteName = Settings.Git.RemoteName;
+        string RemoteUrl = Settings.Git.RemoteUrl;
 
         try
         {
@@ -795,17 +807,22 @@ public partial class MainWindow : Window
             await Task.Yield();
             LogBox.AppendLine("Push to remote git repository started.");
 
-            Git.CheckGitInstalled();
-            if (!Git.IsGitRepo())
-                throw new InvalidOperationException($"There is no git repository in folder: {Project.ProjectPath}");
+            bool HasRemote = await Task.Run(() =>
+            {
+                Git.CheckGitInstalled();
+                if (!Git.IsGitRepo())
+                    throw new InvalidOperationException($"There is no git repository in folder: {ProjectPath}");
 
-            if (Git.HasUncommittedChanges())
-                throw new InvalidOperationException("There are uncommitted changes. Please commit them first.");
+                if (Git.HasUncommittedChanges())
+                    throw new InvalidOperationException("There are uncommitted changes. Please commit them first.");
 
-            if (!Git.HasRemote(Settings.Git.RemoteName))
+                return Git.HasRemote(RemoteName);
+            });
+
+            if (!HasRemote)
             {
                 AppHost.HidePleaseWait();
-                if (string.IsNullOrWhiteSpace(Settings.Git.RemoteUrl))
+                if (string.IsNullOrWhiteSpace(RemoteUrl))
                 {
                     bool Saved = await EditProjectSettings();
                     if (!Saved)
@@ -816,9 +833,11 @@ public partial class MainWindow : Window
 
                     Settings = ProjectSettings.Load(Project);
                     Git = CreateProjectGitCli();
+                    RemoteName = Settings.Git.RemoteName;
+                    RemoteUrl = Settings.Git.RemoteUrl;
                 }
 
-                if (string.IsNullOrWhiteSpace(Settings.Git.RemoteUrl))
+                if (string.IsNullOrWhiteSpace(RemoteUrl))
                 {
                     LogBox.AppendLine("Push to remote git repository FAILED: remote URL is required.");
                     await Tripous.Desktop.MessageBox.Info("Remote URL is required.", this);
@@ -827,8 +846,8 @@ public partial class MainWindow : Window
 
                 AppHost.ShowPleaseWait("Adding git remote...", this);
                 await Task.Yield();
-                Git.AddRemote(Settings.Git.RemoteName, Settings.Git.RemoteUrl);
-                LogBox.AppendLine($"Git remote added: {Settings.Git.RemoteName}");
+                await Task.Run(() => Git.AddRemote(RemoteName, RemoteUrl));
+                LogBox.AppendLine($"Git remote added: {RemoteName}");
             }
 
             AppHost.HidePleaseWait();
@@ -847,7 +866,7 @@ public partial class MainWindow : Window
             AppHost.ShowPleaseWait("Pushing to remote git repository...", this);
             await Task.Yield();
 
-            CliResult Result = Git.Push();
+            CliResult Result = await Task.Run(() => Git.Push());
             LogBox.AppendLine("Pushing to remote git repository succeeded.");
             LogBox.AppendLine("Git output follows:");
             LogBox.AppendLine(Result.ToString());
@@ -1164,6 +1183,17 @@ public partial class MainWindow : Window
     {
         string ProjectText = AppHost.CurrentProject == null ? "No project open" : AppHost.CurrentProject.ProjectPath;
         UpdateStatusBar(StatusText, ProjectText);
+    }
+
+    // ● overrides
+    /// <summary>
+    /// Called when the window is closing.
+    /// </summary>
+    /// <param name="e">The closing event arguments.</param>
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        AppHost.SaveOpenContentSession();
+        base.OnClosing(e);
     }
 
     // ● construction

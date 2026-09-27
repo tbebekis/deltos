@@ -111,18 +111,16 @@ static public partial class AppHost
         }
         catch
         {
+            await Task.Run(() => DeleteAutoSaveTempFiles(Snapshots));
             foreach (AutoSaveSnapshot Snapshot in Snapshots)
-            {
-                DeleteAutoSaveTempFile(Snapshot.TempFilePath);
                 AddDirtyEditor(Snapshot.Editor, Snapshot.ApplyTextProc);
-            }
 
             throw;
         }
 
-        CompleteAutoSaveSnapshots(Snapshots);
+        await CompleteAutoSaveSnapshots(Snapshots);
 
-        NotifyDocumentMetricsChanged();
+        Avalonia.Threading.Dispatcher.UIThread.Post(NotifyDocumentMetricsChanged, Avalonia.Threading.DispatcherPriority.Background);
     }
     /// <summary>
     /// Creates immutable auto-save snapshots from dirty editors.
@@ -168,34 +166,59 @@ static public partial class AppHost
             Snapshot.TempFilePath = WriteAutoSaveTempFile(Snapshot.FilePath, Snapshot.Text);
     }
     /// <summary>
+    /// Returns true if a snapshot still matches its editor.
+    /// </summary>
+    /// <param name="Snapshot">The auto-save snapshot.</param>
+    /// <returns>True if the snapshot still matches its editor.</returns>
+    static bool SnapshotMatchesEditor(AutoSaveSnapshot Snapshot)
+    {
+        return Snapshot.Editor != null && Snapshot.Editor.FilePath == Snapshot.FilePath && Snapshot.Editor.EditorText == Snapshot.Text;
+    }
+    /// <summary>
     /// Completes auto-save snapshots whose editor text has not changed since the background write started.
     /// </summary>
     /// <param name="Snapshots">The snapshots to complete.</param>
-    static void CompleteAutoSaveSnapshots(List<AutoSaveSnapshot> Snapshots)
+    static async Task CompleteAutoSaveSnapshots(List<AutoSaveSnapshot> Snapshots)
     {
         foreach (AutoSaveSnapshot Snapshot in Snapshots)
         {
             try
             {
-                if (Snapshot.Editor.FilePath == Snapshot.FilePath && Snapshot.Editor.EditorText == Snapshot.Text)
+                if (SnapshotMatchesEditor(Snapshot))
                 {
-                    System.IO.File.Move(Snapshot.TempFilePath, Snapshot.FilePath, true);
-                    Snapshot.Editor.Modified = false;
-                    RemoveDirtyEditor(Snapshot.Editor);
+                    await Task.Run(() => MoveAutoSaveTempFile(Snapshot.TempFilePath, Snapshot.FilePath));
+                    if (SnapshotMatchesEditor(Snapshot))
+                    {
+                        Snapshot.Editor.Modified = false;
+                        RemoveDirtyEditor(Snapshot.Editor);
+                    }
+                    else
+                    {
+                        AddDirtyEditor(Snapshot.Editor, Snapshot.ApplyTextProc);
+                    }
                 }
                 else
                 {
-                    DeleteAutoSaveTempFile(Snapshot.TempFilePath);
+                    await Task.Run(() => DeleteAutoSaveTempFile(Snapshot.TempFilePath));
                     AddDirtyEditor(Snapshot.Editor, Snapshot.ApplyTextProc);
                 }
             }
             catch (Exception e)
             {
-                DeleteAutoSaveTempFile(Snapshot.TempFilePath);
+                await Task.Run(() => DeleteAutoSaveTempFile(Snapshot.TempFilePath));
                 LogBox.AppendLine(e);
                 AddDirtyEditor(Snapshot.Editor, Snapshot.ApplyTextProc);
             }
         }
+    }
+    /// <summary>
+    /// Moves a temporary auto-save file to its target path.
+    /// </summary>
+    /// <param name="TempFilePath">The temporary file path.</param>
+    /// <param name="FilePath">The target file path.</param>
+    static void MoveAutoSaveTempFile(string TempFilePath, string FilePath)
+    {
+        System.IO.File.Move(TempFilePath, FilePath, true);
     }
     /// <summary>
     /// Writes a temporary auto-save file without replacing the target file.
@@ -232,6 +255,15 @@ static public partial class AppHost
     {
         if (!string.IsNullOrWhiteSpace(FilePath) && System.IO.File.Exists(FilePath))
             System.IO.File.Delete(FilePath);
+    }
+    /// <summary>
+    /// Deletes temporary auto-save files.
+    /// </summary>
+    /// <param name="Snapshots">The auto-save snapshots.</param>
+    static void DeleteAutoSaveTempFiles(List<AutoSaveSnapshot> Snapshots)
+    {
+        foreach (AutoSaveSnapshot Snapshot in Snapshots)
+            DeleteAutoSaveTempFile(Snapshot.TempFilePath);
     }
     /// <summary>
     /// Initializes auto-save.

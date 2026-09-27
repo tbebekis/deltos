@@ -312,6 +312,15 @@ public class DocumentExporter
         return Value.StartsWith("```", StringComparison.Ordinal) || Value.StartsWith("~~~", StringComparison.Ordinal);
     }
     /// <summary>
+    /// Returns true if a line is a standalone markdown asterisk thematic break.
+    /// </summary>
+    /// <param name="Line">The markdown line.</param>
+    /// <returns>True if the line is an asterisk thematic break.</returns>
+    static bool IsMarkdownAsteriskBreakLine(string Line)
+    {
+        return Regex.IsMatch(Line ?? string.Empty, @"^\s*\*\s*\*\s*\*\s*$");
+    }
+    /// <summary>
     /// Returns the first exported markdown heading level in text.
     /// </summary>
     /// <param name="Text">The markdown text.</param>
@@ -408,6 +417,33 @@ public class DocumentExporter
         return Builder.ToString();
     }
     /// <summary>
+    /// Escapes standalone asterisk break lines so ODT export keeps the text.
+    /// </summary>
+    /// <param name="MarkdownText">The markdown text.</param>
+    /// <returns>The markdown text with escaped asterisk break lines.</returns>
+    static string EscapeAsteriskBreakLines(string MarkdownText)
+    {
+        if (string.IsNullOrWhiteSpace(MarkdownText))
+            return MarkdownText ?? string.Empty;
+
+        StringBuilder Builder = new StringBuilder();
+        bool InFence = false;
+        string[] Lines = MarkdownText.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        foreach (string Line in Lines)
+        {
+            bool IsFenceLine = IsMarkdownFence(Line);
+            if (!InFence && !IsFenceLine && IsMarkdownAsteriskBreakLine(Line))
+                Builder.AppendLine("\\*\\*\\*");
+            else
+                Builder.AppendLine(Line);
+
+            if (IsFenceLine)
+                InFence = !InFence;
+        }
+
+        return Builder.ToString();
+    }
+    /// <summary>
     /// Appends markdown text as HTML.
     /// </summary>
     /// <param name="Builder">The string builder.</param>
@@ -415,13 +451,17 @@ public class DocumentExporter
     /// <param name="AnchorIndex">The next anchor index.</param>
     /// <param name="MarkdownText">The markdown text.</param>
     /// <param name="TextFileLevel">The text file heading level.</param>
-    void AppendMarkdownHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, string MarkdownText, int TextFileLevel, bool IncludeToc)
+    /// <param name="EscapeAsteriskBreaks">True to keep standalone asterisk break lines as text.</param>
+    void AppendMarkdownHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, string MarkdownText, int TextFileLevel, bool IncludeToc, bool EscapeAsteriskBreaks)
     {
         if (string.IsNullOrWhiteSpace(MarkdownText))
             return;
 
         if (fOptions.SingleLineBreaksCreateParagraphs)
             MarkdownText = ApplySingleLineParagraphs(MarkdownText);
+
+        if (EscapeAsteriskBreaks)
+            MarkdownText = EscapeAsteriskBreakLines(MarkdownText);
 
         StringBuilder TextBuilder = new StringBuilder();
         bool InFence = false;
@@ -1228,8 +1268,11 @@ public class DocumentExporter
     /// Builds HTML text export.
     /// </summary>
     /// <param name="UseSecondary">True to use secondary text.</param>
+    /// <param name="IncludeToc">True to include the table of contents.</param>
+    /// <param name="UseBlackHeadings">True to use black heading color.</param>
+    /// <param name="UseOdtExportRules">True to use ODT export rules.</param>
     /// <returns>The HTML export.</returns>
-    string BuildHtml(bool UseSecondary, bool IncludeToc, bool UseBlackHeadings, bool UseOdtHeadingLevels = false)
+    string BuildHtml(bool UseSecondary, bool IncludeToc, bool UseBlackHeadings, bool UseOdtExportRules = false)
     {
         StringBuilder Builder = new StringBuilder();
         StringBuilder TocBuilder = new StringBuilder();
@@ -1238,7 +1281,7 @@ public class DocumentExporter
 
         int RootLevel = 1;
         foreach (BaseItem Item in fDocument.GetChildItems())
-            AppendItemHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, Item, UseSecondary, RootLevel, UseOdtHeadingLevels);
+            AppendItemHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, Item, UseSecondary, RootLevel, UseOdtExportRules);
 
         return WrapHtml(GetExportTitle(fDocument, UseSecondary), TocBuilder.ToString(), Builder.ToString(), IncludeToc, UseBlackHeadings);
     }
@@ -1252,8 +1295,8 @@ public class DocumentExporter
     /// <param name="Folder">The folder.</param>
     /// <param name="UseSecondary">True to use secondary text.</param>
     /// <param name="Level">The heading level.</param>
-    /// <param name="UseOdtHeadingLevels">True to use ODT heading levels.</param>
-    void AppendFolderHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, ref int Heading1Count, Folder Folder, bool UseSecondary, int Level, bool UseOdtHeadingLevels)
+    /// <param name="UseOdtExportRules">True to use ODT export rules.</param>
+    void AppendFolderHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, ref int Heading1Count, Folder Folder, bool UseSecondary, int Level, bool UseOdtExportRules)
     {
         string Title = FormatItemTitle(Folder, Folder.LevelTitle, GetExportTitle(Folder, UseSecondary), fOptions.FolderTitle);
         if (!string.IsNullOrWhiteSpace(Title))
@@ -1270,7 +1313,7 @@ public class DocumentExporter
 
         int TextFileLevel = string.IsNullOrWhiteSpace(Title) ? Level : Math.Min(6, Level + 1);
         foreach (BaseItem Item in Folder.GetChildItems())
-            AppendItemHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, Item, UseSecondary, TextFileLevel, UseOdtHeadingLevels);
+            AppendItemHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, Item, UseSecondary, TextFileLevel, UseOdtExportRules);
     }
     /// <summary>
     /// Appends item HTML.
@@ -1282,19 +1325,19 @@ public class DocumentExporter
     /// <param name="Item">The item.</param>
     /// <param name="UseSecondary">True to use secondary text.</param>
     /// <param name="Level">The heading level.</param>
-    /// <param name="UseOdtHeadingLevels">True to use ODT heading levels.</param>
-    void AppendItemHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, ref int Heading1Count, BaseItem Item, bool UseSecondary, int Level, bool UseOdtHeadingLevels)
+    /// <param name="UseOdtExportRules">True to use ODT export rules.</param>
+    void AppendItemHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, ref int Heading1Count, BaseItem Item, bool UseSecondary, int Level, bool UseOdtExportRules)
     {
         Folder Folder = Item as Folder;
         if (Folder != null)
         {
-            AppendFolderHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, Folder, UseSecondary, Level, UseOdtHeadingLevels);
+            AppendFolderHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, Folder, UseSecondary, Level, UseOdtExportRules);
             return;
         }
 
         TextFile File = Item as TextFile;
         if (File != null)
-            AppendTextFileHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, File, UseSecondary, Level);
+            AppendTextFileHtml(Builder, TocBuilder, ref AnchorIndex, ref Heading1Count, File, UseSecondary, Level, UseOdtExportRules);
     }
     /// <summary>
     /// Appends text file HTML.
@@ -1306,7 +1349,8 @@ public class DocumentExporter
     /// <param name="File">The text file.</param>
     /// <param name="UseSecondary">True to use secondary text.</param>
     /// <param name="Level">The heading level.</param>
-    void AppendTextFileHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, ref int Heading1Count, TextFile File, bool UseSecondary, int Level)
+    /// <param name="UseOdtExportRules">True to use ODT export rules.</param>
+    void AppendTextFileHtml(StringBuilder Builder, StringBuilder TocBuilder, ref int AnchorIndex, ref int Heading1Count, TextFile File, bool UseSecondary, int Level, bool UseOdtExportRules)
     {
         string Title = FormatItemTitle(File, "TextFile", GetExportTitle(File, UseSecondary), fOptions.TextFileTitle);
         if (!string.IsNullOrWhiteSpace(Title))
@@ -1326,15 +1370,21 @@ public class DocumentExporter
         if (fOptions.TreatTextFilesAsPlainText)
             AppendPlainTextHtml(Builder, TocBuilder, ref AnchorIndex, Text, TextFileLevel, File.IncludeInToc);
         else
-            AppendMarkdownHtml(Builder, TocBuilder, ref AnchorIndex, Text, TextFileLevel, File.IncludeInToc);
+            AppendMarkdownHtml(Builder, TocBuilder, ref AnchorIndex, Text, TextFileLevel, File.IncludeInToc, UseOdtExportRules);
     }
     /// <summary>
     /// Builds synopsis HTML export.
     /// </summary>
+    /// <param name="UseBlackHeadings">True to use black heading color.</param>
+    /// <param name="EscapeAsteriskBreaks">True to keep standalone asterisk break lines as text.</param>
     /// <returns>The synopsis HTML export.</returns>
-    string BuildSynopsisHtml(bool UseBlackHeadings)
+    string BuildSynopsisHtml(bool UseBlackHeadings, bool EscapeAsteriskBreaks = false)
     {
-        return WrapHtml($"Synopsis - {fDocument.Title}", string.Empty, PrepareExportImageHtml(Markdig.Markdown.ToHtml(BuildSynopsisText(), fMarkdownPipeline)), false, UseBlackHeadings);
+        string MarkdownText = BuildSynopsisText();
+        if (EscapeAsteriskBreaks)
+            MarkdownText = EscapeAsteriskBreakLines(MarkdownText);
+
+        return WrapHtml($"Synopsis - {fDocument.Title}", string.Empty, PrepareExportImageHtml(Markdig.Markdown.ToHtml(MarkdownText, fMarkdownPipeline)), false, UseBlackHeadings);
     }
     /// <summary>
     /// Writes a file.
@@ -1829,7 +1879,7 @@ public class DocumentExporter
 
             if (fOptions.Format.HasFlag(ExportFormat.Odt))
             {
-                string SynopsisHtml = BuildSynopsisHtml(true);
+                string SynopsisHtml = BuildSynopsisHtml(true, true);
                 string OdtSourceHtmlFilePath = WriteFile(ExportFolderPath, $"{BaseName}_Synopsis_ODT_SOURCE.html", SynopsisHtml);
                 ConvertHtmlToOdt(OdtSourceHtmlFilePath, ExportFolderPath, $"{BaseName}_Synopsis.odt");
             }

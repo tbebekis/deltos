@@ -56,6 +56,7 @@ public partial class AppSettingsDialog: DialogWindow
         Result.Theme = Source.Theme;
         Result.SecondLanguageVisible = Source.SecondLanguageVisible;
         Result.ShowMarkdownPreviewButton = Source.ShowMarkdownPreviewButton;
+        Result.RestoreOpenFilesOnStartup = Source.RestoreOpenFilesOnStartup;
         Result.ShowFolderLevelTitleInTree = Source.ShowFolderLevelTitleInTree;
         Result.ShowDocumentItemNumbers = Source.ShowDocumentItemNumbers;
         return Result;
@@ -97,6 +98,7 @@ public partial class AppSettingsDialog: DialogWindow
         cboTheme.SelectedIndex = GetThemeIndex(fSettings.Theme);
         chkSecondLanguageVisible.IsChecked = fSettings.SecondLanguageVisible;
         chkShowMarkdownPreviewButton.IsChecked = fSettings.ShowMarkdownPreviewButton;
+        chkRestoreOpenFilesOnStartup.IsChecked = fSettings.RestoreOpenFilesOnStartup;
         chkShowFolderLevelTitleInTree.IsChecked = fSettings.ShowFolderLevelTitleInTree;
         chkShowDocumentItemNumbers.IsChecked = fSettings.ShowDocumentItemNumbers;
     }
@@ -113,6 +115,7 @@ public partial class AppSettingsDialog: DialogWindow
         fSettings.Theme = GetSelectedTheme();
         fSettings.SecondLanguageVisible = chkSecondLanguageVisible.IsChecked == true;
         fSettings.ShowMarkdownPreviewButton = chkShowMarkdownPreviewButton.IsChecked == true;
+        fSettings.RestoreOpenFilesOnStartup = chkRestoreOpenFilesOnStartup.IsChecked == true;
         fSettings.ShowFolderLevelTitleInTree = chkShowFolderLevelTitleInTree.IsChecked == true;
         fSettings.ShowDocumentItemNumbers = chkShowDocumentItemNumbers.IsChecked == true;
     }

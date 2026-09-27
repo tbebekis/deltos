@@ -568,6 +568,19 @@ public partial class ComponentListForm: AppForm
         EditComponentText();
         Args.Handled = true;
     }
+    /// <summary>
+    /// Handles component list key events.
+    /// </summary>
+    /// <param name="Sender">The event sender.</param>
+    /// <param name="Args">The event arguments.</param>
+    async void ComponentsKeyDown(object Sender, KeyEventArgs Args)
+    {
+        if (Args.Key != Key.Delete)
+            return;
+
+        Args.Handled = true;
+        await DeleteComponent();
+    }
 
     // ● overrides
     /// <summary>
@@ -578,6 +591,7 @@ public partial class ComponentListForm: AppForm
         TitleText = "Components";
         ClosableByUser = false;
         CreateToolBar();
+        lboComponents.KeyDown += ComponentsKeyDown;
         LoadComponents();
     }
 

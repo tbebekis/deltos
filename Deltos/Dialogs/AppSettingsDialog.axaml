@@ -4,9 +4,9 @@
                       x:Class="Deltos.AppSettingsDialog"
                       Title="Settings"
                       Width="440"
-                      Height="490"
+                      Height="520"
                       MinWidth="420"
-                      MinHeight="470"
+                      MinHeight="500"
                       CanResize="False"
                       ShowInTaskbar="False"
                       WindowStartupLocation="CenterOwner">
@@ -14,7 +14,7 @@
           Margin="16"
           RowSpacing="14">
         <Grid ColumnDefinitions="Auto,*"
-              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
               ColumnSpacing="12"
               RowSpacing="10">
             <CheckBox Name="chkAutoSave"
@@ -78,12 +78,16 @@
                       Grid.Row="7"
                       Grid.ColumnSpan="2"
                       Content="Show markdown preview button in text editors" />
-            <CheckBox Name="chkShowFolderLevelTitleInTree"
+            <CheckBox Name="chkRestoreOpenFilesOnStartup"
                       Grid.Row="8"
+                      Grid.ColumnSpan="2"
+                      Content="Restore open files on startup" />
+            <CheckBox Name="chkShowFolderLevelTitleInTree"
+                      Grid.Row="9"
                       Grid.ColumnSpan="2"
                       Content="Show folder level title in tree" />
             <CheckBox Name="chkShowDocumentItemNumbers"
-                      Grid.Row="9"
+                      Grid.Row="10"
                       Grid.ColumnSpan="2"
                       Content="Show document item numbers" />
         </Grid>
